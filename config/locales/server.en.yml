@@ -1,0 +1,5 @@
+en:
+  site_settings:
+    discourse_workspace_groups_enabled: "Enable workspace groups prototype"
+    discourse_workspace_groups_members_can_create_channels: "Allow workspace members to create channels"
+    discourse_workspace_groups_excluded_top_level_category_ids: "Top-level categories excluded from workspace behavior"

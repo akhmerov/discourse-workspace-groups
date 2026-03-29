@@ -1,0 +1,35 @@
+.workspace-groups-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 1rem;
+}
+
+.workspace-groups-actions__button {
+  gap: 0.4rem;
+}
+
+.workspace-groups-create-channel-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.workspace-groups-create-channel-modal__label {
+  font-weight: 600;
+}
+
+.workspace-groups-create-channel-modal__input,
+.workspace-groups-create-channel-modal__textarea {
+  width: 100%;
+}
+
+.workspace-groups-create-channel-modal__textarea {
+  min-height: 7rem;
+}
+
+.workspace-groups-create-channel-modal__help {
+  color: var(--primary-medium);
+  font-size: var(--font-down-1);
+  margin: 0;
+}

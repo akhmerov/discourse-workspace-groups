@@ -1,0 +1,14 @@
+en:
+  js:
+    discourse_workspace_groups:
+      enable_workspace: "Enable workspace"
+      create_channel: "Create channel"
+      create_channel_title: "Create channel"
+      channel_name: "Channel name"
+      channel_description: "Description"
+      private_channel: "Private channel"
+      private_channel_help: "Private channels are only visible to channel members."
+      private_members: "Initial members"
+      private_members_help: "Comma-separated usernames to add to a private channel."
+      create: "Create"
+      channel_created: "Channel created"
