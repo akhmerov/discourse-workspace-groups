@@ -1,11 +1,10 @@
 .workspace-groups-actions {
   display: flex;
-  justify-content: flex-end;
-  margin: 0 0 1rem;
+  align-items: stretch;
 }
 
 .workspace-groups-actions__button {
-  gap: 0.4rem;
+  flex: 0 0 auto;
 }
 
 .workspace-groups-create-channel-modal__field {

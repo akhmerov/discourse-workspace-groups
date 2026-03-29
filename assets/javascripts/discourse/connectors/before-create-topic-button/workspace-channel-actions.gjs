@@ -8,19 +8,15 @@ import CreateWorkspaceChannelModal from "../../components/modal/create-workspace
 
 export default class WorkspaceChannelActions extends Component {
   @service modal;
+  @service site;
 
   static shouldRender(outletArgs) {
-    return (
-      outletArgs.category?.workspace_can_enable ||
-      (
-        outletArgs.category?.workspace_kind === "workspace" &&
-          outletArgs.category?.workspace_can_create_channel
-      )
-    );
+    return !!outletArgs.category;
   }
 
   get category() {
-    return this.args.outletArgs.category;
+    const categoryId = this.args.outletArgs.category?.id;
+    return this.site.categoriesById?.get(categoryId) || this.args.outletArgs.category;
   }
 
   get canEnableWorkspace() {
@@ -56,18 +52,20 @@ export default class WorkspaceChannelActions extends Component {
       {{#if this.canEnableWorkspace}}
         <DButton
           @action={{this.enableWorkspace}}
-          @icon="layer-group"
-          @label="discourse_workspace_groups.enable_workspace"
-          class="btn-small btn-default workspace-groups-actions__button"
+          @icon="plus"
+          @title="discourse_workspace_groups.enable_workspace"
+          @ariaLabel="discourse_workspace_groups.enable_workspace"
+          class="btn-default workspace-groups-actions__button"
         />
       {{/if}}
 
       {{#if this.canCreateChannel}}
         <DButton
           @action={{this.showCreateChannelModal}}
-          @icon="layer-group"
-          @label="discourse_workspace_groups.create_channel"
-          class="btn-small btn-default workspace-groups-actions__button"
+          @icon="plus"
+          @title="discourse_workspace_groups.create_channel"
+          @ariaLabel="discourse_workspace_groups.create_channel"
+          class="btn-default workspace-groups-actions__button"
         />
       {{/if}}
     </div>
