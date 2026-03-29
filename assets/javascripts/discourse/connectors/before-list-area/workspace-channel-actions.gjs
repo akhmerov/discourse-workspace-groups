@@ -58,7 +58,7 @@ export default class WorkspaceChannelActions extends Component {
           @action={{this.enableWorkspace}}
           @icon="layer-group"
           @label="discourse_workspace_groups.enable_workspace"
-          class="btn-primary workspace-groups-actions__button"
+          class="btn-small btn-default workspace-groups-actions__button"
         />
       {{/if}}
 
@@ -67,7 +67,7 @@ export default class WorkspaceChannelActions extends Component {
           @action={{this.showCreateChannelModal}}
           @icon="layer-group"
           @label="discourse_workspace_groups.create_channel"
-          class="btn-primary workspace-groups-actions__button"
+          class="btn-small btn-default workspace-groups-actions__button"
         />
       {{/if}}
     </div>
