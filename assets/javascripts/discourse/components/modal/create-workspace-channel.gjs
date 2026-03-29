@@ -8,7 +8,6 @@ import DModal from "discourse/components/d-modal";
 import DToggleSwitch from "discourse/components/d-toggle-switch";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
-import DiscourseURL from "discourse/lib/url";
 import { not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 
@@ -59,7 +58,7 @@ export default class CreateWorkspaceChannelModal extends Component {
       );
 
       this.args.closeModal();
-      DiscourseURL.routeTo(result.category_url);
+      window.location.assign(result.category_url);
     } catch (error) {
       popupAjaxError(error);
     } finally {
