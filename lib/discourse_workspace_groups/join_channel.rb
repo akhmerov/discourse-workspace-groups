@@ -13,7 +13,8 @@ module ::DiscourseWorkspaceGroups
       validate!
 
       channel.workspace_group.add(user)
-      DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: channel).call
+      chat_channel = DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: channel).call
+      Chat::Publisher.publish_new_channel(chat_channel, [user.id]) if chat_channel.present?
 
       channel
     end

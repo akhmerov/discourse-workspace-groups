@@ -5,6 +5,8 @@ import { popupAjaxError } from "discourse/lib/ajax-error";
 import { ajax } from "discourse/lib/ajax";
 
 export default class DiscoveryWorkspaceOverviewController extends Controller {
+  @service chat;
+  @service chatChannelsManager;
   @service composer;
   @service siteSettings;
 
@@ -34,6 +36,38 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     });
   }
 
+  async syncJoinedChatChannel(channel) {
+    if (channel?.chat_channel) {
+      const storedChannel = this.chatChannelsManager.store(channel.chat_channel, {
+        replace: true,
+      });
+
+      await this.chatChannelsManager.follow(storedChannel);
+      return;
+    }
+
+    if (!channel?.chat_channel_id) {
+      return;
+    }
+
+    await this.chat.loadChannels();
+    await this.chatChannelsManager.find(channel.chat_channel_id);
+  }
+
+  removeJoinedChatChannel(channel) {
+    if (!channel?.chat_channel_id) {
+      return;
+    }
+
+    const joinedChannel = this.chatChannelsManager.channels.find(
+      (chatChannel) => chatChannel.id === channel.chat_channel_id
+    );
+
+    if (joinedChannel) {
+      this.chatChannelsManager.remove(joinedChannel);
+    }
+  }
+
   @action
   createTopic() {
     this.composer.openNewTopic({
@@ -54,6 +88,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
       );
 
       this.updateChannel(channel, result.channel);
+      await this.syncJoinedChatChannel(result.channel);
     } catch (error) {
       popupAjaxError(error);
     } finally {
@@ -72,6 +107,8 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
           type: "DELETE",
         }
       );
+
+      this.removeJoinedChatChannel(result.channel);
 
       if (!result.channel.visible) {
         const index = this.model.channels.indexOf(channel);

@@ -165,7 +165,24 @@ module ::DiscourseWorkspaceGroups
         member_count: group&.user_count || 0,
         members_url: group.present? ? "/g/#{group.name}" : nil,
         topics_url: category.url,
+        chat_channel_id: category.category_channel&.id,
+        chat_channel: serialize_chat_channel(category),
       }
+    end
+
+    def serialize_chat_channel(category)
+      chat_channel = category.category_channel
+      return if chat_channel.blank?
+
+      membership = chat_channel.membership_for(current_user)
+      return if membership.blank?
+
+      ::Chat::ChannelSerializer.new(
+        chat_channel,
+        scope: guardian,
+        root: false,
+        membership: membership,
+      ).as_json
     end
   end
 end

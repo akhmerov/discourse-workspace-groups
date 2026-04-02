@@ -35,13 +35,19 @@ module ::DiscourseWorkspaceGroups
       end
 
       group_users.each do |group_user|
-        next if !group_user.guardian.can_join_chat_channel?(chat_channel)
+        refreshed_user = User.find_by(id: group_user.id)
+        next if refreshed_user.blank?
+        next if !Guardian.new(refreshed_user).can_join_chat_channel?(chat_channel)
 
-        chat_channel.add(group_user)
+        chat_channel.add(refreshed_user)
       end
 
-      if user.present? && user.guardian.can_join_chat_channel?(chat_channel)
-        chat_channel.add(user)
+      if user.present?
+        refreshed_user = User.find_by(id: user.id)
+
+        if refreshed_user.present? && Guardian.new(refreshed_user).can_join_chat_channel?(chat_channel)
+          chat_channel.add(refreshed_user)
+        end
       end
 
       chat_channel
