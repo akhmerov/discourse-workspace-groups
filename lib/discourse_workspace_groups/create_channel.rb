@@ -52,6 +52,8 @@ module ::DiscourseWorkspaceGroups
       channel_group.custom_fields["workspace_parent_group_id"] = workspace_group.id
       channel_group.save!
 
+      DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: channel, user: user).call
+
       channel
     end
 

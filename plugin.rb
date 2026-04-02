@@ -66,6 +66,7 @@ end
 require_relative "lib/discourse_workspace_groups/engine"
 require_relative "lib/discourse_workspace_groups/ensure_workspace"
 require_relative "lib/discourse_workspace_groups/create_channel"
+require_relative "lib/discourse_workspace_groups/sync_category_chat_channel"
 
 after_initialize do
   Discourse::Application.routes.append do
@@ -166,5 +167,11 @@ after_initialize do
   end
   add_to_serializer(:basic_category, :workspace_can_enable) do
     scope&.can_enable_workspace_group?(object)
+  end
+
+  on(:category_updated) do |category|
+    next if !category.is_a?(Category) || !category.workspace_channel?
+
+    DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: category).call
   end
 end
