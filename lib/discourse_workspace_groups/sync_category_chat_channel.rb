@@ -21,7 +21,7 @@ module ::DiscourseWorkspaceGroups
             name: category.name,
             description: category.description,
             slug: category.slug,
-            auto_join_users: true,
+            auto_join_users: false,
             threading_enabled: true,
           )
       else
@@ -29,17 +29,26 @@ module ::DiscourseWorkspaceGroups
         attrs[:name] = category.name if chat_channel.name != category.name
         attrs[:description] = category.description if chat_channel.description != category.description
         attrs[:slug] = category.slug if chat_channel.slug != category.slug
-        attrs[:auto_join_users] = true if !chat_channel.auto_join_users?
+        attrs[:auto_join_users] = false if chat_channel.auto_join_users?
         attrs[:threading_enabled] = true if !chat_channel.threading_enabled?
         chat_channel.update!(attrs) if attrs.present?
+      end
+
+      group_users.each do |group_user|
+        next if !group_user.guardian.can_join_chat_channel?(chat_channel)
+
+        chat_channel.add(group_user)
       end
 
       if user.present? && user.guardian.can_join_chat_channel?(chat_channel)
         chat_channel.add(user)
       end
 
-      Chat::AutoJoinChannels.call(params: { channel_id: chat_channel.id }) if chat_channel.auto_join_users?
       chat_channel
+    end
+
+    def group_users
+      category.workspace_group&.users&.to_a || []
     end
   end
 end

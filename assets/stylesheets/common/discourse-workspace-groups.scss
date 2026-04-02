@@ -83,6 +83,24 @@
   color: var(--primary);
 }
 
+.workspace-groups-overview__channel-name {
+  color: var(--primary);
+}
+
+.workspace-groups-overview__heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.workspace-groups-overview__card-meta {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .workspace-groups-overview__visibility {
   align-items: center;
   color: var(--primary-medium);
@@ -91,4 +109,30 @@
   font-size: var(--font-down-1);
   font-weight: 600;
   gap: 0.35rem;
+}
+
+.workspace-groups-overview__membership {
+  align-items: center;
+  color: var(--primary-medium);
+  display: inline-flex;
+  font-size: var(--font-down-1);
+  gap: 0.35rem;
+}
+
+.workspace-groups-overview__membership-link {
+  color: var(--primary);
+}
+
+.workspace-groups-overview__membership-button {
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .workspace-groups-overview__card-header {
+    flex-direction: column;
+  }
+
+  .workspace-groups-overview__card-meta {
+    align-items: flex-start;
+  }
 }

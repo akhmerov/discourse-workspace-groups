@@ -1,3 +1,5 @@
+import { fn } from "@ember/helper";
+import DButton from "discourse/components/d-button";
 import Layout from "discourse/components/discovery/layout";
 import Navigation from "discourse/components/discovery/navigation";
 import icon from "discourse/helpers/d-icon";
@@ -36,14 +38,47 @@ export default <template>
               <article class="workspace-groups-overview__card">
                 <div class="workspace-groups-overview__card-header">
                   <div>
-                    <h3>
-                      <a
-                        href={{channel.topics_url}}
-                        class="workspace-groups-overview__channel-link"
-                      >
-                        {{channel.name}}
-                      </a>
-                    </h3>
+                    <div class="workspace-groups-overview__heading">
+                      <h3>
+                        {{#if channel.can_open_topics}}
+                          <a
+                            href={{channel.topics_url}}
+                            class="workspace-groups-overview__channel-link"
+                          >
+                            {{channel.name}}
+                          </a>
+                        {{else}}
+                          <span class="workspace-groups-overview__channel-name">
+                            {{channel.name}}
+                          </span>
+                        {{/if}}
+                      </h3>
+
+                      {{#if channel.can_view_members}}
+                        <a
+                          href={{channel.members_url}}
+                          class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
+                        >
+                          {{icon "user"}}
+                          <span>
+                            {{i18n
+                              "discourse_workspace_groups.member_count"
+                              count=channel.member_count
+                            }}
+                          </span>
+                        </a>
+                      {{else}}
+                        <span class="workspace-groups-overview__membership">
+                          {{icon "user"}}
+                          <span>
+                            {{i18n
+                              "discourse_workspace_groups.member_count"
+                              count=channel.member_count
+                            }}
+                          </span>
+                        </span>
+                      {{/if}}
+                    </div>
 
                     {{#if channel.description}}
                       <p class="workspace-groups-overview__channel-description">
@@ -52,18 +87,36 @@ export default <template>
                     {{/if}}
                   </div>
 
-                  <span class="workspace-groups-overview__visibility">
-                    {{icon (if
-                      (eq channel.visibility "private")
-                      "lock"
-                      "globe"
-                    )}}
-                    {{i18n (if
-                      (eq channel.visibility "private")
-                      "discourse_workspace_groups.visibility_private"
-                      "discourse_workspace_groups.visibility_public"
-                    )}}
-                  </span>
+                  <div class="workspace-groups-overview__card-meta">
+                    <span class="workspace-groups-overview__visibility">
+                      {{icon (if
+                        (eq channel.visibility "private")
+                        "lock"
+                        "globe"
+                      )}}
+                      {{i18n (if
+                        (eq channel.visibility "private")
+                        "discourse_workspace_groups.visibility_private"
+                        "discourse_workspace_groups.visibility_public"
+                      )}}
+                    </span>
+
+                    {{#if channel.can_join}}
+                      <DButton
+                        @action={{fn @controller.joinChannel channel}}
+                        @label="discourse_workspace_groups.join_channel"
+                        class="btn-primary btn-small workspace-groups-overview__membership-button"
+                        @disabled={{channel.is_pending}}
+                      />
+                    {{else if channel.can_leave}}
+                      <DButton
+                        @action={{fn @controller.leaveChannel channel}}
+                        @label="discourse_workspace_groups.leave_channel"
+                        class="btn-default btn-small workspace-groups-overview__membership-button"
+                        @disabled={{channel.is_pending}}
+                      />
+                    {{/if}}
+                  </div>
                 </div>
               </article>
             {{/each}}

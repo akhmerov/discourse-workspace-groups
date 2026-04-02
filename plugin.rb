@@ -66,15 +66,19 @@ end
 require_relative "lib/discourse_workspace_groups/engine"
 require_relative "lib/discourse_workspace_groups/ensure_workspace"
 require_relative "lib/discourse_workspace_groups/create_channel"
+require_relative "lib/discourse_workspace_groups/join_channel"
+require_relative "lib/discourse_workspace_groups/leave_channel"
 require_relative "lib/discourse_workspace_groups/sync_category_chat_channel"
 
 after_initialize do
+  Discourse::Application.routes.prepend do
+    get "c/*category_slug_path/:category_id/overview" =>
+          "discourse_workspace_groups/workspaces#overview_page",
+        format: false
+  end
+
   Discourse::Application.routes.append do
     mount ::DiscourseWorkspaceGroups::Engine, at: "/workspace-groups"
-    get "c/*category_slug_path_with_id/overview" => "list#category_default",
-        constraints: {
-          format: "html",
-        }
   end
 
   require_relative "app/controllers/discourse_workspace_groups/workspaces_controller"
@@ -157,6 +161,25 @@ after_initialize do
 
     group = workspace.workspace_group
     group.present? && group.users.where(id: user.id).exists?
+  end
+
+  add_to_class(Guardian, :can_join_workspace_channel?) do |category|
+    return false if user.blank? || category.blank? || !category.workspace_channel?
+
+    workspace = category.workspace_parent_category
+    return false if !workspace&.workspace_root?
+    return false if category.workspace_visibility != DiscourseWorkspaceGroups::VISIBILITY_PUBLIC
+    return false if category.workspace_group.blank?
+    return false if category.workspace_group.users.exists?(id: user.id)
+
+    is_admin? || workspace.workspace_group&.users&.where(id: user.id)&.exists?
+  end
+
+  add_to_class(Guardian, :can_leave_workspace_channel?) do |category|
+    return false if user.blank? || category.blank? || !category.workspace_channel?
+    return false if category.workspace_group.blank?
+
+    category.workspace_group.users.where(id: user.id).exists?
   end
 
   add_to_serializer(:basic_category, :workspace_enabled) { object.workspace_enabled? }

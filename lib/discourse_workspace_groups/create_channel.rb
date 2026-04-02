@@ -18,14 +18,11 @@ module ::DiscourseWorkspaceGroups
 
       workspace_group = workspace.workspace_group
       channel_group = ensure_channel_group
-
-      if private_channel?
-        workspace.custom_fields[WORKSPACE_ENABLED] = true
-        workspace.custom_fields[WORKSPACE_KIND] = WORKSPACE_KIND_ROOT
-        workspace.custom_fields[WORKSPACE_GROUP_ID] = workspace_group.id
-        workspace.set_permissions(root_permissions(workspace_group, channel_group))
-        workspace.save!
-      end
+      workspace.custom_fields[WORKSPACE_ENABLED] = true
+      workspace.custom_fields[WORKSPACE_KIND] = WORKSPACE_KIND_ROOT
+      workspace.custom_fields[WORKSPACE_GROUP_ID] = workspace_group.id
+      workspace.set_permissions(root_permissions(workspace_group))
+      workspace.save!
 
       channel =
         Category.new(
@@ -38,7 +35,7 @@ module ::DiscourseWorkspaceGroups
         )
 
       channel.description = description if description.present?
-      channel.set_permissions(channel_permissions(workspace_group, channel_group))
+      channel.set_permissions(channel_permissions(channel_group))
 
       channel.custom_fields[WORKSPACE_ENABLED] = true
       channel.custom_fields[WORKSPACE_KIND] = WORKSPACE_KIND_CHANNEL
@@ -119,24 +116,20 @@ module ::DiscourseWorkspaceGroups
           .filter_map { |username| User.find_by_username(username) }
     end
 
-    def root_permissions(workspace_group, private_group)
+    def root_permissions(workspace_group)
       permissions = { workspace_group.id => :full }
 
       workspace
         .subcategories
         .select(&:workspace_channel?)
-        .select { |child| child.workspace_visibility == VISIBILITY_PRIVATE }
         .map(&:workspace_group_id)
         .compact
         .each { |group_id| permissions[group_id] = :full }
 
-      permissions[private_group.id] = :full
       permissions
     end
 
-    def channel_permissions(workspace_group, channel_group)
-      return { workspace_group.id => :full } if !private_channel?
-
+    def channel_permissions(channel_group)
       { channel_group.id => :full }
     end
   end

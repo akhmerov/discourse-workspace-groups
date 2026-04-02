@@ -1,3 +1,4 @@
+import { trackedArray, trackedObject } from "@ember/reactive/collections";
 import { service } from "@ember/service";
 import { ajax } from "discourse/lib/ajax";
 import Category from "discourse/models/category";
@@ -42,7 +43,11 @@ export default class DiscoveryWorkspaceOverviewRoute extends DiscourseRoute {
 
     return {
       category: workspace,
-      channels: result.channels || [],
+      channels: trackedArray(
+        (result.channels || []).map((channel) =>
+          trackedObject({ ...channel, is_pending: false })
+        )
+      ),
       filterType: "workspace-overview",
       noSubcategories: false,
     };

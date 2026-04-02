@@ -67,7 +67,6 @@ module ::DiscourseWorkspaceGroups
       category
         .subcategories
         .select(&:workspace_channel?)
-        .select { |child| child.workspace_visibility == VISIBILITY_PRIVATE }
         .map(&:workspace_group_id)
         .compact
         .each { |group_id| permissions[group_id] = :full }
