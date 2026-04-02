@@ -71,6 +71,10 @@ require_relative "lib/discourse_workspace_groups/sync_category_chat_channel"
 after_initialize do
   Discourse::Application.routes.append do
     mount ::DiscourseWorkspaceGroups::Engine, at: "/workspace-groups"
+    get "c/*category_slug_path_with_id/overview" => "list#category_default",
+        constraints: {
+          format: "html",
+        }
   end
 
   require_relative "app/controllers/discourse_workspace_groups/workspaces_controller"

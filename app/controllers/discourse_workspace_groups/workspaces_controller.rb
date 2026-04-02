@@ -7,6 +7,27 @@ module ::DiscourseWorkspaceGroups
     before_action :ensure_plugin_enabled
     before_action :find_workspace
 
+    def show
+      guardian.ensure_can_see!(@workspace)
+      raise Discourse::NotFound if !@workspace.workspace_root?
+
+      channels = Category.where(parent_category_id: @workspace.id).order(:position, :name).to_a
+      Category.preload_custom_fields(channels, Site.preloaded_category_custom_fields)
+
+      render json: {
+               workspace: {
+                 id: @workspace.id,
+                 name: @workspace.name,
+                 path: @workspace.url,
+               },
+               channels:
+                 channels
+                   .select(&:workspace_channel?)
+                   .select { |category| guardian.can_see?(category) }
+                   .map { |category| serialize_channel(category) },
+             }
+    end
+
     def enable
       guardian.ensure_can_see!(@workspace)
       raise Discourse::InvalidAccess if !guardian.can_enable_workspace_group?(@workspace)
@@ -49,6 +70,19 @@ module ::DiscourseWorkspaceGroups
     def find_workspace
       @workspace = Category.find_by(id: params[:id].to_i)
       raise Discourse::NotFound if @workspace.blank?
+    end
+
+    def serialize_channel(category)
+      chat_channel = category.category_channel
+
+      {
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        visibility: category.workspace_visibility,
+        topics_url: category.url,
+        chat_url: chat_channel.present? ? "/chat/c/#{chat_channel.slug}/#{chat_channel.id}" : nil,
+      }
     end
   end
 end

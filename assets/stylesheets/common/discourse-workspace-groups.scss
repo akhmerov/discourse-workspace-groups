@@ -32,3 +32,69 @@
   font-size: var(--font-down-1);
   margin: 0;
 }
+
+.workspace-groups-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.workspace-groups-overview__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.workspace-groups-overview__header h2,
+.workspace-groups-overview__card h3 {
+  margin: 0;
+}
+
+.workspace-groups-overview__description,
+.workspace-groups-overview__empty,
+.workspace-groups-overview__channel-description {
+  color: var(--primary-medium);
+  margin: 0;
+}
+
+.workspace-groups-overview__channels {
+  display: grid;
+  gap: 1rem;
+}
+
+.workspace-groups-overview__card {
+  background: var(--secondary-very-low);
+  border: 1px solid var(--primary-low);
+  border-radius: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.workspace-groups-overview__card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.workspace-groups-overview__channel-link {
+  color: var(--primary);
+}
+
+.workspace-groups-overview__visibility {
+  align-items: center;
+  color: var(--primary-medium);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: var(--font-down-1);
+  font-weight: 600;
+  gap: 0.35rem;
+}
+
+.workspace-groups-overview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

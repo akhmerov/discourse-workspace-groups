@@ -2,6 +2,15 @@ en:
   js:
     discourse_workspace_groups:
       enable_workspace: "Enable workspace"
+      overview: "Overview"
+      overview_title: "%{name} overview"
+      overview_heading: "Channels"
+      overview_description: "Visible channels in this team."
+      overview_empty: "No visible channels yet."
+      open_topics: "Topics"
+      open_chat: "Chat"
+      visibility_public: "Public"
+      visibility_private: "Private"
       create_channel: "Create channel"
       create_channel_title: "Create channel"
       channel_name: "Channel name"
