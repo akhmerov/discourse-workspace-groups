@@ -148,7 +148,7 @@ module ::DiscourseWorkspaceGroups
       joined = group.present? && joined_group_ids.include?(group.id)
       visible = visible_channel?(category, joined_group_ids: joined_group_ids, workspace_member: workspace_member)
       can_join = visible && !joined && category.workspace_visibility != VISIBILITY_PRIVATE && workspace_member
-      can_leave = joined
+      can_leave = joined && DiscourseWorkspaceGroups.can_leave_channel_group?(group, current_user)
       can_open_topics = joined || guardian.is_admin?
 
       {

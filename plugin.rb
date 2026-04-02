@@ -61,6 +61,31 @@ module ::DiscourseWorkspaceGroups
     digest = Digest::SHA1.hexdigest("#{workspace.id}-#{name}")[0, 6]
     "wc-#{workspace.id}-#{slug}-#{digest}"[0, 20]
   end
+
+  def self.group_member?(group, user)
+    return false if group.blank? || user.blank?
+
+    group.group_users.where(user_id: user.id).exists?
+  end
+
+  def self.group_owner?(group, user)
+    return false if group.blank? || user.blank?
+
+    group.group_users.where(user_id: user.id, owner: true).exists?
+  end
+
+  def self.last_group_owner?(group, user)
+    return false if !group_owner?(group, user)
+
+    !group.group_users.where(owner: true).where.not(user_id: user.id).exists?
+  end
+
+  def self.can_leave_channel_group?(group, user)
+    return false if !group_member?(group, user)
+    return false if last_group_owner?(group, user)
+
+    true
+  end
 end
 
 require_relative "lib/discourse_workspace_groups/engine"
@@ -179,7 +204,7 @@ after_initialize do
     return false if user.blank? || category.blank? || !category.workspace_channel?
     return false if category.workspace_group.blank?
 
-    category.workspace_group.users.where(id: user.id).exists?
+    DiscourseWorkspaceGroups.can_leave_channel_group?(category.workspace_group, user)
   end
 
   add_to_serializer(:basic_category, :workspace_enabled) { object.workspace_enabled? }

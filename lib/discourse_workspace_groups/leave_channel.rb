@@ -26,7 +26,7 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::InvalidAccess if user.blank?
       raise Discourse::InvalidAccess if !channel&.workspace_channel?
       raise Discourse::InvalidAccess if channel.workspace_group.blank?
-      raise Discourse::InvalidAccess if !channel.workspace_group.users.exists?(id: user.id)
+      raise Discourse::InvalidAccess if !DiscourseWorkspaceGroups.can_leave_channel_group?(channel.workspace_group, user)
     end
   end
 end
