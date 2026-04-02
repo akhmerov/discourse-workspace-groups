@@ -73,15 +73,12 @@ module ::DiscourseWorkspaceGroups
     end
 
     def serialize_channel(category)
-      chat_channel = category.category_channel
-
       {
         id: category.id,
         name: category.name,
-        description: category.description,
+        description: category.description_text,
         visibility: category.workspace_visibility,
         topics_url: category.url,
-        chat_url: chat_channel.present? ? "/chat/c/#{chat_channel.slug}/#{chat_channel.id}" : nil,
       }
     end
   end

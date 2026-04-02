@@ -65,20 +65,6 @@ export default <template>
                     )}}
                   </span>
                 </div>
-
-                <div class="workspace-groups-overview__actions">
-                  <a href={{channel.topics_url}} class="btn btn-default btn-small">
-                    {{icon "list"}}
-                    <span>{{i18n "discourse_workspace_groups.open_topics"}}</span>
-                  </a>
-
-                  {{#if channel.chat_url}}
-                    <a href={{channel.chat_url}} class="btn btn-default btn-small">
-                      {{icon "d-chat"}}
-                      <span>{{i18n "discourse_workspace_groups.open_chat"}}</span>
-                    </a>
-                  {{/if}}
-                </div>
               </article>
             {{/each}}
           </div>

@@ -7,8 +7,6 @@ en:
       overview_heading: "Channels"
       overview_description: "Visible channels in this team."
       overview_empty: "No visible channels yet."
-      open_topics: "Topics"
-      open_chat: "Chat"
       visibility_public: "Public"
       visibility_private: "Private"
       create_channel: "Create channel"
