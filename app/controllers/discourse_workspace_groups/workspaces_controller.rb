@@ -30,12 +30,7 @@ module ::DiscourseWorkspaceGroups
       context = build_channels_context(channels)
 
       render json: {
-               workspace: {
-                 id: @workspace.id,
-                 name: @workspace.name,
-                 path: @workspace.url,
-                 can_create_channel: guardian.can_create_workspace_channel?(@workspace),
-               },
+               workspace: serialize_workspace(**context),
                channels:
                  channels
                    .select(&:workspace_channel?)
@@ -172,6 +167,23 @@ module ::DiscourseWorkspaceGroups
       return true if category.workspace_visibility != VISIBILITY_PRIVATE && workspace_member
 
       joined_group_ids.include?(category.workspace_group_id)
+    end
+
+    def serialize_workspace(workspace_member:, **)
+      group = @workspace.workspace_group
+      about_post = @workspace.topic&.first_post
+
+      {
+        id: @workspace.id,
+        name: @workspace.name,
+        path: @workspace.url,
+        can_create_channel: guardian.can_create_workspace_channel?(@workspace),
+        member_count: group&.user_count || 0,
+        members_url: group.present? ? "/g/#{group.name}" : nil,
+        can_view_members: guardian.is_admin? || workspace_member,
+        about_cooked: about_post&.cooked || @workspace.description,
+        about_url: @workspace.topic_url,
+      }
     end
 
     def serialize_channel(category, groups_by_id:, joined_group_ids:, workspace_member:)

@@ -39,6 +39,26 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     );
   }
 
+  get teamName() {
+    return this.model.workspace?.name || this.model.category?.name;
+  }
+
+  get teamMemberCount() {
+    return this.model.workspace?.member_count || 0;
+  }
+
+  get teamMembersUrl() {
+    return this.model.workspace?.members_url;
+  }
+
+  get teamCanViewMembers() {
+    return Boolean(this.model.workspace?.can_view_members && this.teamMembersUrl);
+  }
+
+  get teamAboutCooked() {
+    return this.model.workspace?.about_cooked;
+  }
+
   get activeChannels() {
     return (this.model.channels || []).filter((channel) => !channel.archived);
   }

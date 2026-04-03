@@ -39,6 +39,42 @@
   gap: 1rem;
 }
 
+.workspace-groups-overview__team {
+  background: var(--secondary-very-low);
+  border: 1px solid var(--primary-low);
+  border-radius: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.workspace-groups-overview__team-heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  justify-content: space-between;
+}
+
+.workspace-groups-overview__team-name {
+  font-size: var(--font-up-3);
+  line-height: var(--line-height-large);
+  margin: 0;
+}
+
+.workspace-groups-overview__team-about {
+  color: var(--primary);
+}
+
+.workspace-groups-overview__team-about > :first-child {
+  margin-top: 0;
+}
+
+.workspace-groups-overview__team-about > :last-child {
+  margin-bottom: 0;
+}
+
 .workspace-groups-overview__header {
   display: flex;
   flex-direction: column;
@@ -193,6 +229,11 @@
 }
 
 @media (max-width: 767px) {
+  .workspace-groups-overview__team-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .workspace-groups-overview__card-header {
     flex-direction: column;
   }

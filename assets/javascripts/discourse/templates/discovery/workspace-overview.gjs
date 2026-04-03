@@ -1,5 +1,7 @@
 import { fn } from "@ember/helper";
+import { trustHTML } from "@ember/template";
 import DButton from "discourse/components/d-button";
+import DecoratedHtml from "discourse/components/decorated-html";
 import Layout from "discourse/components/discovery/layout";
 import Navigation from "discourse/components/discovery/navigation";
 import icon from "discourse/helpers/d-icon";
@@ -25,7 +27,45 @@ export default <template>
 
     <:list>
       <section class="workspace-groups-overview">
-        <header class="workspace-groups-overview__header">
+        <header class="workspace-groups-overview__team">
+          <div class="workspace-groups-overview__team-heading">
+            <h1 class="workspace-groups-overview__team-name">{{@controller.teamName}}</h1>
+
+            {{#if @controller.teamCanViewMembers}}
+              <a
+                href={{@controller.teamMembersUrl}}
+                class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
+              >
+                {{icon "user"}}
+                <span>
+                  {{i18n
+                    "discourse_workspace_groups.member_count"
+                    count=@controller.teamMemberCount
+                  }}
+                </span>
+              </a>
+            {{else}}
+              <span class="workspace-groups-overview__membership">
+                {{icon "user"}}
+                <span>
+                  {{i18n
+                    "discourse_workspace_groups.member_count"
+                    count=@controller.teamMemberCount
+                  }}
+                </span>
+              </span>
+            {{/if}}
+          </div>
+
+          {{#if @controller.teamAboutCooked}}
+            <DecoratedHtml
+              @html={{trustHTML @controller.teamAboutCooked}}
+              @className="cooked workspace-groups-overview__team-about"
+            />
+          {{/if}}
+        </header>
+
+        <div class="workspace-groups-overview__header">
           <div class="workspace-groups-overview__header-copy">
             <div class="workspace-groups-overview__title-row">
               <h2>{{i18n "discourse_workspace_groups.overview_heading"}}</h2>
@@ -45,7 +85,7 @@ export default <template>
               {{i18n "discourse_workspace_groups.overview_description"}}
             </p>
           </div>
-        </header>
+        </div>
 
         {{#if @controller.activeChannels.length}}
           <div class="workspace-groups-overview__channels">
