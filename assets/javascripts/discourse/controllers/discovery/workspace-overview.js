@@ -3,11 +3,13 @@ import { action } from "@ember/object";
 import { service } from "@ember/service";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import { ajax } from "discourse/lib/ajax";
+import CreateWorkspaceChannelModal from "../../components/modal/create-workspace-channel";
 
 export default class DiscoveryWorkspaceOverviewController extends Controller {
   @service chat;
   @service chatChannelsManager;
   @service composer;
+  @service modal;
   @service siteSettings;
 
   get subcategoryWithPermission() {
@@ -28,6 +30,21 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
 
   get createTopicDisabled() {
     return !this.model.category?.canCreateTopic && !this.subcategoryWithPermission;
+  }
+
+  get canCreateChannel() {
+    return (
+      this.model.workspace?.can_create_channel ??
+      this.model.category?.workspace_can_create_channel
+    );
+  }
+
+  get activeChannels() {
+    return (this.model.channels || []).filter((channel) => !channel.archived);
+  }
+
+  get archivedChannels() {
+    return (this.model.channels || []).filter((channel) => channel.archived);
   }
 
   updateChannel(channel, payload) {
@@ -82,6 +99,13 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
   createTopic() {
     this.composer.openNewTopic({
       category: this.createTopicTargetCategory,
+    });
+  }
+
+  @action
+  openCreateChannelModal() {
+    this.modal.show(CreateWorkspaceChannelModal, {
+      model: { category: this.model.category },
     });
   }
 

@@ -34,6 +34,7 @@ module ::DiscourseWorkspaceGroups
                  id: @workspace.id,
                  name: @workspace.name,
                  path: @workspace.url,
+                 can_create_channel: guardian.can_create_workspace_channel?(@workspace),
                },
                channels:
                  channels

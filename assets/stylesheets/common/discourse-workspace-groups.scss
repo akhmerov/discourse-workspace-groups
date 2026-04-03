@@ -41,8 +41,52 @@
 
 .workspace-groups-overview__header {
   display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.workspace-groups-overview__header-copy {
+  display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.workspace-groups-overview__create-channel-button {
+  flex: 0 0 auto;
+}
+
+.workspace-groups-overview__archived {
+  border-top: 1px solid var(--primary-low);
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+}
+
+.workspace-groups-overview__archived-summary {
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.workspace-groups-overview__archived-summary::-webkit-details-marker {
+  display: none;
+}
+
+.workspace-groups-overview__archived-summary::before {
+  color: var(--primary-medium);
+  content: "\25B8";
+  display: inline-block;
+  margin-right: 0.5rem;
+  transition: transform 0.2s ease;
+}
+
+.workspace-groups-overview__archived[open] .workspace-groups-overview__archived-summary::before {
+  transform: rotate(90deg);
+}
+
+.workspace-groups-overview__channels--archived {
+  margin-top: 1rem;
 }
 
 .workspace-groups-overview__header h2,
@@ -143,6 +187,10 @@
 }
 
 @media (max-width: 767px) {
+  .workspace-groups-overview__header {
+    flex-direction: column;
+  }
+
   .workspace-groups-overview__card-header {
     flex-direction: column;
   }

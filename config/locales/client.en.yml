@@ -7,6 +7,10 @@ en:
       overview_heading: "Channels"
       overview_description: "Public channels and your joined private channels in this team."
       overview_empty: "No visible channels yet."
+      overview_active_empty: "No active channels right now."
+      archived_channels_summary:
+        one: "Archived channels (%{count})"
+        other: "Archived channels (%{count})"
       member_count:
         one: "%{count} member"
         other: "%{count} members"

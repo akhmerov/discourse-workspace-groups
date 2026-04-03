@@ -43,6 +43,7 @@ export default class DiscoveryWorkspaceOverviewRoute extends DiscourseRoute {
 
     return {
       category: workspace,
+      workspace: trackedObject(result.workspace || {}),
       channels: trackedArray(
         (result.channels || []).map((channel) =>
           trackedObject({ ...channel, is_pending: false })
