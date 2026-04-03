@@ -271,6 +271,9 @@ function syncScopedSidebarDom(instance) {
   const categoriesSection = document.querySelector(selectors.categories);
   const mergedSection = document.querySelector(selectors.merged);
   const chatChannelsSection = document.querySelector(selectors.chatChannels);
+  const chatDmsSection = document.querySelector(
+    '#d-sidebar .sidebar-section[data-section-name="chat-dms"]'
+  );
   const header = mergedSection?.querySelector(".sidebar-section-header");
   const headerText = mergedSection?.querySelector(
     ".sidebar-section-header-text"
@@ -279,6 +282,7 @@ function syncScopedSidebarDom(instance) {
   const overviewPath = workspaceOverviewPath(workspaceCategory);
 
   setInlineStyle(mergedSection, "order", "5");
+  setInlineStyle(chatDmsSection, "order", "6");
   setInlineStyle(categoriesSection, "order", "10");
   setInlineStyle(chatChannelsSection, "order", "11");
   setInlineStyle(categoriesSection, "display", scoped ? "none" : "");
@@ -288,7 +292,7 @@ function syncScopedSidebarDom(instance) {
 
   document
     .querySelectorAll(
-      '#d-sidebar .sidebar-section[data-section-name="tags"], #d-sidebar .sidebar-section[data-section-name="chat-search"], #d-sidebar .sidebar-section[data-section-name="chat-starred-channels"], #d-sidebar .sidebar-section[data-section-name="chat-dms"]'
+      '#d-sidebar .sidebar-section[data-section-name="tags"], #d-sidebar .sidebar-section[data-section-name="chat-search"], #d-sidebar .sidebar-section[data-section-name="chat-starred-channels"]'
     )
     .forEach((section) => setInlineStyle(section, "order", scoped ? "20" : ""));
 
