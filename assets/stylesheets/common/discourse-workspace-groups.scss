@@ -3,6 +3,18 @@
   align-items: stretch;
 }
 
+.sidebar-sections > .sidebar-custom-sections {
+  order: 1;
+}
+
+.sidebar-sections > .sidebar-blocks {
+  order: 2;
+}
+
+.sidebar-sections > .sidebar-section-wrapper {
+  order: 3;
+}
+
 .workspace-team-sidebar {
   margin-bottom: 0.35rem;
 }
@@ -14,13 +26,8 @@
 .workspace-team-sidebar__row {
   align-items: center;
   display: flex;
-  gap: 0.35rem;
+  gap: 0.25rem;
   width: 100%;
-}
-
-.workspace-team-sidebar__row--active .workspace-team-sidebar__main-link {
-  background: var(--d-sidebar-active-background);
-  color: var(--d-sidebar-active-color);
 }
 
 .workspace-team-sidebar__main-link {

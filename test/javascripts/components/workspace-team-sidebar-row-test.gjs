@@ -63,5 +63,45 @@ module(
       assert.true(chatStateManager.prefersFullPage.calledOnce);
       assert.true(DiscourseURL.routeTo.calledOnceWith("/chat/c/lab-notes/15"));
     });
+
+    test("only marks the main link active in topic mode", async function (assert) {
+      this.categoryLink = {
+        name: "lab-notes",
+        route: "discovery.category",
+        model: "quantum-tinkerer/lab-notes/29",
+        currentWhen: "discovery.category",
+        title: "Lab Notes",
+        text: "Lab Notes",
+        prefixType: "square",
+        prefixValue: ["2563EB"],
+        prefixColor: "2563EB",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Lab Notes topics"
+            @chatPath="/chat/c/lab-notes/15"
+            @chatTitle="Open Lab Notes chat"
+            @chatUnread={{false}}
+            @categoryUnread={{false}}
+            @isActive={{true}}
+            @categoryActive={{false}}
+            @chatActive={{true}}
+          />
+        </template>
+      );
+
+      assert
+        .dom(".workspace-team-sidebar__main-link")
+        .doesNotHaveClass("active");
+      assert.dom(".workspace-team-sidebar__mode-button").doesNotHaveClass(
+        "workspace-team-sidebar__mode-button--active"
+      );
+      assert
+        .dom(".workspace-team-sidebar__mode-button:last-child")
+        .hasClass("workspace-team-sidebar__mode-button--active");
+    });
   }
 );

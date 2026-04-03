@@ -3,6 +3,7 @@ import { on } from "@ember/modifier";
 import { LinkTo } from "@ember/routing";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
+import { isHex } from "discourse/components/sidebar/section-link";
 import concatClass from "discourse/helpers/concat-class";
 import icon from "discourse/helpers/d-icon";
 import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix";
@@ -21,6 +22,11 @@ export default class WorkspaceTeamSidebarRow extends Component {
 
   get categoryQuery() {
     return this.args.categoryLink.query ?? {};
+  }
+
+  get prefixColor() {
+    const hexCode = isHex(this.args.categoryLink.prefixColor);
+    return hexCode ? `#${hexCode}` : this.args.categoryLink.prefixColor;
   }
 
   get categoryButtonClass() {
@@ -62,8 +68,6 @@ export default class WorkspaceTeamSidebarRow extends Component {
         class={{concatClass
           "workspace-team-sidebar__row"
           "sidebar-row"
-          @isActive
-          "workspace-team-sidebar__row--active"
         }}
       >
         <LinkTo
@@ -75,14 +79,13 @@ export default class WorkspaceTeamSidebarRow extends Component {
           class={{concatClass
             "workspace-team-sidebar__main-link"
             "sidebar-section-link"
-            @isActive
-            "active"
+            (if @categoryActive "active")
           }}
         >
           <SectionLinkPrefix
             @prefixType={{@categoryLink.prefixType}}
             @prefixValue={{@categoryLink.prefixValue}}
-            @prefixColor={{@categoryLink.prefixColor}}
+            @prefixColor={{this.prefixColor}}
             @prefixBadge={{@categoryLink.prefixBadge}}
           />
 
