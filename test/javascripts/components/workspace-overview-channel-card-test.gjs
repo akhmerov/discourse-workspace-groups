@@ -8,7 +8,7 @@ module(
   function (hooks) {
     setupRenderingTest(hooks);
 
-    test("renders leave and archive actions in the same action row", async function (assert) {
+    test("renders membership, access, and archive actions in the same action row", async function (assert) {
       this.channel = {
         name: "Lab Notes",
         description: "Bench logs and prototype notes.",
@@ -20,6 +20,7 @@ module(
         can_view_members: true,
         can_join: false,
         can_leave: true,
+        can_manage_access: true,
         can_archive: true,
         can_unarchive: false,
         archived: false,
@@ -34,6 +35,7 @@ module(
             @channel={{this.channel}}
             @onJoin={{this.noop}}
             @onLeave={{this.noop}}
+            @onManageAccess={{this.noop}}
             @onArchive={{this.noop}}
             @onUnarchive={{this.noop}}
           />
@@ -42,11 +44,11 @@ module(
 
       assert.dom(".workspace-groups-overview__card-actions").exists();
       assert.dom(".workspace-groups-overview__card-actions .btn").exists({
-        count: 2,
+        count: 3,
       });
       assert
         .dom(".workspace-groups-overview__card-actions")
-        .hasText("Leave Archive");
+        .hasText("Leave Access Archive");
     });
   }
 );

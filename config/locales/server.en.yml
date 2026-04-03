@@ -1,4 +1,8 @@
 en:
+  discourse_workspace_groups:
+    errors:
+      usernames_required: "Enter at least one username."
+      unknown_users: "Unknown users: %{usernames}"
   site_settings:
     discourse_workspace_groups_enabled: "Enable workspace groups prototype"
     discourse_workspace_groups_members_can_create_channels: "Allow workspace members to create channels"

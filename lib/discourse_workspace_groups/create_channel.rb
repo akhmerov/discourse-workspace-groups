@@ -95,18 +95,10 @@ module ::DiscourseWorkspaceGroups
     end
 
     def root_permissions(workspace_group, new_group_id = nil)
-      permissions = { workspace_group.id => :full }
+      group_ids = DiscourseWorkspaceGroups.workspace_channel_group_ids(workspace)
+      group_ids << new_group_id if new_group_id.present?
 
-      workspace
-        .subcategories
-        .select(&:workspace_channel?)
-        .map(&:workspace_group_id)
-        .compact
-        .each { |group_id| permissions[group_id] = :full }
-
-      permissions[new_group_id] = :full if new_group_id.present?
-
-      permissions
+      DiscourseWorkspaceGroups.workspace_root_permissions(workspace_group, group_ids)
     end
 
     def channel_permissions(channel_group)

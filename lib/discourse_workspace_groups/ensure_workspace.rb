@@ -62,16 +62,10 @@ module ::DiscourseWorkspaceGroups
     end
 
     def root_permissions(workspace_group)
-      permissions = { workspace_group.id => :full }
-
-      category
-        .subcategories
-        .select(&:workspace_channel?)
-        .map(&:workspace_group_id)
-        .compact
-        .each { |group_id| permissions[group_id] = :full }
-
-      permissions
+      DiscourseWorkspaceGroups.workspace_root_permissions(
+        workspace_group,
+        DiscourseWorkspaceGroups.workspace_channel_group_ids(category),
+      )
     end
   end
 end

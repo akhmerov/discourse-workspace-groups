@@ -93,6 +93,48 @@ module ::DiscourseWorkspaceGroups
       render json: { channel: serialize_channel(channel, **context) }
     end
 
+    def channel_access
+      guardian.ensure_can_see!(@workspace)
+      channel = find_channel
+      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+
+      render_channel_access(channel)
+    end
+
+    def add_channel_members
+      guardian.ensure_can_see!(@workspace)
+      channel = find_channel
+      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+
+      _usernames, users = users_from_usernames_param
+      return if performed?
+
+      ::DiscourseWorkspaceGroups::AddChannelMembers.new(
+        channel: channel,
+        acting_user: current_user,
+        users: users,
+      ).call
+
+      render_channel_access(channel)
+    end
+
+    def remove_channel_member
+      guardian.ensure_can_see!(@workspace)
+      channel = find_channel
+      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+
+      target_user = User.find_by(id: params[:user_id].to_i)
+      raise Discourse::NotFound if target_user.blank?
+
+      ::DiscourseWorkspaceGroups::RemoveChannelMember.new(
+        channel: channel,
+        acting_user: current_user,
+        target_user: target_user,
+      ).call
+
+      render_channel_access(channel)
+    end
+
     def archive_channel
       guardian.ensure_can_see!(@workspace)
       channel = find_channel
@@ -132,12 +174,16 @@ module ::DiscourseWorkspaceGroups
     def find_workspace
       @workspace = Category.find_by(id: params[:id].to_i)
       raise Discourse::NotFound if @workspace.blank?
+
+      DiscourseWorkspaceGroups.sync_workspace_root_permissions!(@workspace)
     end
 
     def find_overview_workspace
       category_slug_path_with_id = "#{params.require(:category_slug_path)}/#{params.require(:category_id)}"
       @workspace = Category.find_by_slug_path_with_id(category_slug_path_with_id)
       raise Discourse::NotFound if @workspace.blank?
+
+      DiscourseWorkspaceGroups.sync_workspace_root_permissions!(@workspace)
     end
 
     def find_channel
@@ -177,12 +223,20 @@ module ::DiscourseWorkspaceGroups
         name: @workspace.name,
         path: @workspace.url,
         can_create_channel: guardian.can_create_workspace_channel?(@workspace),
-        member_count: group&.user_count || 0,
+        member_count: group.present? ? group.group_users.count : 0,
         members_url: group.present? ? "/g/#{group.name}" : nil,
         can_view_members: guardian.is_admin? || workspace_member,
         about_cooked: about_post&.cooked || @workspace.description,
         about_url: @workspace.topic_url,
       }
+    end
+
+    def render_channel_access(channel)
+      context = build_channels_context([channel])
+      render json: {
+               channel: serialize_channel(channel, **context),
+               members: serialize_channel_members(channel),
+             }
     end
 
     def serialize_channel(category, groups_by_id:, joined_group_ids:, workspace_member:)
@@ -207,9 +261,10 @@ module ::DiscourseWorkspaceGroups
         can_leave: can_leave,
         can_archive: can_manage && !archived,
         can_unarchive: can_manage && archived,
+        can_manage_access: can_manage,
         can_open_topics: can_open_topics,
         can_view_members: joined,
-        member_count: group&.user_count || 0,
+        member_count: group.present? ? group.group_users.count : 0,
         members_url: group.present? ? "/g/#{group.name}" : nil,
         topics_url: category.url,
         chat_channel_id: category.category_channel&.id,
@@ -230,6 +285,72 @@ module ::DiscourseWorkspaceGroups
         root: false,
         membership: membership,
       ).as_json
+    end
+
+    def serialize_channel_members(channel)
+      group = channel.workspace_group
+      return [] if group.blank?
+
+      workspace_member_ids =
+        @workspace.workspace_group.group_users.where(user_id: group.group_users.select(:user_id)).pluck(:user_id).to_set
+
+      group
+        .group_users
+        .includes(:user)
+        .to_a
+        .sort_by { |group_user| [group_user.owner? ? 0 : 1, group_user.user.username_lower] }
+        .map do |group_user|
+          user = group_user.user
+          guest = !workspace_member_ids.include?(user.id)
+
+          {
+            id: user.id,
+            username: user.username,
+            name: user.name,
+            avatar_template: user.avatar_template,
+            owner: group_user.owner?,
+            guest: guest,
+            can_remove:
+              user.id != current_user.id &&
+                DiscourseWorkspaceGroups.can_remove_channel_group_member?(group, user),
+          }
+        end
+    end
+
+    def users_from_usernames_param
+      usernames =
+        params
+          .require(:usernames)
+          .to_s
+          .split(",")
+          .map(&:strip)
+          .reject(&:blank?)
+          .uniq
+
+      if usernames.blank?
+        render_json_error(
+          I18n.t("discourse_workspace_groups.errors.usernames_required"),
+          status: :unprocessable_entity,
+        )
+        return
+      end
+
+      users_by_username =
+        User.where(username_lower: usernames.map(&:downcase)).index_by(&:username_lower)
+      missing_usernames = usernames.reject { |username| users_by_username.key?(username.downcase) }
+
+      if missing_usernames.present?
+        render_json_error(
+          I18n.t(
+            "discourse_workspace_groups.errors.unknown_users",
+            usernames: missing_usernames.join(", "),
+          ),
+          status: :unprocessable_entity,
+        )
+        return
+      end
+
+      [usernames, usernames.map { |username| users_by_username.fetch(username.downcase) }]
     end
   end
 end

@@ -30,6 +30,7 @@ module ::DiscourseWorkspaceGroups
 
   VISIBILITY_PUBLIC = "public"
   VISIBILITY_PRIVATE = "private"
+  ROOT_CHANNEL_PERMISSION = :readonly
 
   def self.positive_custom_field_id(value)
     integer = value.to_i
@@ -91,6 +92,13 @@ module ::DiscourseWorkspaceGroups
     true
   end
 
+  def self.can_remove_channel_group_member?(group, target_user)
+    return false if !group_member?(group, target_user)
+    return false if last_group_owner?(group, target_user)
+
+    true
+  end
+
   def self.can_manage_workspace_channel?(category, user)
     return false if user.blank? || category.blank? || !category.workspace_channel?
     return true if user.admin?
@@ -111,6 +119,41 @@ module ::DiscourseWorkspaceGroups
     category
   end
 
+  def self.workspace_channel_group_ids(workspace)
+    channels = Category.where(parent_category_id: workspace.id).to_a
+    Category.preload_custom_fields(
+      channels,
+      [WORKSPACE_ENABLED, WORKSPACE_KIND, WORKSPACE_GROUP_ID],
+    )
+
+    channels.select(&:workspace_channel?).map(&:workspace_group_id).compact.uniq
+  end
+
+  def self.workspace_root_permissions(workspace_group, channel_group_ids)
+    permissions = { workspace_group.id => :full }
+    channel_group_ids.each { |group_id| permissions[group_id] = ROOT_CHANNEL_PERMISSION }
+    permissions
+  end
+
+  def self.sync_workspace_root_permissions!(workspace)
+    return workspace if workspace.blank? || !workspace.workspace_root?
+
+    workspace_group = workspace.workspace_group
+    return workspace if workspace_group.blank?
+
+    desired_permissions =
+      workspace_root_permissions(workspace_group, workspace_channel_group_ids(workspace))
+    desired_permission_types =
+      desired_permissions.transform_values { |permission| CategoryGroup.permission_types.fetch(permission) }
+    current_permission_types = workspace.category_groups.pluck(:group_id, :permission_type).to_h
+
+    return workspace if current_permission_types == desired_permission_types
+
+    workspace.set_permissions(desired_permissions)
+    workspace.save!
+    workspace
+  end
+
   def self.archived_workspace_category?(category)
     category&.workspace_channel? && category.workspace_archived?
   end
@@ -125,6 +168,8 @@ require_relative "lib/discourse_workspace_groups/ensure_workspace"
 require_relative "lib/discourse_workspace_groups/create_channel"
 require_relative "lib/discourse_workspace_groups/join_channel"
 require_relative "lib/discourse_workspace_groups/leave_channel"
+require_relative "lib/discourse_workspace_groups/add_channel_members"
+require_relative "lib/discourse_workspace_groups/remove_channel_member"
 require_relative "lib/discourse_workspace_groups/set_channel_archive_state"
 require_relative "lib/discourse_workspace_groups/sync_category_chat_channel"
 require_relative "lib/discourse_workspace_groups/sync_channel_group_chat_membership"

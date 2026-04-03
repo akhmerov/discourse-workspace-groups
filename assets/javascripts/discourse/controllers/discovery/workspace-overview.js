@@ -4,6 +4,7 @@ import { service } from "@ember/service";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import CreateWorkspaceChannelModal from "../../components/modal/create-workspace-channel";
+import ManageWorkspaceChannelAccessModal from "../../components/modal/manage-workspace-channel-access";
 
 export default class DiscoveryWorkspaceOverviewController extends Controller {
   @service chat;
@@ -126,6 +127,17 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
   openCreateChannelModal() {
     this.modal.show(CreateWorkspaceChannelModal, {
       model: { category: this.model.category },
+    });
+  }
+
+  @action
+  openManageAccessModal(channel) {
+    this.modal.show(ManageWorkspaceChannelAccessModal, {
+      model: {
+        category: this.model.category,
+        channel,
+        onChannelUpdate: (updatedChannel) => this.updateChannel(channel, updatedChannel),
+      },
     });
   }
 

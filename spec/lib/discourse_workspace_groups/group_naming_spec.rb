@@ -1,7 +1,19 @@
 # frozen_string_literal: true
 
+require "securerandom"
+
 RSpec.describe DiscourseWorkspaceGroups do
-  fab!(:workspace) { Fabricate(:category, name: "Climate Computation Center") }
+  fab!(:admin) do
+    suffix = SecureRandom.hex(4)
+    Fabricate(:admin, username: "wa#{suffix}", email: "workspace-admin-#{suffix}@example.com")
+  end
+  fab!(:workspace) do
+    Fabricate(
+      :category,
+      name: "Climate Computation Center #{SecureRandom.hex(4)}",
+      user: admin,
+    )
+  end
 
   describe ".workspace_group_name" do
     it "builds a readable workspace group slug" do

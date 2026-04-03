@@ -1,9 +1,22 @@
 # frozen_string_literal: true
 
+require "securerandom"
+
 RSpec.describe "workspace channel chat sync on direct group add" do
-  fab!(:admin) { Fabricate(:admin) }
-  fab!(:other_user) { Fabricate(:user, active: true) }
-  fab!(:category) { Fabricate(:category) }
+  fab!(:admin) do
+    suffix = SecureRandom.hex(4)
+    Fabricate(:admin, username: "wa#{suffix}", email: "workspace-admin-#{suffix}@example.com")
+  end
+  fab!(:other_user) do
+    suffix = SecureRandom.hex(4)
+    Fabricate(
+      :user,
+      active: true,
+      username: "wu#{suffix}",
+      email: "workspace-user-#{suffix}@example.com",
+    )
+  end
+  fab!(:category) { Fabricate(:category, name: "Workspace #{SecureRandom.hex(4)}", user: admin) }
 
   let(:workspace) do
     DiscourseWorkspaceGroups::EnsureWorkspace.new(category: category, user: admin).call
@@ -13,7 +26,7 @@ RSpec.describe "workspace channel chat sync on direct group add" do
     DiscourseWorkspaceGroups::CreateChannel.new(
       workspace: workspace,
       user: admin,
-      name: "Secret Lab",
+      name: "Secret Lab #{SecureRandom.hex(4)}",
       description: nil,
       visibility: "private",
     ).call
