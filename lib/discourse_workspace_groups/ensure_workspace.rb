@@ -29,9 +29,9 @@ module ::DiscourseWorkspaceGroups
 
     def ensure_workspace_group
       group = category.workspace_group
+      group_name = DiscourseWorkspaceGroups.workspace_group_name(category)
 
       if group.blank?
-        group_name = DiscourseWorkspaceGroups.workspace_group_name(category)
         group =
           Group.find_by(name: group_name) ||
             Group.create!(
@@ -42,9 +42,9 @@ module ::DiscourseWorkspaceGroups
               mentionable_level: Group::ALIAS_LEVELS[:nobody],
               messageable_level: Group::ALIAS_LEVELS[:nobody],
             )
-      else
-        group.update!(full_name: category.name)
       end
+
+      group.update!(name: group_name, full_name: category.name)
 
       group.custom_fields["workspace_category_id"] = category.id
       group.custom_fields["workspace_kind"] = WORKSPACE_KIND_ROOT

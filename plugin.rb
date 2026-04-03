@@ -8,8 +8,6 @@
 # license: GPL-2.0-only
 # copyright: Copyright (C) 2026 Anton Akhmerov
 
-require "digest/sha1"
-
 enabled_site_setting :discourse_workspace_groups_enabled
 
 register_asset "stylesheets/common/discourse-workspace-groups.scss"
@@ -18,6 +16,7 @@ register_svg_icon "lock"
 
 module ::DiscourseWorkspaceGroups
   PLUGIN_NAME = "discourse-workspace-groups"
+  MAX_GROUP_NAME_LENGTH = 20
 
   WORKSPACE_ENABLED = "workspace_enabled"
   WORKSPACE_KIND = "workspace_kind"
@@ -52,15 +51,19 @@ module ::DiscourseWorkspaceGroups
   end
 
   def self.workspace_group_name(category)
-    slug = Slug.for(category.slug.presence || category.name, "")[0, 6]
-    digest = Digest::SHA1.hexdigest("#{category.id}-#{category.name}")[0, 6]
-    "wg-#{category.id}-#{slug}-#{digest}"[0, 20]
+    descriptive_group_name("team", category.slug.presence || category.name, category.id)
   end
 
   def self.channel_group_name(workspace, name)
-    slug = Slug.for(name, "")[0, 5]
-    digest = Digest::SHA1.hexdigest("#{workspace.id}-#{name}")[0, 6]
-    "wc-#{workspace.id}-#{slug}-#{digest}"[0, 20]
+    descriptive_group_name("chan", name, workspace.id)
+  end
+
+  def self.descriptive_group_name(prefix, label, suffix)
+    suffix = suffix.to_s
+    available_slug_length = MAX_GROUP_NAME_LENGTH - prefix.length - suffix.length - 2
+    slug = Slug.for(label.to_s, "", available_slug_length).presence || "group"
+
+    [prefix, slug, suffix].join("-")
   end
 
   def self.group_member?(group, user)

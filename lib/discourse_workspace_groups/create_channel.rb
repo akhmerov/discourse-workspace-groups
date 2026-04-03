@@ -2,15 +2,14 @@
 
 module ::DiscourseWorkspaceGroups
   class CreateChannel
-    attr_reader :workspace, :user, :name, :description, :visibility, :usernames
+    attr_reader :workspace, :user, :name, :description, :visibility
 
-    def initialize(workspace:, user:, name:, description:, visibility:, usernames: nil)
+    def initialize(workspace:, user:, name:, description:, visibility:)
       @workspace = workspace
       @user = user
       @name = name.to_s.strip
       @description = description.to_s.strip
       @visibility = visibility.presence || VISIBILITY_PUBLIC
-      @usernames = usernames.to_s
     end
 
     def call
@@ -21,7 +20,7 @@ module ::DiscourseWorkspaceGroups
       workspace.custom_fields[WORKSPACE_ENABLED] = true
       workspace.custom_fields[WORKSPACE_KIND] = WORKSPACE_KIND_ROOT
       workspace.custom_fields[WORKSPACE_GROUP_ID] = workspace_group.id
-      workspace.set_permissions(root_permissions(workspace_group))
+      workspace.set_permissions(root_permissions(workspace_group, channel_group.id))
       workspace.save!
 
       channel =
@@ -71,10 +70,6 @@ module ::DiscourseWorkspaceGroups
       [VISIBILITY_PUBLIC, VISIBILITY_PRIVATE].include?(visibility)
     end
 
-    def private_channel?
-      visibility == VISIBILITY_PRIVATE
-    end
-
     def ensure_channel_group
       group_name = DiscourseWorkspaceGroups.channel_group_name(workspace, name)
       group =
@@ -88,15 +83,8 @@ module ::DiscourseWorkspaceGroups
             messageable_level: Group::ALIAS_LEVELS[:nobody],
           )
 
-      group.update!(full_name: name)
+      group.update!(name: group_name, full_name: name)
       ensure_group_membership(group, user, owner: true)
-
-      if private_channel?
-        requested_users.each do |member|
-          ensure_group_membership(workspace.workspace_group, member)
-          ensure_group_membership(group, member)
-        end
-      end
 
       group
     end
@@ -106,17 +94,7 @@ module ::DiscourseWorkspaceGroups
       group.group_users.where(user_id: member.id).update_all(owner: true) if owner
     end
 
-    def requested_users
-      @requested_users ||=
-        usernames
-          .split(/[,\s]+/)
-          .map(&:strip)
-          .reject(&:blank?)
-          .uniq
-          .filter_map { |username| User.find_by_username(username) }
-    end
-
-    def root_permissions(workspace_group)
+    def root_permissions(workspace_group, new_group_id = nil)
       permissions = { workspace_group.id => :full }
 
       workspace
@@ -125,6 +103,8 @@ module ::DiscourseWorkspaceGroups
         .map(&:workspace_group_id)
         .compact
         .each { |group_id| permissions[group_id] = :full }
+
+      permissions[new_group_id] = :full if new_group_id.present?
 
       permissions
     end

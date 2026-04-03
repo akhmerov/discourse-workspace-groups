@@ -61,7 +61,6 @@ module ::DiscourseWorkspaceGroups
         name: params.require(:name),
         description: params[:description],
         visibility: params[:visibility],
-        usernames: params[:usernames],
       ).call
 
       render json: {
