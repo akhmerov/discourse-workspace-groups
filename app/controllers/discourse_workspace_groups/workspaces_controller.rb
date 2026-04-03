@@ -98,6 +98,36 @@ module ::DiscourseWorkspaceGroups
       render json: { channel: serialize_channel(channel, **context) }
     end
 
+    def archive_channel
+      guardian.ensure_can_see!(@workspace)
+      channel = find_channel
+      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+
+      ::DiscourseWorkspaceGroups::SetChannelArchiveState.new(
+        channel: channel,
+        user: current_user,
+        archived: true,
+      ).call
+
+      context = build_channels_context([channel])
+      render json: { channel: serialize_channel(channel, **context) }
+    end
+
+    def unarchive_channel
+      guardian.ensure_can_see!(@workspace)
+      channel = find_channel
+      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+
+      ::DiscourseWorkspaceGroups::SetChannelArchiveState.new(
+        channel: channel,
+        user: current_user,
+        archived: false,
+      ).call
+
+      context = build_channels_context([channel])
+      render json: { channel: serialize_channel(channel, **context) }
+    end
+
     private
 
     def ensure_plugin_enabled
@@ -149,17 +179,22 @@ module ::DiscourseWorkspaceGroups
       visible = visible_channel?(category, joined_group_ids: joined_group_ids, workspace_member: workspace_member)
       can_join = visible && !joined && category.workspace_visibility != VISIBILITY_PRIVATE && workspace_member
       can_leave = joined && DiscourseWorkspaceGroups.can_leave_channel_group?(group, current_user)
+      can_manage = DiscourseWorkspaceGroups.can_manage_workspace_channel?(category, current_user)
       can_open_topics = joined || guardian.is_admin?
+      archived = category.workspace_archived?
 
       {
         id: category.id,
         name: category.name,
         description: category.description_text,
         visibility: category.workspace_visibility,
+        archived: archived,
         visible: visible,
         joined: joined,
         can_join: can_join,
         can_leave: can_leave,
+        can_archive: can_manage && !archived,
+        can_unarchive: can_manage && archived,
         can_open_topics: can_open_topics,
         can_view_members: joined,
         member_count: group&.user_count || 0,

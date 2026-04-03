@@ -101,6 +101,14 @@
   gap: 0.5rem;
 }
 
+.workspace-groups-overview__badges {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 .workspace-groups-overview__visibility {
   align-items: center;
   color: var(--primary-medium);
@@ -109,6 +117,13 @@
   font-size: var(--font-down-1);
   font-weight: 600;
   gap: 0.35rem;
+}
+
+.workspace-groups-overview__state {
+  color: var(--primary-medium);
+  display: inline-flex;
+  font-size: var(--font-down-1);
+  font-weight: 600;
 }
 
 .workspace-groups-overview__membership {
@@ -134,5 +149,9 @@
 
   .workspace-groups-overview__card-meta {
     align-items: flex-start;
+  }
+
+  .workspace-groups-overview__badges {
+    justify-content: flex-start;
   }
 }

@@ -88,18 +88,26 @@ export default <template>
                   </div>
 
                   <div class="workspace-groups-overview__card-meta">
-                    <span class="workspace-groups-overview__visibility">
-                      {{icon (if
-                        (eq channel.visibility "private")
-                        "lock"
-                        "globe"
-                      )}}
-                      {{i18n (if
-                        (eq channel.visibility "private")
-                        "discourse_workspace_groups.visibility_private"
-                        "discourse_workspace_groups.visibility_public"
-                      )}}
-                    </span>
+                    <div class="workspace-groups-overview__badges">
+                      <span class="workspace-groups-overview__visibility">
+                        {{icon (if
+                          (eq channel.visibility "private")
+                          "lock"
+                          "globe"
+                        )}}
+                        {{i18n (if
+                          (eq channel.visibility "private")
+                          "discourse_workspace_groups.visibility_private"
+                          "discourse_workspace_groups.visibility_public"
+                        )}}
+                      </span>
+
+                      {{#if channel.archived}}
+                        <span class="workspace-groups-overview__state">
+                          {{i18n "discourse_workspace_groups.archived_channel"}}
+                        </span>
+                      {{/if}}
+                    </div>
 
                     {{#if channel.can_join}}
                       <DButton
@@ -112,6 +120,22 @@ export default <template>
                       <DButton
                         @action={{fn @controller.leaveChannel channel}}
                         @label="discourse_workspace_groups.leave_channel"
+                        class="btn-default btn-small workspace-groups-overview__membership-button"
+                        @disabled={{channel.is_pending}}
+                      />
+                    {{/if}}
+
+                    {{#if channel.can_archive}}
+                      <DButton
+                        @action={{fn @controller.archiveChannel channel}}
+                        @label="discourse_workspace_groups.archive_channel"
+                        class="btn-default btn-small workspace-groups-overview__membership-button"
+                        @disabled={{channel.is_pending}}
+                      />
+                    {{else if channel.can_unarchive}}
+                      <DButton
+                        @action={{fn @controller.unarchiveChannel channel}}
+                        @label="discourse_workspace_groups.unarchive_channel"
                         class="btn-default btn-small workspace-groups-overview__membership-button"
                         @disabled={{channel.is_pending}}
                       />

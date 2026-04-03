@@ -6,4 +6,6 @@ DiscourseWorkspaceGroups::Engine.routes.draw do
   post "/workspaces/:id/channels" => "workspaces#create_channel"
   post "/workspaces/:id/channels/:channel_id/membership" => "workspaces#join_channel"
   delete "/workspaces/:id/channels/:channel_id/membership" => "workspaces#leave_channel"
+  post "/workspaces/:id/channels/:channel_id/archive" => "workspaces#archive_channel"
+  delete "/workspaces/:id/channels/:channel_id/archive" => "workspaces#unarchive_channel"
 end

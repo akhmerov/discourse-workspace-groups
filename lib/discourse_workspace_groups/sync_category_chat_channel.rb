@@ -50,11 +50,21 @@ module ::DiscourseWorkspaceGroups
         end
       end
 
+      sync_archive_status(chat_channel)
+
       chat_channel
     end
 
     def group_users
       category.workspace_group&.users&.to_a || []
+    end
+
+    def sync_archive_status(chat_channel)
+      target_status = category.workspace_archived? ? "read_only" : "open"
+      return if chat_channel.status == target_status
+
+      chat_channel.update!(status: target_status)
+      Chat::Publisher.publish_channel_status(chat_channel)
     end
   end
 end

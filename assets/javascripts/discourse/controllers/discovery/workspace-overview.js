@@ -36,6 +36,16 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     });
   }
 
+  storeChatChannel(channel) {
+    if (!channel?.chat_channel) {
+      return;
+    }
+
+    this.chatChannelsManager.store(channel.chat_channel, {
+      replace: true,
+    });
+  }
+
   async syncJoinedChatChannel(channel) {
     if (channel?.chat_channel) {
       const storedChannel = this.chatChannelsManager.store(channel.chat_channel, {
@@ -119,6 +129,48 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
       }
 
       this.updateChannel(channel, result.channel);
+    } catch (error) {
+      popupAjaxError(error);
+    } finally {
+      channel.is_pending = false;
+    }
+  }
+
+  @action
+  async archiveChannel(channel) {
+    channel.is_pending = true;
+
+    try {
+      const result = await ajax(
+        `/workspace-groups/workspaces/${this.model.category.id}/channels/${channel.id}/archive`,
+        {
+          type: "POST",
+        }
+      );
+
+      this.updateChannel(channel, result.channel);
+      this.storeChatChannel(result.channel);
+    } catch (error) {
+      popupAjaxError(error);
+    } finally {
+      channel.is_pending = false;
+    }
+  }
+
+  @action
+  async unarchiveChannel(channel) {
+    channel.is_pending = true;
+
+    try {
+      const result = await ajax(
+        `/workspace-groups/workspaces/${this.model.category.id}/channels/${channel.id}/archive`,
+        {
+          type: "DELETE",
+        }
+      );
+
+      this.updateChannel(channel, result.channel);
+      this.storeChatChannel(result.channel);
     } catch (error) {
       popupAjaxError(error);
     } finally {

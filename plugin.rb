@@ -24,6 +24,7 @@ module ::DiscourseWorkspaceGroups
   WORKSPACE_GROUP_ID = "workspace_group_id"
   WORKSPACE_PARENT_CATEGORY_ID = "workspace_parent_category_id"
   WORKSPACE_VISIBILITY = "workspace_visibility"
+  WORKSPACE_ARCHIVED = "workspace_archived"
 
   WORKSPACE_KIND_ROOT = "workspace"
   WORKSPACE_KIND_CHANNEL = "channel"
@@ -86,6 +87,21 @@ module ::DiscourseWorkspaceGroups
 
     true
   end
+
+  def self.can_manage_workspace_channel?(category, user)
+    return false if user.blank? || category.blank? || !category.workspace_channel?
+    return true if user.admin?
+
+    group_owner?(category.workspace_group, user)
+  end
+
+  def self.archived_workspace_category?(category)
+    category&.workspace_channel? && category.workspace_archived?
+  end
+
+  def self.archived_workspace_topic?(topic)
+    archived_workspace_category?(topic&.category)
+  end
 end
 
 require_relative "lib/discourse_workspace_groups/engine"
@@ -93,9 +109,57 @@ require_relative "lib/discourse_workspace_groups/ensure_workspace"
 require_relative "lib/discourse_workspace_groups/create_channel"
 require_relative "lib/discourse_workspace_groups/join_channel"
 require_relative "lib/discourse_workspace_groups/leave_channel"
+require_relative "lib/discourse_workspace_groups/set_channel_archive_state"
 require_relative "lib/discourse_workspace_groups/sync_category_chat_channel"
 
 after_initialize do
+  module ::DiscourseWorkspaceGroups::GuardianArchiveRestrictions
+    def can_create_topic_on_category?(category)
+      category = category.is_a?(Category) ? category : Category.find_by(id: category)
+      return false if DiscourseWorkspaceGroups.archived_workspace_category?(category)
+
+      super
+    end
+
+    def can_create_post?(topic)
+      return false if DiscourseWorkspaceGroups.archived_workspace_topic?(topic)
+
+      super
+    end
+
+    def can_create_post_on_topic?(topic)
+      return false if DiscourseWorkspaceGroups.archived_workspace_topic?(topic)
+
+      super
+    end
+
+    def can_edit_topic?(topic)
+      return false if DiscourseWorkspaceGroups.archived_workspace_topic?(topic)
+
+      super
+    end
+
+    def can_delete_topic?(topic)
+      return false if DiscourseWorkspaceGroups.archived_workspace_topic?(topic)
+
+      super
+    end
+
+    def can_edit_post?(post)
+      return false if DiscourseWorkspaceGroups.archived_workspace_topic?(post&.topic)
+
+      super
+    end
+
+    def can_delete_post?(post)
+      return false if DiscourseWorkspaceGroups.archived_workspace_topic?(post&.topic)
+
+      super
+    end
+  end
+
+  Guardian.prepend(::DiscourseWorkspaceGroups::GuardianArchiveRestrictions)
+
   Discourse::Application.routes.prepend do
     get "c/*category_slug_path/:category_id/overview" =>
           "discourse_workspace_groups/workspaces#overview_page",
@@ -116,6 +180,7 @@ after_initialize do
     :integer,
   )
   register_category_custom_field_type(DiscourseWorkspaceGroups::WORKSPACE_VISIBILITY, :string)
+  register_category_custom_field_type(DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED, :boolean)
 
   register_group_custom_field_type("workspace_category_id", :integer)
   register_group_custom_field_type("workspace_kind", :string)
@@ -128,6 +193,7 @@ after_initialize do
     DiscourseWorkspaceGroups::WORKSPACE_PARENT_CATEGORY_ID,
   )
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_VISIBILITY)
+  register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED)
 
   add_to_class(:category, :workspace_enabled?) do
     custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ENABLED].to_s == "true"
@@ -172,6 +238,10 @@ after_initialize do
     custom_fields[DiscourseWorkspaceGroups::WORKSPACE_VISIBILITY]
   end
 
+  add_to_class(:category, :workspace_archived?) do
+    custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED].to_s == "true"
+  end
+
   add_to_class(Guardian, :can_enable_workspace_group?) do |category|
     user&.admin? && DiscourseWorkspaceGroups.workspace_candidate?(category)
   end
@@ -207,6 +277,10 @@ after_initialize do
     DiscourseWorkspaceGroups.can_leave_channel_group?(category.workspace_group, user)
   end
 
+  add_to_class(Guardian, :can_manage_workspace_channel?) do |category|
+    DiscourseWorkspaceGroups.can_manage_workspace_channel?(category, user)
+  end
+
   add_to_serializer(:basic_category, :workspace_enabled) { object.workspace_enabled? }
   add_to_serializer(:basic_category, :workspace_kind) { object.workspace_kind }
   add_to_serializer(:basic_category, :workspace_group_id) { object.workspace_group_id }
@@ -214,6 +288,7 @@ after_initialize do
     object.workspace_parent_category_id
   end
   add_to_serializer(:basic_category, :workspace_visibility) { object.workspace_visibility }
+  add_to_serializer(:basic_category, :workspace_archived) { object.workspace_archived? }
   add_to_serializer(:basic_category, :workspace_can_create_channel) do
     scope&.can_create_workspace_channel?(object)
   end
