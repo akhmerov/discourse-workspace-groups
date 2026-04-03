@@ -187,6 +187,13 @@
   gap: 0.5rem;
 }
 
+.workspace-groups-overview__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 .workspace-groups-overview__badges {
   align-items: center;
   display: flex;
@@ -243,6 +250,10 @@
   }
 
   .workspace-groups-overview__badges {
+    justify-content: flex-start;
+  }
+
+  .workspace-groups-overview__card-actions {
     justify-content: flex-start;
   }
 }
