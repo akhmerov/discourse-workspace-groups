@@ -1,8 +1,8 @@
 import Controller from "@ember/controller";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
-import { popupAjaxError } from "discourse/lib/ajax-error";
 import { ajax } from "discourse/lib/ajax";
+import { popupAjaxError } from "discourse/lib/ajax-error";
 import CreateWorkspaceChannelModal from "../../components/modal/create-workspace-channel";
 
 export default class DiscoveryWorkspaceOverviewController extends Controller {

@@ -1,13 +1,14 @@
 import Component from "@glimmer/component";
-import { Input, Textarea } from "@ember/component";
 import { tracked } from "@glimmer/tracking";
-import { action } from "@ember/object";
+import { Input, Textarea } from "@ember/component";
 import { on } from "@ember/modifier";
+import { action } from "@ember/object";
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
 import DToggleSwitch from "discourse/components/d-toggle-switch";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import DiscourseURL from "discourse/lib/url";
 import { not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 
@@ -15,7 +16,6 @@ export default class CreateWorkspaceChannelModal extends Component {
   @tracked name = "";
   @tracked description = "";
   @tracked isPrivate = false;
-  @tracked usernames = "";
   @tracked saving = false;
 
   get category() {
@@ -52,13 +52,12 @@ export default class CreateWorkspaceChannelModal extends Component {
             name: this.name.trim(),
             description: this.description.trim(),
             visibility: this.isPrivate ? "private" : "public",
-            usernames: this.usernames.trim(),
           },
         }
       );
 
       this.args.closeModal();
-      window.location.assign(result.category_url);
+      DiscourseURL.routeTo(result.category_url);
     } catch (error) {
       popupAjaxError(error);
     } finally {
@@ -75,6 +74,7 @@ export default class CreateWorkspaceChannelModal extends Component {
     <DModal
       @title={{this.modalTitle}}
       @closeModal={{@closeModal}}
+      @inline={{@inline}}
       class="workspace-groups-create-channel-modal"
     >
       <:body>
@@ -109,21 +109,6 @@ export default class CreateWorkspaceChannelModal extends Component {
             {{i18n "discourse_workspace_groups.private_channel_help"}}
           </p>
         </div>
-
-        {{#if this.isPrivate}}
-          <label class="workspace-groups-create-channel-modal__field">
-            <span class="workspace-groups-create-channel-modal__label">
-              {{i18n "discourse_workspace_groups.private_members"}}
-            </span>
-            <Input
-              @value={{this.usernames}}
-              class="workspace-groups-create-channel-modal__input"
-            />
-            <p class="workspace-groups-create-channel-modal__help">
-              {{i18n "discourse_workspace_groups.private_members_help"}}
-            </p>
-          </label>
-        {{/if}}
       </:body>
       <:footer>
         <DButton

@@ -6,11 +6,11 @@ import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 
 export default class WorkspaceChannelActions extends Component {
-  @service site;
-
   static shouldRender(outletArgs) {
     return !!outletArgs.category;
   }
+
+  @service site;
 
   get category() {
     const categoryId = this.args.outletArgs.category?.id;
@@ -32,6 +32,7 @@ export default class WorkspaceChannelActions extends Component {
       popupAjaxError(error);
     }
   }
+
   <template>
     <div class="workspace-groups-actions">
       {{#if this.canEnableWorkspace}}

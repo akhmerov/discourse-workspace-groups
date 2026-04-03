@@ -7,14 +7,19 @@ import { i18n } from "discourse-i18n";
 
 export default class DiscoveryWorkspaceOverviewRoute extends DiscourseRoute {
   @service router;
-  @service site;
 
   async model(params) {
-    const category = this.site.lazy_load_categories
-      ? await Category.asyncFindBySlugPathWithID(
+    let category = Category.findBySlugPathWithID(params.category_slug_path_with_id);
+
+    if (!category) {
+      try {
+        category = await Category.asyncFindBySlugPathWithID(
           params.category_slug_path_with_id
-        )
-      : Category.findBySlugPathWithID(params.category_slug_path_with_id);
+        );
+      } catch {
+        category = null;
+      }
+    }
 
     if (!category) {
       this.router.replaceWith("/404");
