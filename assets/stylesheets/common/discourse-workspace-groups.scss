@@ -3,6 +3,80 @@
   align-items: stretch;
 }
 
+.workspace-team-sidebar {
+  margin-bottom: 0.35rem;
+}
+
+.workspace-team-sidebar .sidebar-section-link-wrapper {
+  list-style: none;
+}
+
+.workspace-team-sidebar__row {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.workspace-team-sidebar__row--active .workspace-team-sidebar__main-link {
+  background: var(--d-sidebar-active-background);
+  color: var(--d-sidebar-active-color);
+}
+
+.workspace-team-sidebar__main-link {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.workspace-team-sidebar__modes {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.125rem;
+}
+
+.workspace-team-sidebar__mode-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: currentColor;
+  cursor: pointer;
+  display: inline-flex;
+  height: 1.5rem;
+  justify-content: center;
+  opacity: 0.72;
+  padding: 0;
+  width: 1.5rem;
+}
+
+.workspace-team-sidebar__mode-button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.workspace-team-sidebar__mode-button--active {
+  background: var(--d-sidebar-active-background);
+  color: var(--d-sidebar-active-color);
+  opacity: 1;
+}
+
+.workspace-team-sidebar__mode-icon {
+  align-items: center;
+  display: inline-flex;
+  height: 1em;
+  justify-content: center;
+  position: relative;
+  width: 1em;
+}
+
+.workspace-team-sidebar__mode-icon .chat-channel-unread-indicator {
+  pointer-events: none;
+  position: absolute;
+  right: -0.12rem;
+  top: -0.1rem;
+}
+
 .workspace-groups-actions__button {
   flex: 0 0 auto;
 }
