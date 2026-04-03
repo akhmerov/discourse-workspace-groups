@@ -41,15 +41,21 @@
 
 .workspace-groups-overview__header {
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .workspace-groups-overview__header-copy {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.workspace-groups-overview__title-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
 }
 
 .workspace-groups-overview__create-channel-button {
@@ -187,10 +193,6 @@
 }
 
 @media (max-width: 767px) {
-  .workspace-groups-overview__header {
-    flex-direction: column;
-  }
-
   .workspace-groups-overview__card-header {
     flex-direction: column;
   }

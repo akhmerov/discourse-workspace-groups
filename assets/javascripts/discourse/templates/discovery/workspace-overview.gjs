@@ -27,20 +27,24 @@ export default <template>
       <section class="workspace-groups-overview">
         <header class="workspace-groups-overview__header">
           <div class="workspace-groups-overview__header-copy">
-            <h2>{{i18n "discourse_workspace_groups.overview_heading"}}</h2>
+            <div class="workspace-groups-overview__title-row">
+              <h2>{{i18n "discourse_workspace_groups.overview_heading"}}</h2>
+
+              {{#if @controller.canCreateChannel}}
+                <DButton
+                  @action={{@controller.openCreateChannelModal}}
+                  @icon="plus"
+                  @label="discourse_workspace_groups.create"
+                  @title="discourse_workspace_groups.create_channel_title"
+                  class="btn-primary btn-small workspace-groups-overview__create-channel-button"
+                />
+              {{/if}}
+            </div>
+
             <p class="workspace-groups-overview__description">
               {{i18n "discourse_workspace_groups.overview_description"}}
             </p>
           </div>
-
-          {{#if @controller.canCreateChannel}}
-            <DButton
-              @action={{@controller.openCreateChannelModal}}
-              @icon="plus"
-              @label="discourse_workspace_groups.create_channel"
-              class="btn-primary btn-large workspace-groups-overview__create-channel-button"
-            />
-          {{/if}}
         </header>
 
         {{#if @controller.activeChannels.length}}
