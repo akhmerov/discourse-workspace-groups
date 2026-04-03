@@ -5,7 +5,7 @@ import DecoratedHtml from "discourse/components/decorated-html";
 import Layout from "discourse/components/discovery/layout";
 import Navigation from "discourse/components/discovery/navigation";
 import icon from "discourse/helpers/d-icon";
-import { eq } from "discourse/truth-helpers";
+import { eq, or } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 
 export default <template>
