@@ -14,7 +14,7 @@ module(
         description: "Bench logs and prototype notes.",
         visibility: "public",
         member_count: 4,
-        members_url: "/g/lab-notes/manage/membership",
+        members_url: "/g/lab-notes",
         topics_url: "/c/quantum-tinkerer/lab-notes/29",
         can_open_topics: true,
         can_view_members: true,
@@ -42,7 +42,7 @@ module(
 
       assert
         .dom(".workspace-groups-overview__membership-link")
-        .hasAttribute("href", "/g/lab-notes/manage/membership");
+        .hasAttribute("href", "/g/lab-notes");
       assert.dom(".workspace-groups-overview__card-actions").exists();
       assert.dom(".workspace-groups-overview__card-actions .btn").exists({
         count: 2,
