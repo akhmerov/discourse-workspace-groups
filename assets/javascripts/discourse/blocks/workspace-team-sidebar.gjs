@@ -280,7 +280,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
             class="sidebar-section-header-button workspace-team-sidebar__overview-button btn-icon btn-flat"
             {{on "click" this.openOverview}}
           >
-            {{icon "info-circle"}}
+            {{icon "table-cells-large"}}
           </button>
         {{/if}}
 
