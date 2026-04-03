@@ -14,7 +14,6 @@ export default class WorkspaceOverviewChannelCard extends Component {
     return (
       this.channel?.can_join ||
       this.channel?.can_leave ||
-      this.channel?.can_manage_access ||
       this.channel?.can_archive ||
       this.channel?.can_unarchive
     );
@@ -104,15 +103,6 @@ export default class WorkspaceOverviewChannelCard extends Component {
                 <DButton
                   @action={{fn @onLeave this.channel}}
                   @label="discourse_workspace_groups.leave_channel"
-                  class="btn-default btn-small workspace-groups-overview__membership-button"
-                  @disabled={{this.channel.is_pending}}
-                />
-              {{/if}}
-
-              {{#if this.channel.can_manage_access}}
-                <DButton
-                  @action={{fn @onManageAccess this.channel}}
-                  @label="discourse_workspace_groups.manage_access"
                   class="btn-default btn-small workspace-groups-overview__membership-button"
                   @disabled={{this.channel.is_pending}}
                 />

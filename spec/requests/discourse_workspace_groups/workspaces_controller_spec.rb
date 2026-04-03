@@ -80,6 +80,40 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body.dig("workspace", "can_view_members")).to eq(false)
       expect(response.parsed_body["channels"].map { |channel| channel["id"] }).to eq([private_channel.id])
     end
+
+    it "routes owners to native membership management" do
+      private_channel
+
+      sign_in(admin)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("workspace", "members_url")).to eq(
+        "/g/#{workspace.workspace_group.name}/manage/membership",
+      )
+      expect(
+        response.parsed_body["channels"].find { |channel| channel["id"] == private_channel.id }[
+          "members_url"
+        ],
+      ).to eq("/g/#{private_channel.workspace_group.name}/manage/membership")
+    end
+
+    it "keeps non-owners on the read-only member listing" do
+      public_channel.workspace_group.add(workspace_member)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("workspace", "members_url")).to eq(
+        "/g/#{workspace.workspace_group.name}",
+      )
+      expect(
+        response.parsed_body["channels"].find { |channel| channel["id"] == public_channel.id }[
+          "members_url"
+        ],
+      ).to eq("/g/#{public_channel.workspace_group.name}")
+    end
   end
 
   describe "#channel_access" do

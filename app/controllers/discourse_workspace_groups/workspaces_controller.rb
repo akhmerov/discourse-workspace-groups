@@ -217,6 +217,8 @@ module ::DiscourseWorkspaceGroups
     def serialize_workspace(workspace_member:, **)
       group = @workspace.workspace_group
       about_post = @workspace.topic&.first_post
+      can_manage_members =
+        group.present? && (guardian.is_admin? || DiscourseWorkspaceGroups.group_owner?(group, current_user))
 
       {
         id: @workspace.id,
@@ -224,7 +226,7 @@ module ::DiscourseWorkspaceGroups
         path: @workspace.url,
         can_create_channel: guardian.can_create_workspace_channel?(@workspace),
         member_count: group.present? ? group.group_users.count : 0,
-        members_url: group.present? ? "/g/#{group.name}" : nil,
+        members_url: group_members_url(group, can_manage: can_manage_members),
         can_view_members: guardian.is_admin? || workspace_member,
         about_cooked: about_post&.cooked || @workspace.description,
         about_url: @workspace.topic_url,
@@ -261,11 +263,10 @@ module ::DiscourseWorkspaceGroups
         can_leave: can_leave,
         can_archive: can_manage && !archived,
         can_unarchive: can_manage && archived,
-        can_manage_access: can_manage,
         can_open_topics: can_open_topics,
         can_view_members: joined,
         member_count: group.present? ? group.group_users.count : 0,
-        members_url: group.present? ? "/g/#{group.name}" : nil,
+        members_url: group_members_url(group, can_manage: can_manage),
         topics_url: category.url,
         chat_channel_id: category.category_channel&.id,
         chat_channel: serialize_chat_channel(category),
@@ -351,6 +352,13 @@ module ::DiscourseWorkspaceGroups
       end
 
       [usernames, usernames.map { |username| users_by_username.fetch(username.downcase) }]
+    end
+
+    def group_members_url(group, can_manage:)
+      return if group.blank?
+
+      path = "/g/#{group.name}"
+      can_manage ? "#{path}/manage/membership" : path
     end
   end
 end

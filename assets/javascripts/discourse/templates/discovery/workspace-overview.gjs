@@ -93,7 +93,6 @@ export default <template>
                 @channel={{channel}}
                 @onJoin={{@controller.joinChannel}}
                 @onLeave={{@controller.leaveChannel}}
-                @onManageAccess={{@controller.openManageAccessModal}}
                 @onArchive={{@controller.archiveChannel}}
                 @onUnarchive={{@controller.unarchiveChannel}}
               />
@@ -124,7 +123,6 @@ export default <template>
                   @channel={{channel}}
                   @onJoin={{@controller.joinChannel}}
                   @onLeave={{@controller.leaveChannel}}
-                  @onManageAccess={{@controller.openManageAccessModal}}
                   @onArchive={{@controller.archiveChannel}}
                   @onUnarchive={{@controller.unarchiveChannel}}
                 />
