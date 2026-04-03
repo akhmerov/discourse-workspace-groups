@@ -13,6 +13,7 @@ enabled_site_setting :discourse_workspace_groups_enabled
 register_asset "stylesheets/common/discourse-workspace-groups.scss"
 register_svg_icon "layer-group"
 register_svg_icon "lock"
+register_svg_icon "table-cells-large"
 
 module ::DiscourseWorkspaceGroups
   PLUGIN_NAME = "discourse-workspace-groups"
