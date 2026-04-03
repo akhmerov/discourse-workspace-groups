@@ -20,6 +20,22 @@ const CATEGORY_CURRENT_WHEN =
 const CHAT_CURRENT_WHEN =
   "chat.channel chat.channel.thread chat.channel.threads chat.channel.pins chat.channel.info.settings chat.channel.info.members chat.channel.near-message chat.channel.near-message-with-thread";
 
+export function workspaceScopedCategory(category) {
+  if (!category) {
+    return null;
+  }
+
+  if (
+    category.workspace_enabled ||
+    category.workspace_kind === "workspace" ||
+    category.workspace_kind === "channel"
+  ) {
+    return category;
+  }
+
+  return null;
+}
+
 function ownerFor(instance) {
   return instance?.lookup ? instance : getOwner(instance);
 }
@@ -65,7 +81,7 @@ function currentScopedCategory(instance) {
   const routeCategory = router.currentRoute?.attributes?.category;
 
   if (routeCategory) {
-    return routeCategory;
+    return workspaceScopedCategory(routeCategory);
   }
 
   if (router?.currentRouteName?.startsWith("topic.")) {
@@ -73,7 +89,7 @@ function currentScopedCategory(instance) {
       ?.category;
 
     if (topicCategory) {
-      return topicCategory;
+      return workspaceScopedCategory(topicCategory);
     }
   }
 
@@ -84,10 +100,10 @@ function currentScopedCategory(instance) {
     return null;
   }
 
-  return Category.findById(activeChannel.chatableId) ?? null;
+  return workspaceScopedCategory(Category.findById(activeChannel.chatableId));
 }
 
-function sidebarScopedCategories(instance) {
+export function sidebarScopedCategories(instance) {
   const currentCategory = currentScopedCategory(instance);
   const site = siteFor(instance);
 

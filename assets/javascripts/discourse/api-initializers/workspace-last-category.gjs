@@ -18,6 +18,28 @@ function normalizePath(path) {
   }
 }
 
+export function normalizeSavedCategoryPath(path) {
+  if (!path) {
+    return null;
+  }
+
+  try {
+    const url = new URL(path, window.location.origin);
+
+    if (url.pathname.startsWith("/c/") && url.pathname.endsWith("/overview")) {
+      url.pathname = url.pathname.replace(/\/overview$/, "");
+    }
+
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberedPathForPage(url, currentCategory) {
+  return normalizePath(currentCategory?.path || url);
+}
+
 function shouldRedirectToLastCategory() {
   return (
     window.location.pathname === "/" &&
@@ -27,7 +49,7 @@ function shouldRedirectToLastCategory() {
 }
 
 function savedLastCategoryPath() {
-  return normalizePath(
+  return normalizeSavedCategoryPath(
     localStorage.getItem(LAST_CATEGORY_KEY) ||
       localStorage.getItem(LEGACY_LAST_CATEGORY_KEY)
   );
@@ -81,7 +103,7 @@ export default apiInitializer((api) => {
       return;
     }
 
-    const normalizedUrl = normalizePath(url);
+    const normalizedUrl = rememberedPathForPage(url, currentCategory);
 
     if (!normalizedUrl) {
       return;
