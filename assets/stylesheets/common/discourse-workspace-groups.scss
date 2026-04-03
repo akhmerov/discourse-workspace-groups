@@ -19,6 +19,12 @@
   margin-bottom: 0.35rem;
 }
 
+.workspace-team-sidebar
+  .sidebar-section-header-wrapper
+  .workspace-team-sidebar__overview-button {
+  opacity: 1 !important;
+}
+
 .workspace-team-sidebar .sidebar-section-link-wrapper {
   list-style: none;
 }
