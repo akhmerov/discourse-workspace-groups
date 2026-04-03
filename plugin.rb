@@ -98,6 +98,19 @@ module ::DiscourseWorkspaceGroups
     group_owner?(category.workspace_group, user)
   end
 
+  def self.workspace_channel_category_for_group(group)
+    return if group.blank?
+    return if group.custom_fields["workspace_kind"] != WORKSPACE_KIND_CHANNEL
+
+    category_id = positive_custom_field_id(group.custom_fields["workspace_category_id"])
+    return if category_id.blank?
+
+    category = Category.find_by(id: category_id)
+    return if category.blank? || !category.workspace_channel? || category.workspace_group_id != group.id
+
+    category
+  end
+
   def self.archived_workspace_category?(category)
     category&.workspace_channel? && category.workspace_archived?
   end
@@ -114,6 +127,7 @@ require_relative "lib/discourse_workspace_groups/join_channel"
 require_relative "lib/discourse_workspace_groups/leave_channel"
 require_relative "lib/discourse_workspace_groups/set_channel_archive_state"
 require_relative "lib/discourse_workspace_groups/sync_category_chat_channel"
+require_relative "lib/discourse_workspace_groups/sync_channel_group_chat_membership"
 
 after_initialize do
   module ::DiscourseWorkspaceGroups::GuardianArchiveRestrictions
@@ -297,6 +311,10 @@ after_initialize do
   end
   add_to_serializer(:basic_category, :workspace_can_enable) do
     scope&.can_enable_workspace_group?(object)
+  end
+
+  on(:user_added_to_group) do |user, group|
+    DiscourseWorkspaceGroups::SyncChannelGroupChatMembership.new(user: user, group: group).call
   end
 
   on(:category_updated) do |category|
