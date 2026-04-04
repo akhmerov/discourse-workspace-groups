@@ -13,6 +13,7 @@ module ::DiscourseWorkspaceGroups
       return if category.blank? || !category.workspace_channel?
       return if !SiteSetting.chat_enabled || !SiteSetting.enable_public_channels
 
+      slug = desired_slug
       chat_channel = category.category_channel
 
       if chat_channel.blank?
@@ -20,7 +21,7 @@ module ::DiscourseWorkspaceGroups
           category.create_chat_channel!(
             name: category.name,
             description: category.description,
-            slug: category.slug,
+            slug: slug,
             auto_join_users: false,
             threading_enabled: true,
           )
@@ -28,7 +29,7 @@ module ::DiscourseWorkspaceGroups
         attrs = {}
         attrs[:name] = category.name if chat_channel.name != category.name
         attrs[:description] = category.description if chat_channel.description != category.description
-        attrs[:slug] = category.slug if chat_channel.slug != category.slug
+        attrs[:slug] = slug if chat_channel.slug != slug
         attrs[:auto_join_users] = false if chat_channel.auto_join_users?
         attrs[:threading_enabled] = true if !chat_channel.threading_enabled?
         chat_channel.update!(attrs) if attrs.present?
@@ -65,6 +66,14 @@ module ::DiscourseWorkspaceGroups
 
       chat_channel.update!(status: target_status)
       Chat::Publisher.publish_channel_status(chat_channel)
+    end
+
+    def desired_slug
+      full_slug = category.full_slug
+      return full_slug if full_slug.length <= 100
+
+      suffix = "-#{category.id}"
+      "#{full_slug.first(100 - suffix.length)}#{suffix}"
     end
   end
 end
