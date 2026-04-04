@@ -2,6 +2,7 @@ import { click, fillIn, render } from "@ember/test-helpers";
 import { module, test } from "qunit";
 import sinon from "sinon";
 import DiscourseURL from "discourse/lib/url";
+import Category from "discourse/models/category";
 import { setupRenderingTest } from "discourse/tests/helpers/component-test";
 import pretender from "discourse/tests/helpers/create-pretender";
 import CreateWorkspaceChannelModal from "discourse/plugins/discourse-workspace-groups/discourse/components/modal/create-workspace-channel";
@@ -21,6 +22,7 @@ module(
 
     test("routes to the new category without a hard reload", async function (assert) {
       sinon.stub(DiscourseURL, "routeTo");
+      sinon.stub(Category, "asyncFindBySlugPathWithID").resolves();
       let requestBody;
 
       pretender.post("/workspace-groups/workspaces/28/channels", (request) => {
@@ -49,6 +51,11 @@ module(
       await click(".btn-primary");
 
       assert.true(this.closeModal.calledOnce);
+      assert.true(
+        Category.asyncFindBySlugPathWithID.calledOnceWith(
+          "quantum-tinkerer/lab-notes/29"
+        )
+      );
       assert.true(
         DiscourseURL.routeTo.calledOnceWith("/c/quantum-tinkerer/lab-notes/29")
       );

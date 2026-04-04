@@ -9,6 +9,7 @@ import DToggleSwitch from "discourse/components/d-toggle-switch";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import DiscourseURL from "discourse/lib/url";
+import Category from "discourse/models/category";
 import { not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 
@@ -28,6 +29,17 @@ export default class CreateWorkspaceChannelModal extends Component {
 
   get canCreate() {
     return !this.saving && this.name.trim().length > 0;
+  }
+
+  categorySlugPathWithId(categoryUrl) {
+    if (!categoryUrl) {
+      return null;
+    }
+
+    const pathname = new URL(categoryUrl, window.location.origin).pathname;
+    const match = pathname.match(/^\/c\/(.+)$/);
+
+    return match?.[1] || null;
   }
 
   @action
@@ -57,6 +69,17 @@ export default class CreateWorkspaceChannelModal extends Component {
       );
 
       this.args.closeModal();
+      const categorySlugPathWithId = this.categorySlugPathWithId(result.category_url);
+
+      if (categorySlugPathWithId) {
+        try {
+          await Category.asyncFindBySlugPathWithID(categorySlugPathWithId);
+        } catch {
+          window.location.assign(result.category_url);
+          return;
+        }
+      }
+
       DiscourseURL.routeTo(result.category_url);
     } catch (error) {
       popupAjaxError(error);
