@@ -106,4 +106,21 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
       /Choose a more distinct channel name/,
     )
   end
+
+  it "keeps public root permissions when adding channels to a public workspace" do
+    workspace.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ROOT_PUBLIC_READ] = true
+    workspace.save!
+    DiscourseWorkspaceGroups.sync_workspace_root_permissions!(workspace)
+
+    described_class.new(
+      workspace: workspace,
+      user: admin,
+      name: "Open Research #{SecureRandom.hex(3)}",
+      description: nil,
+      visibility: "public",
+    ).call
+
+    everyone_permission = workspace.reload.category_groups.find_by(group_id: Group::AUTO_GROUPS[:everyone])
+    expect(everyone_permission&.permission_type).to eq(CategoryGroup.permission_types[:readonly])
+  end
 end

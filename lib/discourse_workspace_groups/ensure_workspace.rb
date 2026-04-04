@@ -2,11 +2,12 @@
 
 module ::DiscourseWorkspaceGroups
   class EnsureWorkspace
-    attr_reader :category, :user
+    attr_reader :category, :user, :public_read
 
-    def initialize(category:, user:)
+    def initialize(category:, user:, public_read: false)
       @category = category
       @user = user
+      @public_read = public_read
     end
 
     def call
@@ -19,6 +20,7 @@ module ::DiscourseWorkspaceGroups
       category.custom_fields[WORKSPACE_ENABLED] = true
       category.custom_fields[WORKSPACE_KIND] = WORKSPACE_KIND_ROOT
       category.custom_fields[WORKSPACE_GROUP_ID] = workspace_group.id
+      category.custom_fields[WORKSPACE_ROOT_PUBLIC_READ] = public_read
       category.set_permissions(root_permissions(workspace_group))
       category.save!
 
@@ -65,6 +67,7 @@ module ::DiscourseWorkspaceGroups
       DiscourseWorkspaceGroups.workspace_root_permissions(
         workspace_group,
         DiscourseWorkspaceGroups.workspace_channel_group_ids(category),
+        public_read: public_read,
       )
     end
   end

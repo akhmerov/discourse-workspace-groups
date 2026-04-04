@@ -25,6 +25,7 @@ module ::DiscourseWorkspaceGroups
   WORKSPACE_PARENT_CATEGORY_ID = "workspace_parent_category_id"
   WORKSPACE_VISIBILITY = "workspace_visibility"
   WORKSPACE_ARCHIVED = "workspace_archived"
+  WORKSPACE_ROOT_PUBLIC_READ = "workspace_root_public_read"
 
   WORKSPACE_KIND_ROOT = "workspace"
   WORKSPACE_KIND_CHANNEL = "channel"
@@ -130,8 +131,9 @@ module ::DiscourseWorkspaceGroups
     channels.select(&:workspace_channel?).map(&:workspace_group_id).compact.uniq
   end
 
-  def self.workspace_root_permissions(workspace_group, channel_group_ids)
+  def self.workspace_root_permissions(workspace_group, channel_group_ids, public_read: false)
     permissions = { workspace_group.id => :full }
+    permissions[:everyone] = :readonly if public_read
     channel_group_ids.each { |group_id| permissions[group_id] = ROOT_CHANNEL_PERMISSION }
     permissions
   end
@@ -143,7 +145,11 @@ module ::DiscourseWorkspaceGroups
     return workspace if workspace_group.blank?
 
     desired_permissions =
-      workspace_root_permissions(workspace_group, workspace_channel_group_ids(workspace))
+      workspace_root_permissions(
+        workspace_group,
+        workspace_channel_group_ids(workspace),
+        public_read: workspace.workspace_root_public_read?,
+      )
     desired_permission_types =
       desired_permissions.transform_values { |permission| CategoryGroup.permission_types.fetch(permission) }
     current_permission_types = workspace.category_groups.pluck(:group_id, :permission_type).to_h
@@ -244,6 +250,10 @@ after_initialize do
   )
   register_category_custom_field_type(DiscourseWorkspaceGroups::WORKSPACE_VISIBILITY, :string)
   register_category_custom_field_type(DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED, :boolean)
+  register_category_custom_field_type(
+    DiscourseWorkspaceGroups::WORKSPACE_ROOT_PUBLIC_READ,
+    :boolean,
+  )
 
   register_group_custom_field_type("workspace_category_id", :integer)
   register_group_custom_field_type("workspace_kind", :string)
@@ -257,6 +267,7 @@ after_initialize do
   )
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_VISIBILITY)
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED)
+  register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_ROOT_PUBLIC_READ)
 
   add_to_class(:category, :workspace_enabled?) do
     custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ENABLED].to_s == "true"
@@ -303,6 +314,10 @@ after_initialize do
 
   add_to_class(:category, :workspace_archived?) do
     custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED].to_s == "true"
+  end
+
+  add_to_class(:category, :workspace_root_public_read?) do
+    custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ROOT_PUBLIC_READ].to_s == "true"
   end
 
   add_to_class(Guardian, :can_enable_workspace_group?) do |category|
@@ -352,6 +367,9 @@ after_initialize do
   end
   add_to_serializer(:basic_category, :workspace_visibility) { object.workspace_visibility }
   add_to_serializer(:basic_category, :workspace_archived) { object.workspace_archived? }
+  add_to_serializer(:basic_category, :workspace_root_public_read) do
+    object.workspace_root_public_read?
+  end
   add_to_serializer(:basic_category, :workspace_can_create_channel) do
     scope&.can_create_workspace_channel?(object)
   end

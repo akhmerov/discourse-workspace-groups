@@ -100,7 +100,11 @@ module ::DiscourseWorkspaceGroups
       group_ids = DiscourseWorkspaceGroups.workspace_channel_group_ids(workspace)
       group_ids << new_group_id if new_group_id.present?
 
-      DiscourseWorkspaceGroups.workspace_root_permissions(workspace_group, group_ids)
+      DiscourseWorkspaceGroups.workspace_root_permissions(
+        workspace_group,
+        group_ids,
+        public_read: workspace.workspace_root_public_read?,
+      )
     end
 
     def channel_permissions(channel_group)
