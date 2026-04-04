@@ -69,11 +69,14 @@ module ::DiscourseWorkspaceGroups
     end
 
     def desired_slug
-      full_slug = category.full_slug
-      return full_slug if full_slug.length <= 100
+      base =
+        [
+          category.parent_category&.slug.presence,
+          category.slug.presence || Slug.for(category.name, ""),
+        ].compact.join("-")
 
       suffix = "-#{category.id}"
-      "#{full_slug.first(100 - suffix.length)}#{suffix}"
+      "#{base.first(100 - suffix.length)}#{suffix}"
     end
   end
 end

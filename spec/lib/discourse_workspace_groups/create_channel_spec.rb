@@ -79,8 +79,12 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
         visibility: "public",
       ).call
 
-    expect(channel_one.reload.category_channel.slug).to eq(channel_one.full_slug)
-    expect(channel_two.reload.category_channel.slug).to eq(channel_two.full_slug)
+    expect(channel_one.reload.category_channel.slug).to start_with("#{workspace.slug}-reading-group")
+    expect(channel_two.reload.category_channel.slug).to start_with(
+      "#{other_workspace.slug}-reading-group",
+    )
+    expect(channel_one.category_channel.slug).to end_with("-#{channel_one.id}")
+    expect(channel_two.category_channel.slug).to end_with("-#{channel_two.id}")
     expect(channel_one.category_channel.slug).not_to eq(channel_two.category_channel.slug)
   end
 
