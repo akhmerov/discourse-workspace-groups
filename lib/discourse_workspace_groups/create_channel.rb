@@ -72,16 +72,18 @@ module ::DiscourseWorkspaceGroups
 
     def ensure_channel_group
       group_name = DiscourseWorkspaceGroups.channel_group_name(workspace, name)
+      existing_group = Group.find_by(name: group_name)
+      raise Discourse::InvalidParameters.new(collision_error) if existing_group.present?
+
       group =
-        Group.find_by(name: group_name) ||
-          Group.create!(
-            name: group_name,
-            full_name: name,
-            visibility_level: Group.visibility_levels[:members],
-            members_visibility_level: Group.visibility_levels[:members],
-            mentionable_level: Group::ALIAS_LEVELS[:nobody],
-            messageable_level: Group::ALIAS_LEVELS[:nobody],
-          )
+        Group.create!(
+          name: group_name,
+          full_name: name,
+          visibility_level: Group.visibility_levels[:members],
+          members_visibility_level: Group.visibility_levels[:members],
+          mentionable_level: Group::ALIAS_LEVELS[:nobody],
+          messageable_level: Group::ALIAS_LEVELS[:nobody],
+        )
 
       group.update!(name: group_name, full_name: name)
       ensure_group_membership(group, user, owner: true)
@@ -103,6 +105,10 @@ module ::DiscourseWorkspaceGroups
 
     def channel_permissions(channel_group)
       { channel_group.id => :full }
+    end
+
+    def collision_error
+      I18n.t("discourse_workspace_groups.errors.channel_name_collision", name: name)
     end
   end
 end

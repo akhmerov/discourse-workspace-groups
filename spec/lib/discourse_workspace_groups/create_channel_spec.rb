@@ -83,4 +83,27 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     expect(channel_two.reload.category_channel.slug).to eq(channel_two.full_slug)
     expect(channel_one.category_channel.slug).not_to eq(channel_two.category_channel.slug)
   end
+
+  it "rejects channel names that collide after internal slug truncation" do
+    described_class.new(
+      workspace: workspace,
+      user: admin,
+      name: "Project Atlas Coordination",
+      description: nil,
+      visibility: "private",
+    ).call
+
+    expect {
+      described_class.new(
+        workspace: workspace,
+        user: admin,
+        name: "Project Atlas Controls",
+        description: nil,
+        visibility: "private",
+      ).call
+    }.to raise_error(
+      Discourse::InvalidParameters,
+      /Choose a more distinct channel name/,
+    )
+  end
 end

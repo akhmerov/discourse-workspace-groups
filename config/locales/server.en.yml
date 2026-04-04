@@ -1,6 +1,7 @@
 en:
   discourse_workspace_groups:
     errors:
+      channel_name_collision: "Choose a more distinct channel name. This one collides with an existing internal group name."
       usernames_required: "Enter at least one username."
       unknown_users: "Unknown users: %{usernames}"
   site_settings:
