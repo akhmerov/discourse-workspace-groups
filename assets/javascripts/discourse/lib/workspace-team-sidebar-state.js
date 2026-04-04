@@ -31,6 +31,18 @@ function visibleChildren(category, siteSettings, site) {
   );
 }
 
+function pushUniqueCategory(categories, category) {
+  if (!category) {
+    return categories;
+  }
+
+  if (categories.some((candidate) => candidate.id === category.id)) {
+    return categories;
+  }
+
+  return [...categories, category];
+}
+
 function scopedCategoriesFor(category, services) {
   if (!category) {
     return null;
@@ -161,14 +173,24 @@ export function sidebarChannelCategories(services) {
     return null;
   }
 
-  const visibleCategories =
+  let visibleCategories =
     userSelectedScopedCategories(services.currentUser, scopedCategories) ??
     scopedCategories;
+  const currentCategory = currentScopedCategory(services);
+  const currentWorkspace = scopedCategories[0];
+
+  if (
+    currentCategory?.workspace_kind === "channel" &&
+    currentCategory.parent_category_id === currentWorkspace?.id
+  ) {
+    visibleCategories = pushUniqueCategory(visibleCategories, currentCategory);
+  }
 
   return visibleCategories
     .slice(1)
     .filter((category) =>
-      pairedCategoryChannelFor(category, services.chatChannelsManager)
+      pairedCategoryChannelFor(category, services.chatChannelsManager) ||
+      category.id === currentCategory?.id
     );
 }
 

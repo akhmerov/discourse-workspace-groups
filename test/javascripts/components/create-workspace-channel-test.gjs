@@ -23,6 +23,11 @@ module(
     test("routes to the new category without a hard reload", async function (assert) {
       sinon.stub(DiscourseURL, "routeTo");
       sinon.stub(Category, "asyncFindBySlugPathWithID").resolves();
+      const chatChannelsManager = this.owner.lookup("service:chat-channels-manager");
+      sinon.stub(chatChannelsManager, "store").returns({
+        currentUserMembership: { following: true },
+      });
+      sinon.stub(chatChannelsManager, "follow").resolves();
       let requestBody;
 
       pretender.post("/workspace-groups/workspaces/28/channels", (request) => {
@@ -31,7 +36,17 @@ module(
         return [
           200,
           { "Content-Type": "application/json" },
-          JSON.stringify({ category_url: "/c/quantum-tinkerer/lab-notes/29" }),
+          JSON.stringify({
+            category_url: "/c/quantum-tinkerer/lab-notes/29",
+            channel: {
+              chat_channel: {
+                id: 55,
+                chatableId: 29,
+                isCategoryChannel: true,
+                currentUserMembership: { following: true },
+              },
+            },
+          }),
         ];
       });
 
@@ -51,6 +66,8 @@ module(
       await click(".btn-primary");
 
       assert.true(this.closeModal.calledOnce);
+      assert.true(chatChannelsManager.store.calledOnce);
+      assert.false(chatChannelsManager.follow.called);
       assert.true(
         Category.asyncFindBySlugPathWithID.calledOnceWith(
           "quantum-tinkerer/lab-notes/29"

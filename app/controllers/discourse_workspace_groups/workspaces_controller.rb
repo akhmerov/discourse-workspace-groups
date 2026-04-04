@@ -62,12 +62,17 @@ module ::DiscourseWorkspaceGroups
         description: params[:description],
         visibility: params[:visibility],
       ).call
+      category = Category.find(category.id)
+      Category.preload_custom_fields([category], Site.preloaded_category_custom_fields)
+
+      context = build_channels_context([category])
 
       render json: {
                category_id: category.id,
                category_url: category.url,
                workspace_id: @workspace.id,
                visibility: category.workspace_visibility,
+               channel: serialize_channel(category, **context),
              }
     end
 

@@ -166,6 +166,50 @@ module(
       assert.deepEqual(visibleChannels, [joinedChannel]);
     });
 
+    test("keeps the current channel visible while local sidebar state catches up", function (assert) {
+      const workspace = {
+        id: 40,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+      };
+      const existingChannel = {
+        id: 41,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+      const currentChannel = {
+        id: 42,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+
+      const visibleChannels = sidebarChannelCategories({
+        currentUser: { sidebarCategoryIds: [41] },
+        router: {
+          currentRoute: {
+            attributes: {
+              category: currentChannel,
+            },
+          },
+        },
+        site: {
+          categoriesList: [workspace, existingChannel, currentChannel],
+        },
+        siteSettings: {},
+        chatChannelsManager: {
+          channels: [
+            {
+              isCategoryChannel: true,
+              chatableId: 41,
+              currentUserMembership: { following: true },
+            },
+          ],
+        },
+      });
+
+      assert.deepEqual(visibleChannels, [existingChannel, currentChannel]);
+    });
+
     test("detects chat mode for category-backed chat channels", function (assert) {
       assert.strictEqual(
         currentScopedMode({

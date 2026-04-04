@@ -3,6 +3,7 @@ import { tracked } from "@glimmer/tracking";
 import { Input, Textarea } from "@ember/component";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
+import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
 import DToggleSwitch from "discourse/components/d-toggle-switch";
@@ -14,6 +15,8 @@ import { not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 
 export default class CreateWorkspaceChannelModal extends Component {
+  @service chatChannelsManager;
+
   @tracked name = "";
   @tracked description = "";
   @tracked isPrivate = false;
@@ -40,6 +43,20 @@ export default class CreateWorkspaceChannelModal extends Component {
     const match = pathname.match(/^\/c\/(.+)$/);
 
     return match?.[1] || null;
+  }
+
+  async syncCreatedChatChannel(channel) {
+    if (!channel?.chat_channel) {
+      return;
+    }
+
+    const storedChannel = this.chatChannelsManager.store(channel.chat_channel, {
+      replace: true,
+    });
+
+    if (!storedChannel?.currentUserMembership?.following) {
+      await this.chatChannelsManager.follow(storedChannel);
+    }
   }
 
   @action
@@ -69,6 +86,7 @@ export default class CreateWorkspaceChannelModal extends Component {
       );
 
       this.args.closeModal();
+      await this.syncCreatedChatChannel(result.channel);
       const categorySlugPathWithId = this.categorySlugPathWithId(result.category_url);
 
       if (categorySlugPathWithId) {

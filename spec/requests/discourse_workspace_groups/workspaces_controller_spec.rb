@@ -114,6 +114,25 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "#create_channel" do
+    it "returns the created channel payload with paired chat data" do
+      sign_in(admin)
+
+      post "/workspace-groups/workspaces/#{workspace.id}/channels.json",
+           params: {
+             name: "Private Planning #{SecureRandom.hex(4)}",
+             visibility: "private",
+           }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "joined")).to eq(true)
+      expect(response.parsed_body.dig("channel", "chat_channel", "id")).to be_present
+      expect(
+        response.parsed_body.dig("channel", "chat_channel", "current_user_membership", "following"),
+      ).to eq(true)
+    end
+  end
+
   describe "#channel_access" do
     it "lists guests separately from team members" do
       private_channel.workspace_group.add(workspace_member)
