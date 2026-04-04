@@ -1,6 +1,8 @@
 import Category from "discourse/models/category";
 import { canDisplayCategory } from "discourse/lib/sidebar/helpers";
 
+export const LAST_WORKSPACE_KEY = "workspace-groups:last-workspace-id";
+
 export function workspaceScopedCategory(category) {
   if (!category) {
     return null;
@@ -27,6 +29,37 @@ function visibleChildren(category, siteSettings, site) {
       candidate.parent_category_id === category.id &&
       canDisplayCategory(candidate.id, siteSettings)
   );
+}
+
+function scopedCategoriesFor(category, services) {
+  if (!category) {
+    return null;
+  }
+
+  const directChildren = visibleChildren(
+    category,
+    services.siteSettings,
+    services.site
+  );
+
+  if (directChildren.length > 0) {
+    return [category, ...directChildren];
+  }
+
+  if (category.parent_category_id) {
+    const parentCategory = Category.findById(category.parent_category_id);
+    const siblingCategories = visibleChildren(
+      parentCategory,
+      services.siteSettings,
+      services.site
+    );
+
+    if (siblingCategories.length > 0) {
+      return [parentCategory, ...siblingCategories];
+    }
+  }
+
+  return [];
 }
 
 function routeCategoryFor(services) {
@@ -64,6 +97,10 @@ export function currentScopedCategory(services) {
   );
 }
 
+export function currentWorkspaceCategory(services) {
+  return scopedCategoriesFor(currentScopedCategory(services), services)?.[0] ?? null;
+}
+
 export function currentScopedMode(services) {
   if (
     services.router?.currentRouteName?.startsWith("chat.") &&
@@ -76,36 +113,14 @@ export function currentScopedMode(services) {
 }
 
 export function sidebarScopedCategories(services) {
-  const currentCategory = currentScopedCategory(services);
+  const currentCategories = scopedCategoriesFor(currentScopedCategory(services), services);
 
-  if (!currentCategory) {
-    return null;
+  if (currentCategories) {
+    return currentCategories;
   }
 
-  const directChildren = visibleChildren(
-    currentCategory,
-    services.siteSettings,
-    services.site
-  );
-
-  if (directChildren.length > 0) {
-    return [currentCategory, ...directChildren];
-  }
-
-  if (currentCategory.parent_category_id) {
-    const parentCategory = Category.findById(currentCategory.parent_category_id);
-    const siblingCategories = visibleChildren(
-      parentCategory,
-      services.siteSettings,
-      services.site
-    );
-
-    if (siblingCategories.length > 0) {
-      return [parentCategory, ...siblingCategories];
-    }
-  }
-
-  return [];
+  const fallbackWorkspace = rememberedOrDefaultWorkspaceCategory(services);
+  return scopedCategoriesFor(fallbackWorkspace, services);
 }
 
 export function userSelectedScopedCategories(currentUser, scopedCategories) {
@@ -179,5 +194,43 @@ export function visibleWorkspaceCategories(services) {
       !category.parent_category_id &&
       category.workspace_kind === "workspace" &&
       canDisplayCategory(category.id, services.siteSettings)
+  );
+}
+
+export function memberWorkspaceCategories(services) {
+  const workspaceGroupIds = new Set(
+    (services.currentUser?.groups || []).map((group) => Number(group.id))
+  );
+
+  return visibleWorkspaceCategories(services).filter((category) =>
+    workspaceGroupIds.has(Number(category.workspace_group_id))
+  );
+}
+
+export function rememberedWorkspaceCategory(services) {
+  let rememberedId;
+
+  try {
+    rememberedId = Number(localStorage.getItem(LAST_WORKSPACE_KEY));
+  } catch {
+    return null;
+  }
+
+  if (!rememberedId) {
+    return null;
+  }
+
+  return (
+    visibleWorkspaceCategories(services).find(
+      (category) => Number(category.id) === rememberedId
+    ) ?? null
+  );
+}
+
+export function rememberedOrDefaultWorkspaceCategory(services) {
+  return (
+    rememberedWorkspaceCategory(services) ||
+    memberWorkspaceCategories(services)[0] ||
+    null
   );
 }

@@ -1,7 +1,10 @@
 import { module, test } from "qunit";
 import {
   currentScopedMode,
+  memberWorkspaceCategories,
   pairedCategoryChannelFor,
+  rememberedOrDefaultWorkspaceCategory,
+  rememberedWorkspaceCategory,
   sidebarChannelCategories,
   sidebarScopedCategories,
   userSelectedScopedCategories,
@@ -10,7 +13,15 @@ import {
 
 module(
   "Discourse Workspace Groups | Lib | workspace-team-sidebar-state",
-  function () {
+  function (hooks) {
+    hooks.beforeEach(function () {
+      localStorage.removeItem("workspace-groups:last-workspace-id");
+    });
+
+    hooks.afterEach(function () {
+      localStorage.removeItem("workspace-groups:last-workspace-id");
+    });
+
     test("only treats workspace categories as scoped sidebar categories", function (assert) {
       const regularCategory = {
         id: 28,
@@ -190,6 +201,95 @@ module(
           currentUserMembership: { following: true },
         }
       );
+    });
+
+    test("uses the remembered workspace when there is no active scoped category", function (assert) {
+      const workspace = {
+        id: 40,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+        workspace_group_id: 400,
+      };
+      const channel = {
+        id: 41,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+
+      localStorage.setItem("workspace-groups:last-workspace-id", "40");
+
+      assert.strictEqual(
+        rememberedWorkspaceCategory({
+          currentUser: {},
+          site: { categoriesList: [workspace, channel] },
+          siteSettings: {},
+        }),
+        workspace
+      );
+
+      assert.deepEqual(
+        sidebarScopedCategories({
+          currentUser: {},
+          router: { currentRoute: { attributes: {} } },
+          site: { categoriesList: [workspace, channel] },
+          siteSettings: {},
+        }),
+        [workspace, channel]
+      );
+    });
+
+    test("defaults to the first member workspace when none was remembered", function (assert) {
+      const guestWorkspace = {
+        id: 10,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+        workspace_group_id: 110,
+      };
+      const memberWorkspace = {
+        id: 20,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+        workspace_group_id: 220,
+      };
+      const memberChannel = {
+        id: 21,
+        parent_category_id: 20,
+        workspace_kind: "channel",
+      };
+
+      const services = {
+        currentUser: { groups: [{ id: 220 }] },
+        router: { currentRoute: { attributes: {} } },
+        site: { categoriesList: [guestWorkspace, memberWorkspace, memberChannel] },
+        siteSettings: {},
+      };
+
+      assert.deepEqual(memberWorkspaceCategories(services), [memberWorkspace]);
+      assert.strictEqual(
+        rememberedOrDefaultWorkspaceCategory(services),
+        memberWorkspace
+      );
+      assert.deepEqual(sidebarScopedCategories(services), [memberWorkspace, memberChannel]);
+    });
+
+    test("does not auto-pick a workspace for users without workspace memberships", function (assert) {
+      const guestWorkspace = {
+        id: 10,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+        workspace_group_id: 110,
+      };
+
+      const services = {
+        currentUser: { groups: [] },
+        router: { currentRoute: { attributes: {} } },
+        site: { categoriesList: [guestWorkspace] },
+        siteSettings: {},
+      };
+
+      assert.deepEqual(memberWorkspaceCategories(services), []);
+      assert.strictEqual(rememberedOrDefaultWorkspaceCategory(services), null);
+      assert.strictEqual(sidebarScopedCategories(services), null);
     });
   }
 );

@@ -1,4 +1,8 @@
 import { apiInitializer } from "discourse/lib/api";
+import {
+  currentWorkspaceCategory,
+  LAST_WORKSPACE_KEY,
+} from "../lib/workspace-team-sidebar-state";
 
 const LAST_CATEGORY_KEY = "workspace-groups:last-category-path";
 const LEGACY_LAST_CATEGORY_KEY = "research-groups:last-category-path";
@@ -98,8 +102,22 @@ export default apiInitializer((api) => {
   api.onPageChange((url) => {
     const router = api.container.lookup("service:router");
     const currentCategory = router.currentRoute?.attributes?.category;
+    const currentWorkspace = currentWorkspaceCategory({
+      chat: api.container.lookup("service:chat"),
+      router,
+      site: api.container.lookup("service:site"),
+      siteSettings,
+      topicCategory:
+        router.currentRouteName?.startsWith("topic.")
+          ? api.container.lookup("controller:topic")?.model?.category
+          : null,
+    });
 
     if (!currentCategory) {
+      if (currentWorkspace?.id) {
+        localStorage.setItem(LAST_WORKSPACE_KEY, String(currentWorkspace.id));
+      }
+
       return;
     }
 
@@ -111,6 +129,10 @@ export default apiInitializer((api) => {
 
     localStorage.setItem(LAST_CATEGORY_KEY, normalizedUrl);
     localStorage.removeItem(LEGACY_LAST_CATEGORY_KEY);
+
+    if (currentWorkspace?.id) {
+      localStorage.setItem(LAST_WORKSPACE_KEY, String(currentWorkspace.id));
+    }
   });
 
   maybeRedirectToLastCategory();
