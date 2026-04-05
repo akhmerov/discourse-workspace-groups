@@ -36,4 +36,19 @@ RSpec.describe DiscourseWorkspaceGroups do
       expect(name.length).to be <= described_class::MAX_GROUP_NAME_LENGTH
     end
   end
+
+  describe ".disambiguated_channel_group_name" do
+    it "keeps channel group slugs unique under normalization collisions" do
+      one = described_class.disambiguated_channel_group_name(workspace, "magnetic-graphene-jj")
+      two = described_class.disambiguated_channel_group_name(workspace, "magnetic_graphene_jj")
+
+      expect(one).not_to eq(two)
+      expect(one).to start_with("chan-")
+      expect(two).to start_with("chan-")
+      expect(one).to end_with("-#{workspace.id}")
+      expect(two).to end_with("-#{workspace.id}")
+      expect(one.length).to be <= described_class::MAX_GROUP_NAME_LENGTH
+      expect(two.length).to be <= described_class::MAX_GROUP_NAME_LENGTH
+    end
+  end
 end

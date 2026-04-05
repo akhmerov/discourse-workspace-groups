@@ -108,27 +108,29 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     expect(channel.category_channel.description).to start_with("Research summary paragraph.")
   end
 
-  it "rejects channel names that collide after internal slug truncation" do
-    described_class.new(
-      workspace: workspace,
-      user: admin,
-      name: "Project Atlas Coordination",
-      description: nil,
-      visibility: "private",
-    ).call
-
-    expect {
+  it "creates distinct backing groups for names that normalize to the same slug" do
+    channel_one =
       described_class.new(
         workspace: workspace,
         user: admin,
-        name: "Project Atlas Controls",
+        name: "magnetic-graphene-jj",
         description: nil,
         visibility: "private",
       ).call
-    }.to raise_error(
-      Discourse::InvalidParameters,
-      /Choose a more distinct channel name/,
-    )
+    channel_two =
+      described_class.new(
+        workspace: workspace,
+        user: admin,
+        name: "magnetic_graphene_jj",
+        description: nil,
+        visibility: "private",
+      ).call
+
+    expect(channel_one.workspace_group_id).not_to eq(channel_two.workspace_group_id)
+    expect(channel_one.workspace_group.name).not_to eq(channel_two.workspace_group.name)
+    expect(channel_one.slug).not_to eq(channel_two.slug)
+    expect(channel_one.workspace_group.name.length).to be <= DiscourseWorkspaceGroups::MAX_GROUP_NAME_LENGTH
+    expect(channel_two.workspace_group.name.length).to be <= DiscourseWorkspaceGroups::MAX_GROUP_NAME_LENGTH
   end
 
   it "keeps public root permissions when adding channels to a public workspace" do

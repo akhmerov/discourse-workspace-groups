@@ -15,6 +15,8 @@ register_svg_icon "layer-group"
 register_svg_icon "lock"
 register_svg_icon "table-cells-large"
 
+require "digest/sha1"
+
 module ::DiscourseWorkspaceGroups
   PLUGIN_NAME = "discourse-workspace-groups"
   MAX_GROUP_NAME_LENGTH = 20
@@ -61,12 +63,18 @@ module ::DiscourseWorkspaceGroups
     descriptive_group_name("chan", name, workspace.id)
   end
 
-  def self.descriptive_group_name(prefix, label, suffix)
+  def self.disambiguated_channel_group_name(workspace, name)
+    descriptive_group_name("chan", name, workspace.id, extra: Digest::SHA1.hexdigest(name.to_s)[0, 4])
+  end
+
+  def self.descriptive_group_name(prefix, label, suffix, extra: nil)
     suffix = suffix.to_s
-    available_slug_length = MAX_GROUP_NAME_LENGTH - prefix.length - suffix.length - 2
+    extra = extra.presence
+    available_slug_length =
+      MAX_GROUP_NAME_LENGTH - prefix.length - suffix.length - 2 - (extra ? extra.length + 1 : 0)
     slug = Slug.for(label.to_s, "", available_slug_length).presence || "group"
 
-    [prefix, slug, suffix].join("-")
+    [prefix, slug, extra, suffix].compact.join("-")
   end
 
   def self.group_member?(group, user)

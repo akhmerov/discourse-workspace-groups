@@ -2,6 +2,8 @@
 
 module ::DiscourseWorkspaceGroups
   class CreateChannel
+    CATEGORY_SLUG_HASH_LENGTH = 4
+
     attr_reader :workspace, :user, :name, :description, :visibility
 
     def initialize(workspace:, user:, name:, description:, visibility:)
@@ -26,7 +28,7 @@ module ::DiscourseWorkspaceGroups
       channel =
         Category.new(
           name: name,
-          slug: Slug.for(name, ""),
+          slug: category_slug,
           color: workspace.color,
           text_color: workspace.text_color,
           parent_category: workspace,
@@ -73,7 +75,13 @@ module ::DiscourseWorkspaceGroups
     def ensure_channel_group
       group_name = DiscourseWorkspaceGroups.channel_group_name(workspace, name)
       existing_group = Group.find_by(name: group_name)
-      raise Discourse::InvalidParameters.new(collision_error) if existing_group.present?
+      if existing_group.present?
+        raise Discourse::InvalidParameters.new(collision_error) if existing_group.full_name == name
+
+        group_name = DiscourseWorkspaceGroups.disambiguated_channel_group_name(workspace, name)
+        existing_group = Group.find_by(name: group_name)
+        raise Discourse::InvalidParameters.new(collision_error) if existing_group.present?
+      end
 
       group =
         Group.create!(
@@ -113,6 +121,17 @@ module ::DiscourseWorkspaceGroups
 
     def collision_error
       I18n.t("discourse_workspace_groups.errors.channel_name_collision", name: name)
+    end
+
+    def category_slug
+      base_slug = Slug.for(name, "").presence || "channel"
+      return base_slug if !Category.exists?(slug: base_slug)
+
+      suffix = "-#{Digest::SHA1.hexdigest(name)[0, CATEGORY_SLUG_HASH_LENGTH]}"
+      candidate = "#{base_slug.first(255 - suffix.length)}#{suffix}"
+      return candidate if !Category.exists?(slug: candidate)
+
+      raise Discourse::InvalidParameters.new(collision_error)
     end
   end
 end
