@@ -88,6 +88,26 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     expect(channel_one.category_channel.slug).not_to eq(channel_two.category_channel.slug)
   end
 
+  it "keeps the full description in the category topic while capping the paired chat description" do
+    SiteSetting.chat_enabled = true
+    SiteSetting.enable_public_channels = true
+
+    long_description = ("Research summary paragraph. " * 30).strip
+
+    channel =
+      described_class.new(
+        workspace: workspace,
+        user: admin,
+        name: "Long Description #{SecureRandom.hex(3)}",
+        description: long_description,
+        visibility: "public",
+      ).call
+
+    expect(channel.topic.first_post.raw).to eq(long_description)
+    expect(channel.reload.category_channel.description.length).to be <= 500
+    expect(channel.category_channel.description).to start_with("Research summary paragraph.")
+  end
+
   it "rejects channel names that collide after internal slug truncation" do
     described_class.new(
       workspace: workspace,

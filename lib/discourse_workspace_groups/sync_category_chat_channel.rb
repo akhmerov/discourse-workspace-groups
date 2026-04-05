@@ -2,6 +2,8 @@
 
 module ::DiscourseWorkspaceGroups
   class SyncCategoryChatChannel
+    CHAT_DESCRIPTION_MAX_LENGTH = 500
+
     attr_reader :category, :user
 
     def initialize(category:, user: nil)
@@ -20,7 +22,7 @@ module ::DiscourseWorkspaceGroups
         chat_channel =
           category.create_chat_channel!(
             name: category.name,
-            description: category.description,
+            description: chat_description,
             slug: slug,
             auto_join_users: false,
             threading_enabled: true,
@@ -28,7 +30,7 @@ module ::DiscourseWorkspaceGroups
       else
         attrs = {}
         attrs[:name] = category.name if chat_channel.name != category.name
-        attrs[:description] = category.description if chat_channel.description != category.description
+        attrs[:description] = chat_description if chat_channel.description != chat_description
         attrs[:slug] = slug if chat_channel.slug != slug
         attrs[:auto_join_users] = false if chat_channel.auto_join_users?
         attrs[:threading_enabled] = true if !chat_channel.threading_enabled?
@@ -77,6 +79,14 @@ module ::DiscourseWorkspaceGroups
 
       suffix = "-#{category.id}"
       "#{base.first(100 - suffix.length)}#{suffix}"
+    end
+
+    def chat_description
+      description = category.description_text.to_s.strip
+      return if description.blank?
+      return description if description.grapheme_clusters.size <= CHAT_DESCRIPTION_MAX_LENGTH
+
+      "#{description.grapheme_clusters.first(CHAT_DESCRIPTION_MAX_LENGTH - 1).join}\u2026"
     end
   end
 end
