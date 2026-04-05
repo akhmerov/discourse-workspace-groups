@@ -71,11 +71,14 @@ module ::DiscourseWorkspaceGroups
     end
 
     def desired_slug
+      parent_slug = category.parent_category&.slug.presence
+      category_slug = category.slug.presence || Slug.for(category.name, "")
       base =
-        [
-          category.parent_category&.slug.presence,
-          category.slug.presence || Slug.for(category.name, ""),
-        ].compact.join("-")
+        if parent_slug.present? && category_slug.start_with?("#{parent_slug}-")
+          category_slug
+        else
+          [parent_slug, category_slug].compact.join("-")
+        end
 
       suffix = "-#{category.id}"
       "#{base.first(100 - suffix.length)}#{suffix}"

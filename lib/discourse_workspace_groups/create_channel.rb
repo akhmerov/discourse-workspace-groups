@@ -127,8 +127,12 @@ module ::DiscourseWorkspaceGroups
       base_slug = Slug.for(name, "").presence || "channel"
       return base_slug if !Category.exists?(slug: base_slug)
 
-      suffix = "-#{Digest::SHA1.hexdigest(name)[0, CATEGORY_SLUG_HASH_LENGTH]}"
-      candidate = "#{base_slug.first(255 - suffix.length)}#{suffix}"
+      workspace_scoped_slug = Slug.for("#{workspace.slug}-#{name}", "").presence
+      return workspace_scoped_slug if workspace_scoped_slug.present? && !Category.exists?(slug: workspace_scoped_slug)
+
+      suffix = "-#{Digest::SHA1.hexdigest("#{workspace.id}:#{name}")[0, CATEGORY_SLUG_HASH_LENGTH]}"
+      scoped_base = workspace_scoped_slug.presence || base_slug
+      candidate = "#{scoped_base.first(255 - suffix.length)}#{suffix}"
       return candidate if !Category.exists?(slug: candidate)
 
       raise Discourse::InvalidParameters.new(collision_error)

@@ -83,8 +83,11 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     expect(channel_two.reload.category_channel.slug).to start_with(
       "#{other_workspace.slug}-reading-group",
     )
+    expect(channel_one.slug).to start_with("reading-group")
+    expect(channel_two.slug).to start_with("#{other_workspace.slug}-reading-group")
     expect(channel_one.category_channel.slug).to end_with("-#{channel_one.id}")
     expect(channel_two.category_channel.slug).to end_with("-#{channel_two.id}")
+    expect(channel_one.slug).not_to eq(channel_two.slug)
     expect(channel_one.category_channel.slug).not_to eq(channel_two.category_channel.slug)
   end
 
