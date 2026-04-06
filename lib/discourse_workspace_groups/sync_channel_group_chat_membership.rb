@@ -17,7 +17,12 @@ module ::DiscourseWorkspaceGroups
 
       existing_chat_channel = category.category_channel
       had_membership = existing_chat_channel&.membership_for(user).present?
-      chat_channel = DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: category, user: user).call
+      chat_channel =
+        DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(
+          category: category,
+          user: user,
+          sync_all_members: false,
+        ).call
 
       return if chat_channel.blank? || had_membership
 

@@ -1,14 +1,17 @@
 # frozen_string_literal: true
 
+require "set"
+
 module ::DiscourseWorkspaceGroups
   class SyncCategoryChatChannel
     CHAT_DESCRIPTION_MAX_LENGTH = 500
 
-    attr_reader :category, :user
+    attr_reader :category, :user, :sync_all_members
 
-    def initialize(category:, user: nil)
+    def initialize(category:, user: nil, sync_all_members: true)
       @category = category
       @user = user
+      @sync_all_members = sync_all_members
     end
 
     def call
@@ -37,20 +40,10 @@ module ::DiscourseWorkspaceGroups
         chat_channel.update!(attrs) if attrs.present?
       end
 
-      group_users.each do |group_user|
-        refreshed_user = User.find_by(id: group_user.id)
-        next if refreshed_user.blank?
-        next if !Guardian.new(refreshed_user).can_join_chat_channel?(chat_channel)
-
-        chat_channel.add(refreshed_user)
-      end
+      sync_group_memberships(chat_channel) if sync_all_members
 
       if user.present?
-        refreshed_user = User.find_by(id: user.id)
-
-        if refreshed_user.present? && Guardian.new(refreshed_user).can_join_chat_channel?(chat_channel)
-          chat_channel.add(refreshed_user)
-        end
+        ensure_chat_membership(chat_channel, user)
       end
 
       sync_archive_status(chat_channel)
@@ -60,6 +53,24 @@ module ::DiscourseWorkspaceGroups
 
     def group_users
       category.workspace_group&.users&.to_a || []
+    end
+
+    def sync_group_memberships(chat_channel)
+      existing_user_ids = chat_channel.user_chat_channel_memberships.pluck(:user_id).to_set
+
+      group_users.each do |group_user|
+        next if existing_user_ids.include?(group_user.id)
+
+        ensure_chat_membership(chat_channel, group_user)
+        existing_user_ids.add(group_user.id)
+      end
+    end
+
+    def ensure_chat_membership(chat_channel, candidate_user)
+      return if candidate_user.blank?
+      return if !Guardian.new(candidate_user).can_join_chat_channel?(chat_channel)
+
+      chat_channel.add(candidate_user)
     end
 
     def sync_archive_status(chat_channel)
