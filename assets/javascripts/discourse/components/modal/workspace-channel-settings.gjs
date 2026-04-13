@@ -1,17 +1,13 @@
 import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
-import { Input, Textarea } from "@ember/component";
-import { hash } from "@ember/helper";
-import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
-import DToggleSwitch from "discourse/components/d-toggle-switch";
-import ComboBox from "discourse/select-kit/components/combo-box";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import { not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
+import WorkspaceChannelForm from "./workspace-channel-form";
 
 export default class WorkspaceChannelSettingsModal extends Component {
   @tracked name;
@@ -63,31 +59,18 @@ export default class WorkspaceChannelSettingsModal extends Component {
     return Boolean(this.workspace?.can_create_private_channel);
   }
 
-  get channelModeOptions() {
-    return [
-      {
-        id: "both",
-        name: i18n("discourse_workspace_groups.channel_mode_both"),
-      },
-      {
-        id: "chat_only",
-        name: i18n("discourse_workspace_groups.channel_mode_chat_only"),
-      },
-      {
-        id: "category_only",
-        name: i18n("discourse_workspace_groups.channel_mode_category_only"),
-      },
-    ];
-  }
-
-  get canEditChannelWideMentions() {
+  get showChannelWideMentions() {
     return this.channelMode !== "category_only";
   }
 
-  get channelWideMentionsDescription() {
-    return i18n("chat.settings.channel_wide_mentions_description", {
-      channel: this.name.trim() || this.channel?.name || "",
-    });
+  @action
+  updateName(name) {
+    this.name = name;
+  }
+
+  @action
+  updateDescription(description) {
+    this.description = description;
   }
 
   @action
@@ -127,7 +110,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
                 }
               : {}),
             channel_mode: this.channelMode,
-            ...(this.canEditChannelWideMentions
+            ...(this.channelMode !== "category_only"
               ? {
                   allow_channel_wide_mentions: this.allowChannelWideMentions,
                 }
@@ -183,67 +166,22 @@ export default class WorkspaceChannelSettingsModal extends Component {
       class="workspace-groups-create-channel-modal workspace-groups-channel-settings-modal"
     >
       <:body>
-        <label class="workspace-groups-create-channel-modal__field">
-          <span class="workspace-groups-create-channel-modal__label">
-            {{i18n "discourse_workspace_groups.channel_name"}}
-          </span>
-          <Input
-            @value={{this.name}}
-            class="workspace-groups-create-channel-modal__input"
-            autofocus={{true}}
-          />
-        </label>
-
-        <label class="workspace-groups-create-channel-modal__field">
-          <span class="workspace-groups-create-channel-modal__label">
-            {{i18n "discourse_workspace_groups.channel_description"}}
-          </span>
-          <Textarea
-            @value={{this.description}}
-            class="workspace-groups-create-channel-modal__textarea"
-          />
-        </label>
-
-        <div class="workspace-groups-create-channel-modal__field">
-          <span class="workspace-groups-create-channel-modal__label">
-            {{i18n "discourse_workspace_groups.channel_mode"}}
-          </span>
-          <ComboBox
-            @value={{this.channelMode}}
-            @content={{this.channelModeOptions}}
-            @options={{hash}}
-            @onChange={{this.updateChannelMode}}
-          />
-          <p class="workspace-groups-create-channel-modal__help">
-            {{i18n "discourse_workspace_groups.channel_mode_help"}}
-          </p>
-        </div>
-
-        {{#if this.canEditVisibility}}
-          <div class="workspace-groups-create-channel-modal__field">
-            <DToggleSwitch
-              @state={{this.isPrivate}}
-              @label="discourse_workspace_groups.private_channel"
-              {{on "click" this.togglePrivate}}
-            />
-            <p class="workspace-groups-create-channel-modal__help">
-              {{i18n "discourse_workspace_groups.private_channel_help"}}
-            </p>
-          </div>
-        {{/if}}
-
-        {{#if this.canEditChannelWideMentions}}
-          <div class="workspace-groups-create-channel-modal__field">
-            <DToggleSwitch
-              @state={{this.allowChannelWideMentions}}
-              @label="chat.settings.channel_wide_mentions_label"
-              {{on "click" this.toggleChannelWideMentions}}
-            />
-            <p class="workspace-groups-create-channel-modal__help">
-              {{this.channelWideMentionsDescription}}
-            </p>
-          </div>
-        {{/if}}
+        <WorkspaceChannelForm
+          @name={{this.name}}
+          @description={{this.description}}
+          @isPrivate={{this.isPrivate}}
+          @channelMode={{this.channelMode}}
+          @allowChannelWideMentions={{this.allowChannelWideMentions}}
+          @autofocus={{true}}
+          @showVisibility={{this.canEditVisibility}}
+          @showChannelMode={{true}}
+          @showChannelWideMentions={{this.showChannelWideMentions}}
+          @onNameChange={{this.updateName}}
+          @onDescriptionChange={{this.updateDescription}}
+          @onPrivateToggle={{this.togglePrivate}}
+          @onChannelModeChange={{this.updateChannelMode}}
+          @onChannelWideMentionsToggle={{this.toggleChannelWideMentions}}
+        />
       </:body>
       <:footer>
         <DButton

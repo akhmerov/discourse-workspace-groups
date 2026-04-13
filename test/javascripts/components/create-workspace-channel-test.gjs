@@ -77,6 +77,7 @@ module(
         DiscourseURL.routeTo.calledOnceWith("/c/quantum-tinkerer/lab-notes/29")
       );
       assert.false(requestBody.includes("usernames="));
+      assert.true(requestBody.includes("channel_mode=both"));
     });
 
     test("does not render private member inputs", async function (assert) {

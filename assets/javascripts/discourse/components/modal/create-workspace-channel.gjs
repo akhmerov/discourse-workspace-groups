@@ -1,18 +1,16 @@
 import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
-import { Input, Textarea } from "@ember/component";
-import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
-import DToggleSwitch from "discourse/components/d-toggle-switch";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import DiscourseURL from "discourse/lib/url";
 import Category from "discourse/models/category";
 import { not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
+import WorkspaceChannelForm from "./workspace-channel-form";
 
 export default class CreateWorkspaceChannelModal extends Component {
   @service chatChannelsManager;
@@ -20,6 +18,7 @@ export default class CreateWorkspaceChannelModal extends Component {
   @tracked name = "";
   @tracked description = "";
   @tracked isPrivate = false;
+  @tracked channelMode = "both";
   @tracked saving = false;
 
   get category() {
@@ -73,6 +72,21 @@ export default class CreateWorkspaceChannelModal extends Component {
   }
 
   @action
+  updateName(name) {
+    this.name = name;
+  }
+
+  @action
+  updateDescription(description) {
+    this.description = description;
+  }
+
+  @action
+  updateChannelMode(channelMode) {
+    this.channelMode = channelMode;
+  }
+
+  @action
   async createChannel() {
     if (this.saving || !this.name.trim()) {
       return;
@@ -92,6 +106,7 @@ export default class CreateWorkspaceChannelModal extends Component {
               this.canCreatePrivateChannel && this.isPrivate
                 ? "private"
                 : "public",
+            channel_mode: this.channelMode,
           },
         }
       );
@@ -130,39 +145,20 @@ export default class CreateWorkspaceChannelModal extends Component {
       class="workspace-groups-create-channel-modal"
     >
       <:body>
-        <label class="workspace-groups-create-channel-modal__field">
-          <span class="workspace-groups-create-channel-modal__label">
-            {{i18n "discourse_workspace_groups.channel_name"}}
-          </span>
-          <Input
-            @value={{this.name}}
-            class="workspace-groups-create-channel-modal__input"
-            autofocus={{true}}
-          />
-        </label>
-
-        <label class="workspace-groups-create-channel-modal__field">
-          <span class="workspace-groups-create-channel-modal__label">
-            {{i18n "discourse_workspace_groups.channel_description"}}
-          </span>
-          <Textarea
-            @value={{this.description}}
-            class="workspace-groups-create-channel-modal__textarea"
-          />
-        </label>
-
-        {{#if this.canCreatePrivateChannel}}
-          <div class="workspace-groups-create-channel-modal__field">
-            <DToggleSwitch
-              @state={{this.isPrivate}}
-              @label="discourse_workspace_groups.private_channel"
-              {{on "click" this.togglePrivate}}
-            />
-            <p class="workspace-groups-create-channel-modal__help">
-              {{i18n "discourse_workspace_groups.private_channel_help"}}
-            </p>
-          </div>
-        {{/if}}
+        <WorkspaceChannelForm
+          @name={{this.name}}
+          @description={{this.description}}
+          @isPrivate={{this.isPrivate}}
+          @channelMode={{this.channelMode}}
+          @autofocus={{true}}
+          @showVisibility={{this.canCreatePrivateChannel}}
+          @showChannelMode={{true}}
+          @showChannelWideMentions={{false}}
+          @onNameChange={{this.updateName}}
+          @onDescriptionChange={{this.updateDescription}}
+          @onPrivateToggle={{this.togglePrivate}}
+          @onChannelModeChange={{this.updateChannelMode}}
+        />
       </:body>
       <:footer>
         <DButton
