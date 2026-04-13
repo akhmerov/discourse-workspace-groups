@@ -1,4 +1,5 @@
 import { trustHTML } from "@ember/template";
+import { on } from "@ember/modifier";
 import DButton from "discourse/components/d-button";
 import DecoratedHtml from "discourse/components/decorated-html";
 import Layout from "discourse/components/discovery/layout";
@@ -28,32 +29,55 @@ export default <template>
       <section class="workspace-groups-overview">
         <header class="workspace-groups-overview__team">
           <div class="workspace-groups-overview__team-heading">
-            <h1 class="workspace-groups-overview__team-name">{{@controller.teamName}}</h1>
+            <div class="workspace-groups-overview__heading workspace-groups-overview__heading--team">
+              <h1 class="workspace-groups-overview__team-name">
+                <span
+                  class="workspace-groups-overview__visibility workspace-groups-overview__visibility--title"
+                  title={{@controller.teamVisibilityLabel}}
+                  aria-label={{@controller.teamVisibilityLabel}}
+                >
+                  {{icon @controller.teamVisibilityIcon}}
+                </span>
+                <span>{{@controller.teamName}}</span>
+              </h1>
 
-            {{#if @controller.teamCanViewMembers}}
-              <a
-                href={{@controller.teamMembersUrl}}
-                class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
-              >
-                {{icon "user"}}
-                <span>
-                  {{i18n
-                    "discourse_workspace_groups.member_count"
-                    count=@controller.teamMemberCount
-                  }}
+              {{#if @controller.teamCanViewMembers}}
+                <a
+                  href={{@controller.teamMembersUrl}}
+                  class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
+                >
+                  {{icon "user"}}
+                  <span>
+                    {{i18n
+                      "discourse_workspace_groups.member_count"
+                      count=@controller.teamMemberCount
+                    }}
+                  </span>
+                </a>
+              {{else}}
+                <span class="workspace-groups-overview__membership">
+                  {{icon "user"}}
+                  <span>
+                    {{i18n
+                      "discourse_workspace_groups.member_count"
+                      count=@controller.teamMemberCount
+                    }}
+                  </span>
                 </span>
-              </a>
-            {{else}}
-              <span class="workspace-groups-overview__membership">
-                {{icon "user"}}
-                <span>
-                  {{i18n
-                    "discourse_workspace_groups.member_count"
-                    count=@controller.teamMemberCount
-                  }}
-                </span>
-              </span>
-            {{/if}}
+              {{/if}}
+            </div>
+
+            <div class="workspace-groups-overview__team-actions">
+              {{#if @controller.canManageWorkspace}}
+                <DButton
+                  @action={{@controller.openWorkspaceSettingsModal}}
+                  @icon="wrench"
+                  @title="discourse_workspace_groups.workspace_settings"
+                  @ariaLabel="discourse_workspace_groups.workspace_settings"
+                  class="btn-default btn-small workspace-groups-overview__settings-button"
+                />
+              {{/if}}
+            </div>
           </div>
 
           {{#if @controller.teamAboutCooked}}
@@ -93,8 +117,7 @@ export default <template>
                 @channel={{channel}}
                 @onJoin={{@controller.joinChannel}}
                 @onLeave={{@controller.leaveChannel}}
-                @onArchive={{@controller.archiveChannel}}
-                @onUnarchive={{@controller.unarchiveChannel}}
+                @onOpenSettings={{@controller.openChannelSettingsModal}}
               />
             {{/each}}
           </div>
@@ -108,26 +131,34 @@ export default <template>
           </p>
         {{/if}}
 
-        {{#if @controller.archivedChannels.length}}
-          <details class="workspace-groups-overview__archived">
+        {{#if @controller.hasArchivedChannels}}
+          <details
+            class="workspace-groups-overview__archived"
+            {{on "toggle" @controller.loadArchivedChannels}}
+          >
             <summary class="workspace-groups-overview__archived-summary">
               {{i18n
                 "discourse_workspace_groups.archived_channels_summary"
-                count=@controller.archivedChannels.length
+                count=@controller.archivedChannelCount
               }}
             </summary>
 
-            <div class="workspace-groups-overview__channels workspace-groups-overview__channels--archived">
-              {{#each @controller.archivedChannels as |channel|}}
-                <WorkspaceOverviewChannelCard
-                  @channel={{channel}}
-                  @onJoin={{@controller.joinChannel}}
-                  @onLeave={{@controller.leaveChannel}}
-                  @onArchive={{@controller.archiveChannel}}
-                  @onUnarchive={{@controller.unarchiveChannel}}
-                />
-              {{/each}}
-            </div>
+            {{#if @controller.model.archivedChannelsLoading}}
+              <p class="workspace-groups-overview__archived-loading">
+                {{i18n "loading"}}
+              </p>
+            {{else if @controller.model.archivedChannelsLoaded}}
+              <div class="workspace-groups-overview__channels workspace-groups-overview__channels--archived">
+                {{#each @controller.archivedChannels as |channel|}}
+                  <WorkspaceOverviewChannelCard
+                    @channel={{channel}}
+                    @onJoin={{@controller.joinChannel}}
+                    @onLeave={{@controller.leaveChannel}}
+                    @onOpenSettings={{@controller.openChannelSettingsModal}}
+                  />
+                {{/each}}
+              </div>
+            {{/if}}
           </details>
         {{/if}}
       </section>

@@ -17,7 +17,8 @@ module("Discourse Workspace Groups | Route | workspace-overview", function (hook
       { "Content-Type": "application/json" },
       JSON.stringify({
         workspace: { id: 28, name: "Quantum Tinkerer" },
-        channels: [],
+        channels: [{ id: 9, name: "Lab", archived: false }],
+        archived_channel_count: 3,
       }),
     ]);
 
@@ -41,7 +42,10 @@ module("Discourse Workspace Groups | Route | workspace-overview", function (hook
 
     assert.true(asyncLookup.calledOnceWith("quantum-tinkerer/28"));
     assert.strictEqual(model.category, workspace);
-    assert.strictEqual(model.channels.length, 0);
+    assert.strictEqual(model.activeChannels.length, 1);
+    assert.strictEqual(model.archivedChannels.length, 0);
+    assert.strictEqual(model.archivedChannelCount, 3);
+    assert.false(model.archivedChannelsLoaded);
     assert.false(redirect.called);
   });
 

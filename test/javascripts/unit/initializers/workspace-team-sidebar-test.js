@@ -166,6 +166,55 @@ module(
       assert.deepEqual(visibleChannels, [joinedChannel]);
     });
 
+    test("sorts muted team channels after unmuted ones", function (assert) {
+      const workspace = {
+        id: 40,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+      };
+      const mutedChannel = {
+        id: 41,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+      const unmutedChannel = {
+        id: 42,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+
+      const visibleChannels = sidebarChannelCategories({
+        currentUser: {},
+        router: {
+          currentRoute: {
+            attributes: {
+              category: workspace,
+            },
+          },
+        },
+        site: {
+          categoriesList: [workspace, mutedChannel, unmutedChannel],
+        },
+        siteSettings: {},
+        chatChannelsManager: {
+          channels: [
+            {
+              isCategoryChannel: true,
+              chatableId: 41,
+              currentUserMembership: { following: true, muted: true },
+            },
+            {
+              isCategoryChannel: true,
+              chatableId: 42,
+              currentUserMembership: { following: true, muted: false },
+            },
+          ],
+        },
+      });
+
+      assert.deepEqual(visibleChannels, [unmutedChannel, mutedChannel]);
+    });
+
     test("keeps the current channel visible while local sidebar state catches up", function (assert) {
       const workspace = {
         id: 40,

@@ -5,7 +5,7 @@
 # version: 0.1
 # authors: Anton Akhmerov
 # url: https://github.com/discourse/discourse
-# license: GPL-2.0-only
+# license: MIT
 # copyright: Copyright (C) 2026 Anton Akhmerov
 
 enabled_site_setting :discourse_workspace_groups_enabled
@@ -28,6 +28,10 @@ module ::DiscourseWorkspaceGroups
   WORKSPACE_VISIBILITY = "workspace_visibility"
   WORKSPACE_ARCHIVED = "workspace_archived"
   WORKSPACE_ROOT_PUBLIC_READ = "workspace_root_public_read"
+  WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS = "workspace_members_can_create_channels"
+  WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS = "workspace_members_can_create_private_channels"
+  WORKSPACE_AUTO_JOIN_CHANNEL_IDS = "workspace_auto_join_channel_ids"
+  WORKSPACE_CHANNEL_MODE = "workspace_channel_mode"
 
   WORKSPACE_KIND_ROOT = "workspace"
   WORKSPACE_KIND_CHANNEL = "channel"
@@ -36,23 +40,20 @@ module ::DiscourseWorkspaceGroups
   VISIBILITY_PRIVATE = "private"
   ROOT_CHANNEL_PERMISSION = :readonly
 
+  CHANNEL_MODE_BOTH = "both"
+  CHANNEL_MODE_CHAT_ONLY = "chat_only"
+  CHANNEL_MODE_CATEGORY_ONLY = "category_only"
+
   def self.positive_custom_field_id(value)
     integer = value.to_i
     integer > 0 ? integer : nil
-  end
-
-  def self.excluded_top_level_category_ids
-    SiteSetting.discourse_workspace_groups_excluded_top_level_category_ids
-      .split("|")
-      .filter_map { |value| positive_custom_field_id(value) }
   end
 
   def self.workspace_candidate?(category)
     category.present? &&
       category.parent_category_id.blank? &&
       !category.subcategories.exists? &&
-      !category.workspace_root? &&
-      !excluded_top_level_category_ids.include?(category.id)
+      !category.workspace_root?
   end
 
   def self.workspace_group_name(category)
@@ -116,6 +117,22 @@ module ::DiscourseWorkspaceGroups
     group_owner?(category.workspace_group, user)
   end
 
+  def self.can_manage_workspace?(category, user)
+    return false if user.blank? || category.blank? || !category.workspace_root?
+    return true if user.admin?
+
+    group_owner?(category.workspace_group, user)
+  end
+
+  def self.can_create_private_workspace_channel?(workspace, user)
+    return false if user.blank? || workspace.blank? || !workspace.workspace_root?
+    return true if user.admin?
+    return true if can_manage_workspace?(workspace, user)
+    return false if !workspace.workspace_members_can_create_private_channels?
+
+    group_member?(workspace.workspace_group, user)
+  end
+
   def self.workspace_channel_category_for_group(group)
     return if group.blank?
     return if group.custom_fields["workspace_kind"] != WORKSPACE_KIND_CHANNEL
@@ -137,6 +154,101 @@ module ::DiscourseWorkspaceGroups
     )
 
     channels.select(&:workspace_channel?).map(&:workspace_group_id).compact.uniq
+  end
+
+  def self.normalize_custom_field_id_list(value)
+    values =
+      case value
+      when Array
+        value
+      when Hash
+        value.values
+      when String
+        begin
+          parsed = JSON.parse(value)
+          parsed.is_a?(Array) ? parsed : value.split(",")
+        rescue JSON::ParserError
+          value.split(",")
+        end
+      when nil
+        []
+      else
+        if value.respond_to?(:to_unsafe_h)
+          value.to_unsafe_h.values
+        elsif value.respond_to?(:to_h) && value.to_h.is_a?(Hash)
+          value.to_h.values
+        else
+          Array.wrap(value)
+        end
+      end
+
+    values.filter_map { |entry| positive_custom_field_id(entry) }.uniq
+  end
+
+  def self.workspace_root_category_for_group(group)
+    return if group.blank?
+    return if group.custom_fields["workspace_kind"] != WORKSPACE_KIND_ROOT
+
+    category_id = positive_custom_field_id(group.custom_fields["workspace_category_id"])
+    return if category_id.blank?
+
+    category = Category.find_by(id: category_id)
+    return if category.blank? || !category.workspace_root? || category.workspace_group_id != group.id
+
+    category
+  end
+
+  def self.workspace_auto_join_channels(workspace, candidates: nil)
+    return [] if workspace.blank? || !workspace.workspace_root?
+
+    ids = normalize_custom_field_id_list(workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS])
+    return [] if ids.blank?
+
+    categories =
+      if candidates
+        candidates
+      else
+        Category.where(id: ids, parent_category_id: workspace.id).to_a.tap do |loaded_categories|
+          Category.preload_custom_fields(loaded_categories, Site.preloaded_category_custom_fields)
+        end
+      end
+
+    channels_by_id =
+      categories
+        .select(&:workspace_channel?)
+        .reject(&:workspace_archived?)
+        .index_by(&:id)
+
+    ids.filter_map { |id| channels_by_id[id] }
+  end
+
+  def self.sync_workspace_auto_join_memberships!(workspace, users:, channel_ids: nil)
+    return if workspace.blank? || !workspace.workspace_root?
+
+    selected_channels = workspace_auto_join_channels(workspace)
+    if channel_ids.present?
+      allowed_ids = channel_ids.to_set
+      selected_channels = selected_channels.select { |channel| allowed_ids.include?(channel.id) }
+    end
+
+    Array.wrap(users).compact.uniq.each do |user|
+      selected_channels.each do |channel|
+        group = channel.workspace_group
+        next if group.blank? || group.group_users.where(user_id: user.id).exists?
+
+        group.add(user)
+      end
+    end
+  end
+
+  def self.remove_workspace_auto_join_channel!(workspace, channel_id)
+    return if workspace.blank? || !workspace.workspace_root?
+
+    ids = normalize_custom_field_id_list(workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS])
+    return if !ids.delete(channel_id)
+
+    workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = ids
+    workspace.save_custom_fields(true)
   end
 
   def self.workspace_root_permissions(workspace_group, channel_group_ids, public_read: false)
@@ -169,6 +281,15 @@ module ::DiscourseWorkspaceGroups
     workspace
   end
 
+  def self.valid_channel_mode?(mode)
+    [CHANNEL_MODE_BOTH, CHANNEL_MODE_CHAT_ONLY, CHANNEL_MODE_CATEGORY_ONLY].include?(mode)
+  end
+
+  def self.channel_permissions(channel_group, channel_mode)
+    permission = channel_mode == CHANNEL_MODE_CHAT_ONLY ? :create_post : :full
+    { channel_group.id => permission }
+  end
+
   def self.archived_workspace_category?(category)
     category&.workspace_channel? && category.workspace_archived?
   end
@@ -180,7 +301,9 @@ end
 
 require_relative "lib/discourse_workspace_groups/engine"
 require_relative "lib/discourse_workspace_groups/ensure_workspace"
+require_relative "lib/discourse_workspace_groups/update_workspace"
 require_relative "lib/discourse_workspace_groups/create_channel"
+require_relative "lib/discourse_workspace_groups/update_channel"
 require_relative "lib/discourse_workspace_groups/join_channel"
 require_relative "lib/discourse_workspace_groups/leave_channel"
 require_relative "lib/discourse_workspace_groups/add_channel_members"
@@ -262,6 +385,19 @@ after_initialize do
     DiscourseWorkspaceGroups::WORKSPACE_ROOT_PUBLIC_READ,
     :boolean,
   )
+  register_category_custom_field_type(
+    DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS,
+    :boolean,
+  )
+  register_category_custom_field_type(
+    DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS,
+    :boolean,
+  )
+  register_category_custom_field_type(
+    DiscourseWorkspaceGroups::WORKSPACE_AUTO_JOIN_CHANNEL_IDS,
+    :json,
+  )
+  register_category_custom_field_type(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE, :string)
 
   register_group_custom_field_type("workspace_category_id", :integer)
   register_group_custom_field_type("workspace_kind", :string)
@@ -276,6 +412,16 @@ after_initialize do
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_VISIBILITY)
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED)
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_ROOT_PUBLIC_READ)
+  register_preloaded_category_custom_fields(
+    DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS,
+  )
+  register_preloaded_category_custom_fields(
+    DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS,
+  )
+  register_preloaded_category_custom_fields(
+    DiscourseWorkspaceGroups::WORKSPACE_AUTO_JOIN_CHANNEL_IDS,
+  )
+  register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE)
 
   add_to_class(:category, :workspace_enabled?) do
     custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ENABLED].to_s == "true"
@@ -324,12 +470,58 @@ after_initialize do
     custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED].to_s == "true"
   end
 
+  add_to_class(:category, :workspace_channel_mode) do
+    value = custom_fields[DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE]
+    return DiscourseWorkspaceGroups::CHANNEL_MODE_BOTH if value.blank?
+
+    value
+  end
+
+  add_to_class(:category, :workspace_chat_enabled?) do
+    workspace_channel_mode != DiscourseWorkspaceGroups::CHANNEL_MODE_CATEGORY_ONLY
+  end
+
+  add_to_class(:category, :workspace_category_enabled?) do
+    workspace_channel_mode != DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY
+  end
+
   add_to_class(:category, :workspace_root_public_read?) do
     custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ROOT_PUBLIC_READ].to_s == "true"
   end
 
+  add_to_class(:category, :workspace_members_can_create_channels?) do
+    value = custom_fields[DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS]
+    return SiteSetting.discourse_workspace_groups_members_can_create_channels if value.nil?
+
+    value.to_s == "true"
+  end
+
+  add_to_class(:category, :workspace_members_can_create_private_channels?) do
+    return false if !workspace_members_can_create_channels?
+
+    value = custom_fields[DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS]
+    return workspace_members_can_create_channels? if value.nil?
+
+    value.to_s == "true"
+  end
+
+  add_to_class(:category, :workspace_auto_join_channel_ids) do
+    return [] if !workspace_root?
+
+    DiscourseWorkspaceGroups.workspace_auto_join_channels(self).map(&:id)
+  end
+
   add_to_class(Guardian, :can_enable_workspace_group?) do |category|
     user&.admin? && DiscourseWorkspaceGroups.workspace_candidate?(category)
+  end
+
+  add_to_class(Guardian, :can_manage_workspace?) do |category|
+    DiscourseWorkspaceGroups.can_manage_workspace?(category, user)
+  end
+
+  add_to_class(Guardian, :can_create_private_workspace_channel?) do |category|
+    workspace = category&.workspace_root? ? category : category&.workspace_parent_category
+    DiscourseWorkspaceGroups.can_create_private_workspace_channel?(workspace, user)
   end
 
   add_to_class(Guardian, :can_create_workspace_channel?) do |category|
@@ -338,7 +530,8 @@ after_initialize do
 
     workspace = category.workspace_root? ? category : category.workspace_parent_category
     return false if !workspace&.workspace_root?
-    return false if !SiteSetting.discourse_workspace_groups_members_can_create_channels
+    return true if DiscourseWorkspaceGroups.can_manage_workspace?(workspace, user)
+    return false if !workspace.workspace_members_can_create_channels?
 
     group = workspace.workspace_group
     group.present? && group.users.where(id: user.id).exists?
@@ -375,11 +568,24 @@ after_initialize do
   end
   add_to_serializer(:basic_category, :workspace_visibility) { object.workspace_visibility }
   add_to_serializer(:basic_category, :workspace_archived) { object.workspace_archived? }
+  add_to_serializer(:basic_category, :workspace_channel_mode) { object.workspace_channel_mode }
   add_to_serializer(:basic_category, :workspace_root_public_read) do
     object.workspace_root_public_read?
   end
+  add_to_serializer(:basic_category, :workspace_members_can_create_channels) do
+    object.workspace_members_can_create_channels?
+  end
+  add_to_serializer(:basic_category, :workspace_members_can_create_private_channels) do
+    object.workspace_members_can_create_private_channels?
+  end
   add_to_serializer(:basic_category, :workspace_can_create_channel) do
     scope&.can_create_workspace_channel?(object)
+  end
+  add_to_serializer(:basic_category, :workspace_can_create_private_channel) do
+    scope&.can_create_private_workspace_channel?(object)
+  end
+  add_to_serializer(:basic_category, :workspace_can_manage) do
+    scope&.can_manage_workspace?(object)
   end
   add_to_serializer(:basic_category, :workspace_can_enable) do
     scope&.can_enable_workspace_group?(object)
@@ -387,6 +593,11 @@ after_initialize do
 
   on(:user_added_to_group) do |user, group|
     DiscourseWorkspaceGroups::SyncChannelGroupChatMembership.new(user: user, group: group).call
+
+    workspace = DiscourseWorkspaceGroups.workspace_root_category_for_group(group)
+    next if workspace.blank?
+
+    DiscourseWorkspaceGroups.sync_workspace_auto_join_memberships!(workspace, users: [user])
   end
 
   on(:category_updated) do |category|

@@ -26,12 +26,20 @@ export default class CreateWorkspaceChannelModal extends Component {
     return this.args.model.category;
   }
 
+  get workspace() {
+    return this.args.model.workspace || this.category;
+  }
+
   get modalTitle() {
     return i18n("discourse_workspace_groups.create_channel_title");
   }
 
   get canCreate() {
     return !this.saving && this.name.trim().length > 0;
+  }
+
+  get canCreatePrivateChannel() {
+    return Boolean(this.workspace?.can_create_private_channel);
   }
 
   categorySlugPathWithId(categoryUrl) {
@@ -80,7 +88,10 @@ export default class CreateWorkspaceChannelModal extends Component {
           data: {
             name: this.name.trim(),
             description: this.description.trim(),
-            visibility: this.isPrivate ? "private" : "public",
+            visibility:
+              this.canCreatePrivateChannel && this.isPrivate
+                ? "private"
+                : "public",
           },
         }
       );
@@ -140,16 +151,18 @@ export default class CreateWorkspaceChannelModal extends Component {
           />
         </label>
 
-        <div class="workspace-groups-create-channel-modal__field">
-          <DToggleSwitch
-            @state={{this.isPrivate}}
-            @label="discourse_workspace_groups.private_channel"
-            {{on "click" this.togglePrivate}}
-          />
-          <p class="workspace-groups-create-channel-modal__help">
-            {{i18n "discourse_workspace_groups.private_channel_help"}}
-          </p>
-        </div>
+        {{#if this.canCreatePrivateChannel}}
+          <div class="workspace-groups-create-channel-modal__field">
+            <DToggleSwitch
+              @state={{this.isPrivate}}
+              @label="discourse_workspace_groups.private_channel"
+              {{on "click" this.togglePrivate}}
+            />
+            <p class="workspace-groups-create-channel-modal__help">
+              {{i18n "discourse_workspace_groups.private_channel_help"}}
+            </p>
+          </div>
+        {{/if}}
       </:body>
       <:footer>
         <DButton

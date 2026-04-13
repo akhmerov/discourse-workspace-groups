@@ -14,6 +14,7 @@ module ::DiscourseWorkspaceGroups
 
       category = DiscourseWorkspaceGroups.workspace_channel_category_for_group(group)
       return if category.blank?
+      return if !category.workspace_chat_enabled?
 
       existing_chat_channel = category.category_channel
       had_membership = existing_chat_channel&.membership_for(user).present?

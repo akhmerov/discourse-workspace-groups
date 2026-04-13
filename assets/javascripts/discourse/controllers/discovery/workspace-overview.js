@@ -1,14 +1,19 @@
 import Controller from "@ember/controller";
+import { trackedObject } from "@ember/reactive/collections";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import { i18n } from "discourse-i18n";
 import CreateWorkspaceChannelModal from "../../components/modal/create-workspace-channel";
+import WorkspaceChannelSettingsModal from "../../components/modal/workspace-channel-settings";
+import WorkspaceSettingsModal from "../../components/modal/workspace-settings";
 
 export default class DiscoveryWorkspaceOverviewController extends Controller {
   @service chat;
   @service chatChannelsManager;
   @service composer;
+  @service dialog;
   @service modal;
   @service siteSettings;
 
@@ -43,6 +48,18 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     return this.model.workspace?.name || this.model.category?.name;
   }
 
+  get teamVisibilityIcon() {
+    return this.model.workspace?.public_read ? "globe" : "lock";
+  }
+
+  get teamVisibilityLabel() {
+    return i18n(
+      this.model.workspace?.public_read
+        ? "discourse_workspace_groups.visibility_public"
+        : "discourse_workspace_groups.visibility_private"
+    );
+  }
+
   get teamMemberCount() {
     return this.model.workspace?.member_count || 0;
   }
@@ -55,22 +72,91 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     return Boolean(this.model.workspace?.can_view_members && this.teamMembersUrl);
   }
 
+  get canManageWorkspace() {
+    return Boolean(this.model.workspace?.can_manage);
+  }
+
   get teamAboutCooked() {
     return this.model.workspace?.about_cooked;
   }
 
   get activeChannels() {
-    return (this.model.channels || []).filter((channel) => !channel.archived);
+    return this.model.activeChannels || [];
   }
 
   get archivedChannels() {
-    return (this.model.channels || []).filter((channel) => channel.archived);
+    return this.model.archivedChannels || [];
+  }
+
+  get archivedChannelCount() {
+    return this.model.archivedChannelCount || 0;
+  }
+
+  get hasArchivedChannels() {
+    return this.archivedChannelCount > 0;
   }
 
   updateChannel(channel, payload) {
     Object.entries(payload).forEach(([key, value]) => {
       channel[key] = value;
     });
+  }
+
+  applyChannelPayload(channel, payload) {
+    const wasArchived = channel.archived;
+
+    this.updateChannel(channel, payload);
+
+    if (!payload.visible) {
+      if (wasArchived) {
+        this.model.archivedChannelCount = Math.max(
+          0,
+          this.model.archivedChannelCount - 1
+        );
+      }
+
+      this.removeChannelFromList(this.activeChannels, channel);
+      this.removeChannelFromList(this.archivedChannels, channel);
+      return;
+    }
+
+    if (!wasArchived && payload.archived) {
+      this.removeChannelFromList(this.activeChannels, channel);
+
+      if (this.model.archivedChannelsLoaded) {
+        this.addChannelToList(this.archivedChannels, channel);
+      }
+
+      this.model.archivedChannelCount += 1;
+      return;
+    }
+
+    if (wasArchived && !payload.archived) {
+      this.removeChannelFromList(this.archivedChannels, channel);
+      this.addChannelToList(this.activeChannels, channel);
+      this.model.archivedChannelCount = Math.max(
+        0,
+        this.model.archivedChannelCount - 1
+      );
+    }
+  }
+
+  trackChannel(channel) {
+    return trackedObject({ ...channel, is_pending: false });
+  }
+
+  removeChannelFromList(list, channel) {
+    const index = list.findIndex((entry) => entry.id === channel.id);
+
+    if (index > -1) {
+      list.splice(index, 1);
+    }
+  }
+
+  addChannelToList(list, channel) {
+    if (!list.some((entry) => entry.id === channel.id)) {
+      list.push(channel);
+    }
   }
 
   storeChatChannel(channel) {
@@ -115,6 +201,27 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     }
   }
 
+  applyWorkspacePayload(payload) {
+    Object.entries(payload).forEach(([key, value]) => {
+      this.model.workspace[key] = value;
+    });
+  }
+
+  async confirmPrivateChannelLeave(channel) {
+    if (channel?.visibility !== "private") {
+      return true;
+    }
+
+    return await this.dialog.confirm({
+      message: i18n("discourse_workspace_groups.leave_private_channel_message", {
+        channel_name: channel.name,
+      }),
+      confirmButtonLabel:
+        "discourse_workspace_groups.leave_private_channel_confirm",
+      cancelButtonLabel: "cancel",
+    });
+  }
+
   @action
   createTopic() {
     this.composer.openNewTopic({
@@ -125,7 +232,44 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
   @action
   openCreateChannelModal() {
     this.modal.show(CreateWorkspaceChannelModal, {
-      model: { category: this.model.category },
+      model: {
+        category: this.model.category,
+        workspace: this.model.workspace,
+      },
+    });
+  }
+
+  @action
+  openWorkspaceSettingsModal() {
+    this.modal.show(WorkspaceSettingsModal, {
+      model: {
+        workspace: this.model.workspace,
+        onUpdate: async (updatedWorkspace) => {
+          this.applyWorkspacePayload(updatedWorkspace);
+        },
+      },
+    });
+  }
+
+  @action
+  openChannelSettingsModal(channel) {
+    this.modal.show(WorkspaceChannelSettingsModal, {
+      model: {
+        category: this.model.category,
+        workspace: this.model.workspace,
+        channel,
+        onUpdate: async (updatedChannel) => {
+          const previousChatChannelId = channel.chat_channel_id;
+          this.applyChannelPayload(channel, updatedChannel);
+          if (updatedChannel.chat_channel) {
+            this.storeChatChannel(updatedChannel);
+          } else if (previousChatChannelId) {
+            this.removeJoinedChatChannel({
+              chat_channel_id: previousChatChannelId,
+            });
+          }
+        },
+      },
     });
   }
 
@@ -141,7 +285,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
         }
       );
 
-      this.updateChannel(channel, result.channel);
+      this.applyChannelPayload(channel, result.channel);
       await this.syncJoinedChatChannel(result.channel);
     } catch (error) {
       popupAjaxError(error);
@@ -152,6 +296,10 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
 
   @action
   async leaveChannel(channel) {
+    if (!(await this.confirmPrivateChannelLeave(channel))) {
+      return;
+    }
+
     channel.is_pending = true;
 
     try {
@@ -163,16 +311,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
       );
 
       this.removeJoinedChatChannel(result.channel);
-
-      if (!result.channel.visible) {
-        const index = this.model.channels.indexOf(channel);
-        if (index > -1) {
-          this.model.channels.splice(index, 1);
-        }
-        return;
-      }
-
-      this.updateChannel(channel, result.channel);
+      this.applyChannelPayload(channel, result.channel);
     } catch (error) {
       popupAjaxError(error);
     } finally {
@@ -192,7 +331,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
         }
       );
 
-      this.updateChannel(channel, result.channel);
+      this.applyChannelPayload(channel, result.channel);
       this.storeChatChannel(result.channel);
     } catch (error) {
       popupAjaxError(error);
@@ -213,12 +352,43 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
         }
       );
 
-      this.updateChannel(channel, result.channel);
+      this.applyChannelPayload(channel, result.channel);
       this.storeChatChannel(result.channel);
     } catch (error) {
       popupAjaxError(error);
     } finally {
       channel.is_pending = false;
+    }
+  }
+
+  @action
+  async loadArchivedChannels(event) {
+    if (
+      !event?.target?.open ||
+      this.model.archivedChannelsLoaded ||
+      this.model.archivedChannelsLoading ||
+      this.archivedChannelCount === 0
+    ) {
+      return;
+    }
+
+    this.model.archivedChannelsLoading = true;
+
+    try {
+      const result = await ajax(
+        `/workspace-groups/workspaces/${this.model.category.id}/archived-channels.json`
+      );
+
+      this.model.archivedChannels.splice(
+        0,
+        this.model.archivedChannels.length,
+        ...(result.channels || []).map((channel) => this.trackChannel(channel))
+      );
+      this.model.archivedChannelsLoaded = true;
+    } catch (error) {
+      popupAjaxError(error);
+    } finally {
+      this.model.archivedChannelsLoading = false;
     }
   }
 }

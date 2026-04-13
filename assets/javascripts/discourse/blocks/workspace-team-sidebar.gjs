@@ -20,10 +20,12 @@ import DropdownSelectBox from "discourse/select-kit/components/dropdown-select-b
 import {
   currentScopedCategory,
   currentScopedMode,
+  memberWorkspaceCategories,
   pairedCategoryChannelFor,
   sidebarChannelCategories,
   sidebarWorkspaceCategory,
-  visibleWorkspaceCategories,
+  workspaceCategoryModeEnabled,
+  workspaceChatModeEnabled,
   workspaceOverviewPath,
 } from "../lib/workspace-team-sidebar-state";
 import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
@@ -142,23 +144,30 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         category,
         this.chatChannelsManager
       );
+      const categoryAvailable = workspaceCategoryModeEnabled(category);
+      const chatAvailable = workspaceChatModeEnabled(category) && !!pairedChannel;
+      const chatMuted = !!pairedChannel?.currentUserMembership?.muted;
 
       return {
         category,
         categoryLink,
-        categoryUnread: !!categoryLink.activeCountable,
+        categoryUnread:
+          categoryAvailable && !chatMuted && !!categoryLink.activeCountable,
         categoryTitle: `Open ${category.displayName} topics`,
         chatPath: pairedChannel
           ? `/chat/c/${pairedChannel.routeModels.join("/")}`
           : null,
         chatTitle: `Open ${category.displayName} chat`,
-        chatUnread: !!(
+        chatUnread: chatAvailable && !chatMuted && !!(
           pairedChannel &&
           (pairedChannel.tracking.unreadCount > 0 ||
             pairedChannel.unreadThreadsCountSinceLastViewed > 0 ||
             pairedChannel.tracking.mentionCount > 0 ||
             pairedChannel.tracking.watchedThreadsUnreadCount > 0)
         ),
+        chatMuted,
+        categoryAvailable,
+        chatAvailable,
         isActive: this.activeCategoryId === category.id,
         categoryActive:
           this.mode === "category" && this.activeCategoryId === category.id,
@@ -175,7 +184,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     const actions = [];
 
-    visibleWorkspaceCategories(this.services)
+    memberWorkspaceCategories(this.services)
       .filter((workspace) => workspace.id !== this.workspaceCategory.id)
       .forEach((workspace) =>
         actions.push({
@@ -310,6 +319,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           @chatPath={{row.chatPath}}
           @chatTitle={{row.chatTitle}}
           @chatUnread={{row.chatUnread}}
+          @chatMuted={{row.chatMuted}}
+          @categoryAvailable={{row.categoryAvailable}}
+          @chatAvailable={{row.chatAvailable}}
           @isActive={{row.isActive}}
           @categoryActive={{row.categoryActive}}
           @chatActive={{row.chatActive}}

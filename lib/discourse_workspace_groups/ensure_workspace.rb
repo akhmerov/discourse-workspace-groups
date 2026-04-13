@@ -2,12 +2,24 @@
 
 module ::DiscourseWorkspaceGroups
   class EnsureWorkspace
-    attr_reader :category, :user, :public_read
+    attr_reader :category,
+                :user,
+                :public_read,
+                :members_can_create_channels,
+                :members_can_create_private_channels
 
-    def initialize(category:, user:, public_read: false)
+    def initialize(
+      category:,
+      user:,
+      public_read: false,
+      members_can_create_channels: SiteSetting.discourse_workspace_groups_members_can_create_channels,
+      members_can_create_private_channels: members_can_create_channels
+    )
       @category = category
       @user = user
       @public_read = public_read
+      @members_can_create_channels = members_can_create_channels
+      @members_can_create_private_channels = members_can_create_private_channels
     end
 
     def call
@@ -21,6 +33,9 @@ module ::DiscourseWorkspaceGroups
       category.custom_fields[WORKSPACE_KIND] = WORKSPACE_KIND_ROOT
       category.custom_fields[WORKSPACE_GROUP_ID] = workspace_group.id
       category.custom_fields[WORKSPACE_ROOT_PUBLIC_READ] = public_read
+      category.custom_fields[WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS] = members_can_create_channels
+      category.custom_fields[WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS] =
+        members_can_create_channels && members_can_create_private_channels
       category.set_permissions(root_permissions(workspace_group))
       category.save!
 

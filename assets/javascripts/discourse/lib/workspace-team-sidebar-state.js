@@ -19,6 +19,18 @@ export function workspaceScopedCategory(category) {
   return null;
 }
 
+export function workspaceChannelMode(category) {
+  return category?.workspace_channel_mode || "both";
+}
+
+export function workspaceCategoryModeEnabled(category) {
+  return workspaceChannelMode(category) !== "chat_only";
+}
+
+export function workspaceChatModeEnabled(category) {
+  return workspaceChannelMode(category) !== "category_only";
+}
+
 function visibleChildren(category, siteSettings, site) {
   if (!category || !site?.categoriesList?.length) {
     return [];
@@ -158,6 +170,10 @@ export function userSelectedScopedCategories(currentUser, scopedCategories) {
 }
 
 export function pairedCategoryChannelFor(category, chatChannelsManager) {
+  if (!workspaceChatModeEnabled(category)) {
+    return null;
+  }
+
   return chatChannelsManager?.channels?.find(
     (channel) =>
       channel.isCategoryChannel &&
@@ -188,10 +204,31 @@ export function sidebarChannelCategories(services) {
 
   return visibleCategories
     .slice(1)
-    .filter((category) =>
-      pairedCategoryChannelFor(category, services.chatChannelsManager) ||
-      category.id === currentCategory?.id
-    );
+    .filter((category) => {
+      if (category.id === currentCategory?.id) {
+        return true;
+      }
+
+      if (!workspaceChatModeEnabled(category)) {
+        return workspaceCategoryModeEnabled(category);
+      }
+
+      return !!pairedCategoryChannelFor(category, services.chatChannelsManager);
+    })
+    .map((category, index) => ({
+      category,
+      index,
+      muted: !!pairedCategoryChannelFor(category, services.chatChannelsManager)
+        ?.currentUserMembership?.muted,
+    }))
+    .sort((left, right) => {
+      if (left.muted === right.muted) {
+        return left.index - right.index;
+      }
+
+      return left.muted ? 1 : -1;
+    })
+    .map(({ category }) => category);
 }
 
 export function sidebarWorkspaceCategory(services) {
@@ -243,7 +280,7 @@ export function rememberedWorkspaceCategory(services) {
   }
 
   return (
-    visibleWorkspaceCategories(services).find(
+    memberWorkspaceCategories(services).find(
       (category) => Number(category.id) === rememberedId
     ) ?? null
   );

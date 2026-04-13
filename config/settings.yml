@@ -5,6 +5,3 @@ plugins:
   discourse_workspace_groups_members_can_create_channels:
     default: true
     client: true
-  discourse_workspace_groups_excluded_top_level_category_ids:
-    default: ""
-    type: list

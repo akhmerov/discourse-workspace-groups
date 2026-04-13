@@ -4,14 +4,15 @@ module ::DiscourseWorkspaceGroups
   class CreateChannel
     CATEGORY_SLUG_HASH_LENGTH = 4
 
-    attr_reader :workspace, :user, :name, :description, :visibility
+    attr_reader :workspace, :user, :name, :description, :visibility, :channel_mode
 
-    def initialize(workspace:, user:, name:, description:, visibility:)
+    def initialize(workspace:, user:, name:, description:, visibility:, channel_mode: nil)
       @workspace = workspace
       @user = user
       @name = name.to_s.strip
       @description = description.to_s.strip
       @visibility = visibility.presence || VISIBILITY_PUBLIC
+      @channel_mode = channel_mode.presence || CHANNEL_MODE_BOTH
     end
 
     def call
@@ -43,6 +44,7 @@ module ::DiscourseWorkspaceGroups
       channel.custom_fields[WORKSPACE_PARENT_CATEGORY_ID] = workspace.id
       channel.custom_fields[WORKSPACE_GROUP_ID] = channel_group.id
       channel.custom_fields[WORKSPACE_VISIBILITY] = visibility
+      channel.custom_fields[WORKSPACE_CHANNEL_MODE] = channel_mode
       channel.save!
 
       channel_group.custom_fields["workspace_category_id"] = channel.id
@@ -62,14 +64,22 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::InvalidAccess if !workspace&.workspace_root?
       raise Discourse::InvalidParameters.new(:name) if name.blank?
       raise Discourse::InvalidParameters.new(:visibility) if !valid_visibility?
+      raise Discourse::InvalidParameters.new(:channel_mode) if !valid_channel_mode?
 
       return if user.admin?
+      return if DiscourseWorkspaceGroups.can_manage_workspace?(workspace, user)
+
       raise Discourse::InvalidAccess if !workspace.workspace_group.users.exists?(id: user.id)
-      raise Discourse::InvalidAccess if !SiteSetting.discourse_workspace_groups_members_can_create_channels
+      raise Discourse::InvalidAccess if !workspace.workspace_members_can_create_channels?
+      raise Discourse::InvalidAccess if visibility == VISIBILITY_PRIVATE && !workspace.workspace_members_can_create_private_channels?
     end
 
     def valid_visibility?
       [VISIBILITY_PUBLIC, VISIBILITY_PRIVATE].include?(visibility)
+    end
+
+    def valid_channel_mode?
+      DiscourseWorkspaceGroups.valid_channel_mode?(channel_mode)
     end
 
     def ensure_channel_group
@@ -116,7 +126,7 @@ module ::DiscourseWorkspaceGroups
     end
 
     def channel_permissions(channel_group)
-      { channel_group.id => :full }
+      DiscourseWorkspaceGroups.channel_permissions(channel_group, channel_mode)
     end
 
     def collision_error

@@ -103,5 +103,42 @@ module(
         .dom(".workspace-team-sidebar__mode-button:last-child")
         .hasClass("workspace-team-sidebar__mode-button--active");
     });
+
+    test("renders muted rows with muted styling", async function (assert) {
+      this.categoryLink = {
+        name: "lab-notes",
+        route: "discovery.category",
+        model: "quantum-tinkerer/lab-notes/29",
+        currentWhen: "discovery.category",
+        title: "Lab Notes",
+        text: "Lab Notes",
+        prefixType: "icon",
+        prefixValue: "folder",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Lab Notes topics"
+            @chatPath="/chat/c/lab-notes/15"
+            @chatTitle="Open Lab Notes chat"
+            @chatUnread={{false}}
+            @chatMuted={{true}}
+            @categoryUnread={{false}}
+            @isActive={{false}}
+            @categoryActive={{false}}
+            @chatActive={{false}}
+          />
+        </template>
+      );
+
+      assert
+        .dom(".workspace-team-sidebar__main-link")
+        .hasClass("sidebar-section-link--muted");
+      assert
+        .dom(".workspace-team-sidebar__mode-button")
+        .hasClass("workspace-team-sidebar__mode-button--muted");
+    });
   }
 );

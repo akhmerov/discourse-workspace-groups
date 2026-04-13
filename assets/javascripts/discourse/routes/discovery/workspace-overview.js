@@ -46,17 +46,21 @@ export default class DiscoveryWorkspaceOverviewRoute extends DiscourseRoute {
 
     const result = await ajax(`/workspace-groups/workspaces/${workspace.id}.json`);
 
-    return {
+    return trackedObject({
       category: workspace,
       workspace: trackedObject(result.workspace || {}),
-      channels: trackedArray(
+      activeChannels: trackedArray(
         (result.channels || []).map((channel) =>
           trackedObject({ ...channel, is_pending: false })
         )
       ),
+      archivedChannels: trackedArray(),
+      archivedChannelCount: result.archived_channel_count || 0,
+      archivedChannelsLoaded: false,
+      archivedChannelsLoading: false,
       filterType: "workspace-overview",
       noSubcategories: false,
-    };
+    });
   }
 
   titleToken() {

@@ -152,4 +152,41 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     everyone_permission = workspace.reload.category_groups.find_by(group_id: Group::AUTO_GROUPS[:everyone])
     expect(everyone_permission&.permission_type).to eq(CategoryGroup.permission_types[:readonly])
   end
+
+  it "uses reply-only category permissions for chat-only channels" do
+    channel =
+      described_class.new(
+        workspace: workspace,
+        user: admin,
+        name: "Chat Only #{SecureRandom.hex(3)}",
+        description: nil,
+        visibility: "public",
+        channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY,
+      ).call
+
+    expect(channel.workspace_channel_mode).to eq(DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY)
+    expect(
+      channel.category_groups.find_by(group_id: channel.workspace_group_id).permission_type,
+    ).to eq(CategoryGroup.permission_types[:create_post])
+  end
+
+  it "does not create a paired chat channel for category-only channels" do
+    SiteSetting.chat_enabled = true
+    SiteSetting.enable_public_channels = true
+
+    channel =
+      described_class.new(
+        workspace: workspace,
+        user: admin,
+        name: "Topics Only #{SecureRandom.hex(3)}",
+        description: nil,
+        visibility: "public",
+        channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CATEGORY_ONLY,
+      ).call
+
+    expect(channel.workspace_channel_mode).to eq(
+      DiscourseWorkspaceGroups::CHANNEL_MODE_CATEGORY_ONLY,
+    )
+    expect(channel.category_channel).to be_nil
+  end
 end

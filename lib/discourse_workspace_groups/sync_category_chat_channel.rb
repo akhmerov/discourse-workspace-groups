@@ -19,9 +19,11 @@ module ::DiscourseWorkspaceGroups
       return if !SiteSetting.chat_enabled || !SiteSetting.enable_public_channels
 
       slug = desired_slug
-      chat_channel = category.category_channel
+      chat_channel = existing_chat_channel
 
       if chat_channel.blank?
+        return if !category.workspace_chat_enabled?
+
         chat_channel =
           category.create_chat_channel!(
             name: category.name,
@@ -40,6 +42,11 @@ module ::DiscourseWorkspaceGroups
         chat_channel.update!(attrs) if attrs.present?
       end
 
+      if !category.workspace_chat_enabled?
+        sync_archive_status(chat_channel)
+        return chat_channel
+      end
+
       sync_group_memberships(chat_channel) if sync_all_members
 
       if user.present?
@@ -49,6 +56,10 @@ module ::DiscourseWorkspaceGroups
       sync_archive_status(chat_channel)
 
       chat_channel
+    end
+
+    def existing_chat_channel
+      Chat::CategoryChannel.find_by(chatable: category)
     end
 
     def group_users
@@ -74,7 +85,14 @@ module ::DiscourseWorkspaceGroups
     end
 
     def sync_archive_status(chat_channel)
-      target_status = category.workspace_archived? ? "read_only" : "open"
+      target_status =
+        if category.workspace_archived?
+          "read_only"
+        elsif !category.workspace_chat_enabled?
+          "closed"
+        else
+          "open"
+        end
       return if chat_channel.status == target_status
 
       chat_channel.update!(status: target_status)

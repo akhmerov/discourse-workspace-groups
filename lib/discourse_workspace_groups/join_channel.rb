@@ -14,7 +14,9 @@ module ::DiscourseWorkspaceGroups
 
       channel.workspace_group.add(user)
       chat_channel = DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: channel).call
-      Chat::Publisher.publish_new_channel(chat_channel, [user.id]) if chat_channel.present?
+      if channel.workspace_chat_enabled? && chat_channel.present?
+        Chat::Publisher.publish_new_channel(chat_channel, [user.id])
+      end
 
       channel
     end
