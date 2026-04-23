@@ -1,4 +1,5 @@
 import Component from "@glimmer/component";
+import { tracked } from "@glimmer/tracking";
 import { on } from "@ember/modifier";
 import { LinkTo } from "@ember/routing";
 import { action } from "@ember/object";
@@ -7,10 +8,13 @@ import { isHex } from "discourse/components/sidebar/section-link";
 import concatClass from "discourse/helpers/concat-class";
 import icon from "discourse/helpers/d-icon";
 import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix";
+import discourseLater from "discourse/lib/later";
 import DiscourseURL from "discourse/lib/url";
 
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
+  @tracked dragCssClass;
+  dragCount = 0;
 
   get categoryModels() {
     if (this.args.categoryLink.model) {
@@ -66,6 +70,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
       "workspace-team-sidebar__main-link",
       "sidebar-section-link",
       this.args.chatMuted && "sidebar-section-link--muted",
+      this.args.editable && "workspace-team-sidebar__main-link--editing",
       this.mainLinkActive && "active"
     );
   }
@@ -78,8 +83,30 @@ export default class WorkspaceTeamSidebarRow extends Component {
     return this.args.categoryActive;
   }
 
+  get rowClass() {
+    return concatClass(
+      "workspace-team-sidebar__row",
+      "sidebar-row",
+      this.args.chatMuted && "workspace-team-sidebar__row--muted",
+      this.args.editable && "workspace-team-sidebar__row--editing",
+      this.dragCssClass
+    );
+  }
+
+  isAboveElement(event) {
+    event.preventDefault();
+    const target = event.currentTarget;
+    const domRect = target.getBoundingClientRect();
+    return event.clientY - domRect.top < domRect.height / 2;
+  }
+
   @action
   openChat(event) {
+    if (this.args.editable) {
+      event.preventDefault();
+      return;
+    }
+
     if (!this.args.chatPath) {
       event.preventDefault();
       return;
@@ -90,6 +117,80 @@ export default class WorkspaceTeamSidebarRow extends Component {
     DiscourseURL.routeTo(this.args.chatPath);
   }
 
+  @action
+  dragHasStarted(event) {
+    if (!this.args.editable || this.args.dragDisabled) {
+      event.preventDefault();
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = "move";
+    this.args.setDraggedCategory?.(this.args.categoryLink.category);
+    this.dragCssClass = "dragging";
+  }
+
+  @action
+  dragOver(event) {
+    if (!this.args.editable || this.args.dragDisabled) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (this.dragCssClass !== "dragging") {
+      this.dragCssClass = this.isAboveElement(event) ? "drag-above" : "drag-below";
+    }
+  }
+
+  @action
+  dragEnter() {
+    if (!this.args.editable || this.args.dragDisabled) {
+      return;
+    }
+
+    this.dragCount++;
+  }
+
+  @action
+  dragLeave() {
+    if (!this.args.editable || this.args.dragDisabled) {
+      return;
+    }
+
+    this.dragCount--;
+
+    if (
+      this.dragCount === 0 &&
+      (this.dragCssClass === "drag-above" || this.dragCssClass === "drag-below")
+    ) {
+      discourseLater(() => {
+        this.dragCssClass = null;
+      }, 10);
+    }
+  }
+
+  @action
+  dropItem(event) {
+    if (!this.args.editable || this.args.dragDisabled) {
+      return;
+    }
+
+    event.stopPropagation();
+    this.dragCount = 0;
+    this.args.reorderCallback?.(
+      this.args.categoryLink.category,
+      this.isAboveElement(event)
+    );
+    this.dragCssClass = null;
+  }
+
+  @action
+  dragEnd() {
+    this.dragCount = 0;
+    this.dragCssClass = null;
+    this.args.setDraggedCategory?.(null);
+  }
+
   <template>
     <li
       class="sidebar-section-link-wrapper"
@@ -97,12 +198,45 @@ export default class WorkspaceTeamSidebarRow extends Component {
     >
       <div
         class={{concatClass
-          "workspace-team-sidebar__row"
-          "sidebar-row"
-          (if @chatMuted "workspace-team-sidebar__row--muted")
+          this.rowClass
         }}
+        draggable={{if @editable "true" "false"}}
+        {{on "dragstart" this.dragHasStarted}}
+        {{on "dragover" this.dragOver}}
+        {{on "dragenter" this.dragEnter}}
+        {{on "dragleave" this.dragLeave}}
+        {{on "dragend" this.dragEnd}}
+        {{on "drop" this.dropItem}}
       >
-        {{#if this.mainLinkOpensChat}}
+        {{#if @editable}}
+          <div class="workspace-team-sidebar__drag-handle">
+            {{icon "grip-lines"}}
+          </div>
+        {{/if}}
+
+        {{#if @editable}}
+          <div
+            class={{this.mainLinkClass}}
+            title={{if this.mainLinkOpensChat @chatTitle @categoryLink.title}}
+          >
+            <SectionLinkPrefix
+              @prefixType={{@categoryLink.prefixType}}
+              @prefixValue={{@categoryLink.prefixValue}}
+              @prefixColor={{this.prefixColor}}
+              @prefixBadge={{@categoryLink.prefixBadge}}
+            />
+
+            <span class="sidebar-section-link-content-text">
+              {{@categoryLink.text}}
+            </span>
+
+            {{#if @categoryLink.badgeText}}
+              <span class="sidebar-section-link-content-badge">
+                {{@categoryLink.badgeText}}
+              </span>
+            {{/if}}
+          </div>
+        {{else if this.mainLinkOpensChat}}
           <button
             type="button"
             title={{@chatTitle}}
@@ -157,41 +291,65 @@ export default class WorkspaceTeamSidebarRow extends Component {
 
         <div class="workspace-team-sidebar__modes">
           {{#if this.categoryAvailable}}
-            <LinkTo
-              @route={{@categoryLink.route}}
-              @models={{this.categoryModels}}
-              @query={{this.categoryQuery}}
-              @current-when={{@categoryLink.currentWhen}}
-              @title={{@categoryTitle}}
-              class={{this.categoryButtonClass}}
-            >
-              <span class="workspace-team-sidebar__mode-icon">
-                {{icon "list"}}
+            {{#if @editable}}
+              <span class={{this.categoryButtonClass}}>
+                <span class="workspace-team-sidebar__mode-icon">
+                  {{icon "list"}}
 
-                {{#if @categoryUnread}}
-                  <span class="chat-channel-unread-indicator"></span>
-                {{/if}}
+                  {{#if @categoryUnread}}
+                    <span class="chat-channel-unread-indicator"></span>
+                  {{/if}}
+                </span>
               </span>
-            </LinkTo>
+            {{else}}
+              <LinkTo
+                @route={{@categoryLink.route}}
+                @models={{this.categoryModels}}
+                @query={{this.categoryQuery}}
+                @current-when={{@categoryLink.currentWhen}}
+                @title={{@categoryTitle}}
+                class={{this.categoryButtonClass}}
+              >
+                <span class="workspace-team-sidebar__mode-icon">
+                  {{icon "list"}}
+
+                  {{#if @categoryUnread}}
+                    <span class="chat-channel-unread-indicator"></span>
+                  {{/if}}
+                </span>
+              </LinkTo>
+            {{/if}}
           {{/if}}
 
           {{#if this.chatAvailable}}
-            <button
-              type="button"
-              class={{this.chatButtonClass}}
-              title={{@chatTitle}}
-              aria-label={{@chatTitle}}
-              disabled={{this.chatDisabled}}
-              {{on "click" this.openChat}}
-            >
-              <span class="workspace-team-sidebar__mode-icon">
-                {{icon "d-chat"}}
+            {{#if @editable}}
+              <span class={{this.chatButtonClass}}>
+                <span class="workspace-team-sidebar__mode-icon">
+                  {{icon "d-chat"}}
 
-                {{#if @chatUnread}}
-                  <span class="chat-channel-unread-indicator"></span>
-                {{/if}}
+                  {{#if @chatUnread}}
+                    <span class="chat-channel-unread-indicator"></span>
+                  {{/if}}
+                </span>
               </span>
-            </button>
+            {{else}}
+              <button
+                type="button"
+                class={{this.chatButtonClass}}
+                title={{@chatTitle}}
+                aria-label={{@chatTitle}}
+                disabled={{this.chatDisabled}}
+                {{on "click" this.openChat}}
+              >
+                <span class="workspace-team-sidebar__mode-icon">
+                  {{icon "d-chat"}}
+
+                  {{#if @chatUnread}}
+                    <span class="chat-channel-unread-indicator"></span>
+                  {{/if}}
+                </span>
+              </button>
+            {{/if}}
           {{/if}}
         </div>
       </div>

@@ -31,9 +31,32 @@
 
 .workspace-team-sidebar__row {
   align-items: center;
+  border-radius: 0.5rem;
   display: flex;
   gap: 0.25rem;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
   width: 100%;
+}
+
+.workspace-team-sidebar__row--editing {
+  background: var(--secondary-very-low);
+  cursor: grab;
+  padding-right: 0.25rem;
+}
+
+.workspace-team-sidebar__row--editing.dragging {
+  opacity: 0.55;
+}
+
+.workspace-team-sidebar__row--editing.drag-above {
+  box-shadow: inset 0 3px 0 var(--tertiary);
+}
+
+.workspace-team-sidebar__row--editing.drag-below {
+  box-shadow: inset 0 -3px 0 var(--tertiary);
 }
 
 .workspace-team-sidebar__main-link {
@@ -44,6 +67,10 @@
   min-width: 0;
   padding: 0;
   text-align: left;
+}
+
+.workspace-team-sidebar__main-link--editing {
+  pointer-events: none;
 }
 
 .workspace-team-sidebar__modes {
@@ -101,6 +128,15 @@
   position: absolute;
   right: -0.12rem;
   top: -0.1rem;
+}
+
+.workspace-team-sidebar__drag-handle {
+  align-items: center;
+  color: var(--primary-medium);
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  width: 1.25rem;
 }
 
 .workspace-groups-actions__button {
@@ -232,72 +268,8 @@
   flex: 0 0 auto;
 }
 
-.workspace-groups-overview__reorder-channels-button {
-  flex: 0 0 auto;
-}
-
 .workspace-groups-overview__settings-button {
   flex: 0 0 auto;
-}
-
-.workspace-groups-reorder-channels-modal__help {
-  color: var(--primary-medium);
-  font-size: var(--font-down-1);
-  margin: 0 0 1rem;
-}
-
-.workspace-groups-reorder-channels-modal__list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.workspace-groups-reorder-channels-modal__row {
-  align-items: center;
-  background: var(--secondary-very-low);
-  border: 1px solid var(--primary-low);
-  border-radius: 0.75rem;
-  display: flex;
-  gap: 0.75rem;
-  padding: 0.75rem 0.9rem;
-}
-
-.workspace-groups-reorder-channels-modal__row.dragging {
-  opacity: 0.55;
-}
-
-.workspace-groups-reorder-channels-modal__row.drag-above {
-  box-shadow: inset 0 3px 0 var(--tertiary);
-}
-
-.workspace-groups-reorder-channels-modal__row.drag-below {
-  box-shadow: inset 0 -3px 0 var(--tertiary);
-}
-
-.workspace-groups-reorder-channels-modal__grip {
-  color: var(--primary-medium);
-  cursor: grab;
-  flex: 0 0 auto;
-}
-
-.workspace-groups-reorder-channels-modal__row-copy {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.workspace-groups-reorder-channels-modal__row-name {
-  font-weight: 600;
-}
-
-.workspace-groups-reorder-channels-modal__row-meta {
-  align-items: center;
-  color: var(--primary-medium);
-  display: inline-flex;
-  font-size: var(--font-down-1);
-  gap: 0.35rem;
 }
 
 .workspace-groups-overview__archived {

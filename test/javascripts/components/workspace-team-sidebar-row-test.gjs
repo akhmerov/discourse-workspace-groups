@@ -140,5 +140,36 @@ module(
         .dom(".workspace-team-sidebar__mode-button")
         .hasClass("workspace-team-sidebar__mode-button--muted");
     });
+
+    test("renders a draggable non-interactive row in sidebar edit mode", async function (assert) {
+      this.categoryLink = {
+        category: { id: 29 },
+        name: "lab-notes",
+        route: "discovery.category",
+        model: "quantum-tinkerer/lab-notes/29",
+        currentWhen: "discovery.category",
+        title: "Lab Notes",
+        text: "Lab Notes",
+        prefixType: "icon",
+        prefixValue: "folder",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Lab Notes topics"
+            @chatPath="/chat/c/lab-notes/15"
+            @chatTitle="Open Lab Notes chat"
+            @editable={{true}}
+          />
+        </template>
+      );
+
+      assert.dom(".workspace-team-sidebar__drag-handle").exists();
+      assert.dom(".workspace-team-sidebar__row--editing").exists();
+      assert.dom(".workspace-team-sidebar__main-link--editing").exists();
+      assert.dom(".workspace-team-sidebar__modes button").doesNotExist();
+    });
   }
 );

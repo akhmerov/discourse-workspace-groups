@@ -169,6 +169,51 @@ export function userSelectedScopedCategories(currentUser, scopedCategories) {
   return null;
 }
 
+export function workspaceSidebarOrders(currentUser) {
+  return (
+    currentUser?.workspaceSidebarOrders ??
+    currentUser?.workspace_sidebar_orders ??
+    {}
+  );
+}
+
+export function workspaceSidebarChannelOrder(currentUser, workspaceId) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  return workspaceSidebarOrders(currentUser)?.[String(workspaceId)] ?? [];
+}
+
+function sortCategoriesByExplicitOrder(categories, orderedIds) {
+  if (!orderedIds?.length) {
+    return categories;
+  }
+
+  const orderIndex = new Map(
+    orderedIds.map((categoryId, index) => [categoryId, index])
+  );
+
+  return [...categories].sort((left, right) => {
+    const leftIndex = orderIndex.get(left.id);
+    const rightIndex = orderIndex.get(right.id);
+
+    if (leftIndex !== undefined && rightIndex !== undefined) {
+      return leftIndex - rightIndex;
+    }
+
+    if (leftIndex !== undefined) {
+      return -1;
+    }
+
+    if (rightIndex !== undefined) {
+      return 1;
+    }
+
+    return 0;
+  });
+}
+
 export function pairedCategoryChannelFor(category, chatChannelsManager) {
   if (!workspaceChatModeEnabled(category)) {
     return null;
@@ -182,7 +227,7 @@ export function pairedCategoryChannelFor(category, chatChannelsManager) {
   );
 }
 
-export function sidebarChannelCategories(services) {
+export function sidebarChannelCategories(services, orderedIdsOverride = null) {
   const scopedCategories = sidebarScopedCategories(services);
 
   if (!scopedCategories?.length) {
@@ -202,7 +247,7 @@ export function sidebarChannelCategories(services) {
     visibleCategories = pushUniqueCategory(visibleCategories, currentCategory);
   }
 
-  return visibleCategories
+  const visibleChannelEntries = visibleCategories
     .slice(1)
     .filter((category) => {
       if (category.id === currentCategory?.id) {
@@ -220,7 +265,20 @@ export function sidebarChannelCategories(services) {
       index,
       muted: !!pairedCategoryChannelFor(category, services.chatChannelsManager)
         ?.currentUserMembership?.muted,
-    }))
+    }));
+
+  const explicitOrder =
+    orderedIdsOverride ??
+    workspaceSidebarChannelOrder(services.currentUser, currentWorkspace?.id);
+
+  if (explicitOrder.length > 0) {
+    return sortCategoriesByExplicitOrder(
+      visibleChannelEntries.map(({ category }) => category),
+      explicitOrder
+    );
+  }
+
+  return visibleChannelEntries
     .sort((left, right) => {
       if (left.muted === right.muted) {
         return left.index - right.index;

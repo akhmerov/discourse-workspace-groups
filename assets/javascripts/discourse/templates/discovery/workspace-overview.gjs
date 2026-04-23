@@ -103,15 +103,6 @@ export default <template>
                 />
               {{/if}}
 
-              {{#if @controller.canReorderChannels}}
-                <DButton
-                  @action={{@controller.openReorderChannelsModal}}
-                  @icon="arrow-up-down"
-                  @label="discourse_workspace_groups.reorder_channels"
-                  @title="discourse_workspace_groups.reorder_channels_title"
-                  class="btn-default btn-small workspace-groups-overview__reorder-channels-button"
-                />
-              {{/if}}
             </div>
 
             <p class="workspace-groups-overview__description">

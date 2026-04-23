@@ -9,6 +9,8 @@ import didInsert from "@ember/render-modifiers/modifiers/did-insert";
 import { block } from "discourse/blocks";
 import concatClass from "discourse/helpers/concat-class";
 import icon from "discourse/helpers/d-icon";
+import { ajax } from "discourse/lib/ajax";
+import { popupAjaxError } from "discourse/lib/ajax-error";
 import SectionHeader from "discourse/components/sidebar/section-header";
 import CategorySectionLink from "discourse/lib/sidebar/user/categories-section/category-section-link";
 import {
@@ -29,6 +31,7 @@ import {
   workspaceOverviewPath,
 } from "../lib/workspace-team-sidebar-state";
 import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
+import { i18n } from "discourse-i18n";
 
 @block("discourse-workspace-groups:workspace-team-sidebar")
 export default class WorkspaceTeamSidebarBlock extends Component {
@@ -43,6 +46,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @service("topic-tracking-state") topicTrackingState;
 
   @tracked topicCountsVersion = 0;
+  @tracked editingSidebar = false;
+  @tracked orderedChannelIds = null;
+  @tracked savingSidebarOrder = false;
 
   sectionName = "workspace-team";
   sidebarSectionContentId = getSidebarSectionContentId(this.sectionName);
@@ -115,10 +121,26 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     return currentScopedMode(this.services);
   }
 
+  categoryLinkFor(category) {
+    if (!this.linkCache.has(category.id)) {
+      this.linkCache.set(
+        category.id,
+        new CategorySectionLink({
+          category,
+          topicTrackingState: this.topicTrackingState,
+          currentUser: this.currentUser,
+        })
+      );
+    }
+
+    return this.linkCache.get(category.id);
+  }
+
   get rows() {
     this.topicCountsVersion;
 
-    const categories = sidebarChannelCategories(this.services) ?? [];
+    const categories =
+      sidebarChannelCategories(this.services, this.orderedChannelIds) ?? [];
     const categoryIds = new Set(categories.map((category) => category.id));
 
     for (const linkId of this.linkCache.keys()) {
@@ -128,18 +150,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     return categories.map((category) => {
-      if (!this.linkCache.has(category.id)) {
-        this.linkCache.set(
-          category.id,
-          new CategorySectionLink({
-            category,
-            topicTrackingState: this.topicTrackingState,
-            currentUser: this.currentUser,
-          })
-        );
-      }
-
-      const categoryLink = this.linkCache.get(category.id);
+      const categoryLink = this.categoryLinkFor(category);
       const pairedChannel = pairedCategoryChannelFor(
         category,
         this.chatChannelsManager
@@ -211,6 +222,33 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       : null;
   }
 
+  get canEditSidebar() {
+    return !!this.workspaceCategory && this.rows.length > 1;
+  }
+
+  get sidebarEditTitle() {
+    return this.editingSidebar
+      ? i18n("discourse_workspace_groups.done_editing_sidebar")
+      : i18n("discourse_workspace_groups.edit_sidebar");
+  }
+
+  updateCurrentUserSidebarOrders(workspaceId, channelIds) {
+    const currentOrders = {
+      ...(this.currentUser.workspace_sidebar_orders ??
+        this.currentUser.workspaceSidebarOrders ??
+        {}),
+    };
+
+    if (channelIds.length > 0) {
+      currentOrders[String(workspaceId)] = channelIds;
+    } else {
+      delete currentOrders[String(workspaceId)];
+    }
+
+    this.currentUser.workspace_sidebar_orders = currentOrders;
+    this.currentUser.workspaceSidebarOrders = currentOrders;
+  }
+
   @action
   initializeExpandedState() {
     if (this.sidebarState.filter) {
@@ -249,6 +287,70 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @action
   handleWorkspaceSelection(id) {
     this.headerActions.find((headerAction) => headerAction.id === id)?.action();
+  }
+
+  @action
+  toggleSidebarEditing() {
+    if (!this.canEditSidebar) {
+      return;
+    }
+
+    if (this.editingSidebar) {
+      this.editingSidebar = false;
+      this.orderedChannelIds = null;
+      return;
+    }
+
+    this.editingSidebar = true;
+    this.orderedChannelIds = this.rows.map((row) => row.category.id);
+  }
+
+  @action
+  async reorderSidebarRows(targetCategory, above) {
+    if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
+      return;
+    }
+
+    const currentOrder = [...(this.orderedChannelIds ?? this.rows.map((row) => row.category.id))];
+    const draggedCategoryId = this.draggedCategoryId;
+
+    if (!draggedCategoryId || draggedCategoryId === targetCategory.id) {
+      return;
+    }
+
+    const nextOrder = currentOrder.filter((categoryId) => categoryId !== draggedCategoryId);
+    const targetIndex = nextOrder.indexOf(targetCategory.id);
+    const insertIndex = above ? targetIndex : targetIndex + 1;
+    nextOrder.splice(insertIndex, 0, draggedCategoryId);
+
+    this.orderedChannelIds = nextOrder;
+    this.savingSidebarOrder = true;
+
+    try {
+      const result = await ajax(
+        `/workspace-groups/workspaces/${this.workspaceCategory.id}/sidebar-channels`,
+        {
+          type: "PUT",
+          data: { channel_ids: nextOrder },
+        }
+      );
+
+      this.orderedChannelIds = result.channel_ids;
+      this.updateCurrentUserSidebarOrders(
+        this.workspaceCategory.id,
+        result.channel_ids
+      );
+    } catch (error) {
+      this.orderedChannelIds = currentOrder;
+      popupAjaxError(error);
+    } finally {
+      this.savingSidebarOrder = false;
+    }
+  }
+
+  @action
+  setDraggedCategory(category) {
+    this.draggedCategoryId = category?.id ?? null;
   }
 
   <template>
@@ -293,6 +395,19 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           </button>
         {{/if}}
 
+        {{#if this.canEditSidebar}}
+          <button
+            type="button"
+            title={{this.sidebarEditTitle}}
+            aria-label={{this.sidebarEditTitle}}
+            class="sidebar-section-header-button workspace-team-sidebar__edit-button btn-icon btn-flat"
+            disabled={{this.savingSidebarOrder}}
+            {{on "click" this.toggleSidebarEditing}}
+          >
+            {{icon (if this.editingSidebar "check" "pencil")}}
+          </button>
+        {{/if}}
+
         {{#if this.headerActions.length}}
           <DropdownSelectBox
             @options={{hash
@@ -325,6 +440,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           @isActive={{row.isActive}}
           @categoryActive={{row.categoryActive}}
           @chatActive={{row.chatActive}}
+          @editable={{this.editingSidebar}}
+          @setDraggedCategory={{this.setDraggedCategory}}
+          @reorderCallback={{this.reorderSidebarRows}}
+          @dragDisabled={{this.savingSidebarOrder}}
         />
       {{/each}}
         </ul>

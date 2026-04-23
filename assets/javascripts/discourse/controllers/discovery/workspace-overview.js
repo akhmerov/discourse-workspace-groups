@@ -6,7 +6,6 @@ import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import { i18n } from "discourse-i18n";
 import CreateWorkspaceChannelModal from "../../components/modal/create-workspace-channel";
-import ReorderWorkspaceChannelsModal from "../../components/modal/reorder-workspace-channels";
 import WorkspaceChannelSettingsModal from "../../components/modal/workspace-channel-settings";
 import WorkspaceSettingsModal from "../../components/modal/workspace-settings";
 
@@ -43,10 +42,6 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
       this.model.workspace?.can_create_channel ??
       this.model.category?.workspace_can_create_channel
     );
-  }
-
-  get canReorderChannels() {
-    return Boolean(this.canManageWorkspace && this.activeChannels.length > 1);
   }
 
   get teamName() {
@@ -164,14 +159,6 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     }
   }
 
-  replaceActiveChannels(channels) {
-    this.model.activeChannels.splice(
-      0,
-      this.model.activeChannels.length,
-      ...channels.map((channel) => this.trackChannel(channel))
-    );
-  }
-
   storeChatChannel(channel) {
     if (!channel?.chat_channel) {
       return;
@@ -259,23 +246,6 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
         workspace: this.model.workspace,
         onUpdate: async (updatedWorkspace) => {
           this.applyWorkspacePayload(updatedWorkspace);
-        },
-      },
-    });
-  }
-
-  @action
-  openReorderChannelsModal() {
-    this.modal.show(ReorderWorkspaceChannelsModal, {
-      model: {
-        workspaceId: this.model.category.id,
-        channels: this.activeChannels.map((channel) => ({
-          id: channel.id,
-          name: channel.name,
-          visibility: channel.visibility,
-        })),
-        onReorder: async (channels) => {
-          this.replaceActiveChannels(channels);
         },
       },
     });

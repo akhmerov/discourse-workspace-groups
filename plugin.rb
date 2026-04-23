@@ -32,6 +32,7 @@ module ::DiscourseWorkspaceGroups
   WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS = "workspace_members_can_create_private_channels"
   WORKSPACE_AUTO_JOIN_CHANNEL_IDS = "workspace_auto_join_channel_ids"
   WORKSPACE_CHANNEL_MODE = "workspace_channel_mode"
+  USER_WORKSPACE_SIDEBAR_ORDERS = "workspace_sidebar_orders"
 
   WORKSPACE_KIND_ROOT = "workspace"
   WORKSPACE_KIND_CHANNEL = "channel"
@@ -251,6 +252,42 @@ module ::DiscourseWorkspaceGroups
     workspace.save_custom_fields(true)
   end
 
+  def self.workspace_sidebar_orders_for(user)
+    return {} if user.blank?
+
+    raw_value = user.custom_fields[USER_WORKSPACE_SIDEBAR_ORDERS]
+    raw_orders =
+      case raw_value
+      when String
+        begin
+          parsed = JSON.parse(raw_value)
+          parsed.is_a?(Hash) ? parsed : {}
+        rescue JSON::ParserError
+          {}
+        end
+      when Hash
+        raw_value
+      else
+        {}
+      end
+
+    raw_orders.each_with_object({}) do |(workspace_id, channel_ids), normalized|
+      ids = normalize_custom_field_id_list(channel_ids)
+      normalized[workspace_id.to_s] = ids if ids.present?
+    end
+  end
+
+  def self.persist_workspace_sidebar_orders!(user, orders)
+    normalized_orders =
+      orders.each_with_object({}) do |(workspace_id, channel_ids), memo|
+        ids = normalize_custom_field_id_list(channel_ids)
+        memo[workspace_id.to_s] = ids if ids.present?
+      end
+
+    user.custom_fields[USER_WORKSPACE_SIDEBAR_ORDERS] = normalized_orders
+    user.save_custom_fields(true)
+  end
+
   def self.workspace_root_permissions(workspace_group, channel_group_ids, public_read: false)
     permissions = { workspace_group.id => :full }
     permissions[:everyone] = :readonly if public_read
@@ -402,6 +439,7 @@ after_initialize do
   register_group_custom_field_type("workspace_category_id", :integer)
   register_group_custom_field_type("workspace_kind", :string)
   register_group_custom_field_type("workspace_parent_group_id", :integer)
+  register_user_custom_field_type(DiscourseWorkspaceGroups::USER_WORKSPACE_SIDEBAR_ORDERS, :json)
 
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_ENABLED)
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_KIND)
@@ -422,6 +460,10 @@ after_initialize do
     DiscourseWorkspaceGroups::WORKSPACE_AUTO_JOIN_CHANNEL_IDS,
   )
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE)
+
+  add_to_serializer(:current_user, :workspace_sidebar_orders) do
+    DiscourseWorkspaceGroups.workspace_sidebar_orders_for(object)
+  end
 
   add_to_class(:category, :workspace_enabled?) do
     custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ENABLED].to_s == "true"

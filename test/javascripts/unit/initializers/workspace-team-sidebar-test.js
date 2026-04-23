@@ -8,6 +8,7 @@ import {
   sidebarChannelCategories,
   sidebarScopedCategories,
   userSelectedScopedCategories,
+  workspaceSidebarChannelOrder,
   workspaceScopedCategory,
 } from "discourse/plugins/discourse-workspace-groups/discourse/lib/workspace-team-sidebar-state";
 
@@ -213,6 +214,64 @@ module(
       });
 
       assert.deepEqual(visibleChannels, [unmutedChannel, mutedChannel]);
+    });
+
+    test("uses a saved per-user workspace sidebar order when present", function (assert) {
+      const workspace = {
+        id: 40,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+      };
+      const mutedChannel = {
+        id: 41,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+      const unmutedChannel = {
+        id: 42,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+
+      const visibleChannels = sidebarChannelCategories({
+        currentUser: {
+          workspaceSidebarOrders: { "40": [41, 42] },
+        },
+        router: {
+          currentRoute: {
+            attributes: {
+              category: workspace,
+            },
+          },
+        },
+        site: {
+          categoriesList: [workspace, mutedChannel, unmutedChannel],
+        },
+        siteSettings: {},
+        chatChannelsManager: {
+          channels: [
+            {
+              isCategoryChannel: true,
+              chatableId: 41,
+              currentUserMembership: { following: true, muted: true },
+            },
+            {
+              isCategoryChannel: true,
+              chatableId: 42,
+              currentUserMembership: { following: true, muted: false },
+            },
+          ],
+        },
+      });
+
+      assert.deepEqual(visibleChannels, [mutedChannel, unmutedChannel]);
+      assert.deepEqual(
+        workspaceSidebarChannelOrder(
+          { workspaceSidebarOrders: { "40": [41, 42] } },
+          40
+        ),
+        [41, 42]
+      );
     });
 
     test("keeps the current channel visible while local sidebar state catches up", function (assert) {

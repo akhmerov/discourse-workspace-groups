@@ -91,37 +91,28 @@ module ::DiscourseWorkspaceGroups
              }
     end
 
-    def reorder_channels
+    def update_sidebar_channels
       guardian.ensure_can_see!(@workspace)
-      raise Discourse::InvalidAccess if !guardian.can_manage_workspace?(@workspace)
+      raise Discourse::NotFound if !@workspace.workspace_root?
 
       ordered_ids = Array(params.require(:channel_ids)).map(&:to_i)
       active_channels = workspace_channels(archived: false)
       context = build_channels_context(active_channels)
-      visible_active_channels = visible_channels(active_channels, **context)
-      visible_channels_by_id = visible_active_channels.index_by(&:id)
+      visible_channel_ids = visible_channels(active_channels, **context).map(&:id).to_set
 
-      if ordered_ids.blank? || ordered_ids.uniq.length != ordered_ids.length ||
-           ordered_ids.sort != visible_channels_by_id.keys.sort
+      if ordered_ids.uniq.length != ordered_ids.length || ordered_ids.any? { |id| !visible_channel_ids.include?(id) }
         raise Discourse::InvalidParameters.new(:channel_ids)
       end
 
-      reassignment_slots = visible_active_channels.map(&:position).sort
-
-      Category.transaction do
-        ordered_ids.each_with_index do |channel_id, index|
-          channel = visible_channels_by_id.fetch(channel_id)
-          channel.position = reassignment_slots[index]
-          channel.save! if channel.will_save_change_to_position?
-        end
+      sidebar_orders = DiscourseWorkspaceGroups.workspace_sidebar_orders_for(current_user)
+      if ordered_ids.present?
+        sidebar_orders[@workspace.id.to_s] = ordered_ids
+      else
+        sidebar_orders.delete(@workspace.id.to_s)
       end
+      DiscourseWorkspaceGroups.persist_workspace_sidebar_orders!(current_user, sidebar_orders)
 
-      render json: {
-               channels:
-                 ordered_ids.map do |channel_id|
-                   serialize_channel(visible_channels_by_id.fetch(channel_id), **context)
-                 end,
-             }
+      render json: { channel_ids: sidebar_orders[@workspace.id.to_s] || [] }
     end
 
     def update
