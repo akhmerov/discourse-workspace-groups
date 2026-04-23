@@ -77,6 +77,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
     return !this.categoryAvailable && !!this.args.chatPath;
   }
 
+  get showModes() {
+    return this.categoryAvailable && this.chatAvailable;
+  }
+
   get mainLinkClass() {
     return concatClass(
       "workspace-team-sidebar__main-link",
@@ -301,8 +305,8 @@ export default class WorkspaceTeamSidebarRow extends Component {
           </LinkTo>
         {{/if}}
 
-        <div class="workspace-team-sidebar__modes">
-          {{#if this.categoryAvailable}}
+        {{#if this.showModes}}
+          <div class="workspace-team-sidebar__modes">
             {{#if @editable}}
               <span class={{this.categoryButtonClass}}>
                 <span class="workspace-team-sidebar__mode-icon">
@@ -331,9 +335,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
                 </span>
               </LinkTo>
             {{/if}}
-          {{/if}}
 
-          {{#if this.chatAvailable}}
             {{#if @editable}}
               <span class={{this.chatButtonClass}}>
                 <span class="workspace-team-sidebar__mode-icon">
@@ -362,8 +364,8 @@ export default class WorkspaceTeamSidebarRow extends Component {
                 </span>
               </button>
             {{/if}}
-          {{/if}}
-        </div>
+          </div>
+        {{/if}}
       </div>
     </li>
   </template>

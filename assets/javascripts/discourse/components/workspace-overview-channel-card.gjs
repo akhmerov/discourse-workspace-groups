@@ -80,6 +80,22 @@ export default class WorkspaceOverviewChannelCard extends Component {
     return this.channel?.mode !== "category_only";
   }
 
+  get topicsHref() {
+    if (!this.showsTopicsIcon || !this.channel?.can_open_topics) {
+      return null;
+    }
+
+    return this.channel.topics_url;
+  }
+
+  get chatHref() {
+    if (!this.showsChatIcon) {
+      return null;
+    }
+
+    return this.chatPath;
+  }
+
   <template>
     <article class="workspace-groups-overview__card">
       <div class="workspace-groups-overview__card-header">
@@ -110,23 +126,45 @@ export default class WorkspaceOverviewChannelCard extends Component {
 
             <span class="workspace-groups-overview__channel-modes">
               {{#if this.showsTopicsIcon}}
-                <span
-                  class="workspace-groups-overview__channel-mode"
-                  title={{i18n "discourse_workspace_groups.channel_topics"}}
-                  aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
-                >
-                  {{icon "list"}}
-                </span>
+                {{#if this.topicsHref}}
+                  <a
+                    href={{this.topicsHref}}
+                    class="workspace-groups-overview__channel-mode workspace-groups-overview__channel-mode-link"
+                    title={{i18n "discourse_workspace_groups.channel_topics"}}
+                    aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
+                  >
+                    {{icon "list"}}
+                  </a>
+                {{else}}
+                  <span
+                    class="workspace-groups-overview__channel-mode"
+                    title={{i18n "discourse_workspace_groups.channel_topics"}}
+                    aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
+                  >
+                    {{icon "list"}}
+                  </span>
+                {{/if}}
               {{/if}}
 
               {{#if this.showsChatIcon}}
-                <span
-                  class="workspace-groups-overview__channel-mode"
-                  title={{i18n "discourse_workspace_groups.channel_chat"}}
-                  aria-label={{i18n "discourse_workspace_groups.channel_chat"}}
-                >
-                  {{icon "d-chat"}}
-                </span>
+                {{#if this.chatHref}}
+                  <a
+                    href={{this.chatHref}}
+                    class="workspace-groups-overview__channel-mode workspace-groups-overview__channel-mode-link"
+                    title={{i18n "discourse_workspace_groups.channel_chat"}}
+                    aria-label={{i18n "discourse_workspace_groups.channel_chat"}}
+                  >
+                    {{icon "d-chat"}}
+                  </a>
+                {{else}}
+                  <span
+                    class="workspace-groups-overview__channel-mode"
+                    title={{i18n "discourse_workspace_groups.channel_chat"}}
+                    aria-label={{i18n "discourse_workspace_groups.channel_chat"}}
+                  >
+                    {{icon "d-chat"}}
+                  </span>
+                {{/if}}
               {{/if}}
             </span>
 

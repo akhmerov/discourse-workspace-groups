@@ -435,6 +435,15 @@
   font-size: var(--font-down-1);
 }
 
+.workspace-groups-overview__channel-mode-link {
+  color: var(--primary-medium);
+}
+
+.workspace-groups-overview__channel-mode-link:hover,
+.workspace-groups-overview__channel-mode-link:focus-visible {
+  color: var(--primary);
+}
+
 .workspace-groups-overview__membership-link {
   color: var(--primary);
 }

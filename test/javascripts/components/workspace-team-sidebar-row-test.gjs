@@ -199,5 +199,33 @@ module(
 
       assert.dom(".workspace-team-sidebar__main-link .prefix-badge").doesNotExist();
     });
+
+    test("hides duplicate mode buttons when only one surface is available", async function (assert) {
+      this.categoryLink = {
+        name: "chat-first",
+        route: "discovery.category",
+        model: "quantum-tinkerer/chat-first/29",
+        currentWhen: "discovery.category",
+        title: "Chat First",
+        text: "Chat First",
+        prefixType: "icon",
+        prefixValue: "folder",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Chat First topics"
+            @chatPath="/chat/c/chat-first/15"
+            @chatTitle="Open Chat First chat"
+            @categoryAvailable={{false}}
+            @chatAvailable={{true}}
+          />
+        </template>
+      );
+
+      assert.dom(".workspace-team-sidebar__modes").doesNotExist();
+    });
   }
 );

@@ -17,6 +17,10 @@ module(
         members_url: "/g/lab-notes",
         topics_url: "/c/quantum-tinkerer/lab-notes/29",
         mode: "both",
+        chat_channel_id: 15,
+        chat_channel: {
+          slug: "quantumtinkerer-lab-notes-29",
+        },
         can_open_topics: true,
         can_view_members: true,
         can_join: false,
@@ -51,11 +55,11 @@ module(
         .dom(".workspace-groups-overview__channel-link")
         .hasAttribute("href", "/c/quantum-tinkerer/lab-notes/29");
       assert
-        .dom(".workspace-groups-overview__channel-modes .d-icon-list")
-        .exists();
+        .dom(".workspace-groups-overview__channel-modes a:first-child")
+        .hasAttribute("href", "/c/quantum-tinkerer/lab-notes/29");
       assert
-        .dom(".workspace-groups-overview__channel-modes .d-icon-d-chat")
-        .exists();
+        .dom(".workspace-groups-overview__channel-modes a:last-child")
+        .hasAttribute("href", "/chat/c/quantumtinkerer-lab-notes-29/15");
       assert
         .dom(".workspace-groups-overview__membership-button--icon")
         .hasAttribute("title", "Leave");
@@ -237,8 +241,8 @@ module(
         .dom(".workspace-groups-overview__channel-link")
         .hasAttribute("href", "/chat/c/quantumtinkerer-chat-first-77/77");
       assert
-        .dom(".workspace-groups-overview__channel-modes .d-icon-d-chat")
-        .exists();
+        .dom(".workspace-groups-overview__channel-modes a")
+        .hasAttribute("href", "/chat/c/quantumtinkerer-chat-first-77/77");
       assert
         .dom(".workspace-groups-overview__channel-modes .d-icon-list")
         .doesNotExist();
