@@ -4,21 +4,23 @@ import { hash } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { getOwner } from "@ember/owner";
-import { service } from "@ember/service";
 import didInsert from "@ember/render-modifiers/modifiers/did-insert";
+import { service } from "@ember/service";
 import { block } from "discourse/blocks";
+import SectionHeader from "discourse/components/sidebar/section-header";
 import concatClass from "discourse/helpers/concat-class";
 import icon from "discourse/helpers/d-icon";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
-import SectionHeader from "discourse/components/sidebar/section-header";
-import CategorySectionLink from "discourse/lib/sidebar/user/categories-section/category-section-link";
 import {
   getCollapsedSidebarSectionKey,
   getSidebarSectionContentId,
 } from "discourse/lib/sidebar/helpers";
+import CategorySectionLink from "discourse/lib/sidebar/user/categories-section/category-section-link";
 import DiscourseURL from "discourse/lib/url";
 import DropdownSelectBox from "discourse/select-kit/components/dropdown-select-box";
+import { i18n } from "discourse-i18n";
+import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import {
   currentScopedCategory,
   currentScopedMode,
@@ -30,8 +32,6 @@ import {
   workspaceChatModeEnabled,
   workspaceOverviewPath,
 } from "../lib/workspace-team-sidebar-state";
-import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
-import { i18n } from "discourse-i18n";
 
 @block("discourse-workspace-groups:workspace-team-sidebar")
 export default class WorkspaceTeamSidebarBlock extends Component {
@@ -384,17 +384,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           </span>
         </SectionHeader>
 
-        {{#if this.workspaceCategory}}
-          <button
-            type="button"
-            title={{this.overviewTitle}}
-            class="sidebar-section-header-button workspace-team-sidebar__overview-button btn-icon btn-flat"
-            {{on "click" this.openOverview}}
-          >
-            {{icon "layer-group"}}
-          </button>
-        {{/if}}
-
         {{#if this.canEditSidebar}}
           <button
             type="button"
@@ -418,6 +407,17 @@ export default class WorkspaceTeamSidebarBlock extends Component {
             @onChange={{this.handleWorkspaceSelection}}
             class="sidebar-section-header-dropdown workspace-team-sidebar__switcher"
           />
+        {{/if}}
+
+        {{#if this.workspaceCategory}}
+          <button
+            type="button"
+            title={{this.overviewTitle}}
+            class="sidebar-section-header-button workspace-team-sidebar__overview-button btn-icon btn-flat"
+            {{on "click" this.openOverview}}
+          >
+            {{icon "layer-group"}}
+          </button>
         {{/if}}
       </div>
 
