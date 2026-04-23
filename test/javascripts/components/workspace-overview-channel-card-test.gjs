@@ -16,6 +16,7 @@ module(
         member_count: 4,
         members_url: "/g/lab-notes",
         topics_url: "/c/quantum-tinkerer/lab-notes/29",
+        mode: "both",
         can_open_topics: true,
         can_view_members: true,
         can_join: false,
@@ -47,6 +48,15 @@ module(
         count: 2,
       });
       assert
+        .dom(".workspace-groups-overview__channel-link")
+        .hasAttribute("href", "/c/quantum-tinkerer/lab-notes/29");
+      assert
+        .dom(".workspace-groups-overview__channel-modes .d-icon-list")
+        .exists();
+      assert
+        .dom(".workspace-groups-overview__channel-modes .d-icon-d-chat")
+        .exists();
+      assert
         .dom(".workspace-groups-overview__membership-button--icon")
         .hasAttribute("title", "Leave");
       assert
@@ -68,6 +78,7 @@ module(
         member_count: 4,
         members_url: "/g/secure-lab",
         topics_url: "/c/quantum-tinkerer/secure-lab/29",
+        mode: "both",
         can_open_topics: true,
         can_view_members: true,
         can_join: false,
@@ -111,6 +122,7 @@ module(
         member_count: 4,
         members_url: "/g/docs",
         topics_url: "/c/quantum-tinkerer/docs/29",
+        mode: "both",
         can_open_topics: true,
         can_view_members: true,
         can_join: false,
@@ -149,6 +161,7 @@ module(
         member_count: 4,
         members_url: "/g/adaptive",
         topics_url: "/c/quantum-tinkerer/adaptive/29",
+        mode: "both",
         can_open_topics: true,
         can_view_members: true,
         can_join: false,
@@ -182,6 +195,53 @@ module(
       assert
         .dom(".workspace-groups-overview__channel-description a")
         .exists({ count: 4 });
+    });
+
+    test("uses the chat route for chat-only channel titles and only shows the chat icon", async function (assert) {
+      this.channel = {
+        name: "Chat First",
+        description: "Realtime only.",
+        visibility: "public",
+        member_count: 4,
+        members_url: "/g/chat-first",
+        topics_url: "/c/quantum-tinkerer/chat-first/29",
+        mode: "chat_only",
+        chat_channel_id: 77,
+        chat_channel: {
+          slug: "quantumtinkerer-chat-first-77",
+        },
+        can_open_topics: false,
+        can_view_members: true,
+        can_join: false,
+        can_leave: false,
+        can_archive: false,
+        can_unarchive: false,
+        archived: false,
+        is_pending: false,
+      };
+
+      this.noop = () => {};
+
+      await render(
+        <template>
+          <WorkspaceOverviewChannelCard
+            @channel={{this.channel}}
+            @onJoin={{this.noop}}
+            @onLeave={{this.noop}}
+            @onOpenSettings={{this.noop}}
+          />
+        </template>
+      );
+
+      assert
+        .dom(".workspace-groups-overview__channel-link")
+        .hasAttribute("href", "/chat/c/quantumtinkerer-chat-first-77/77");
+      assert
+        .dom(".workspace-groups-overview__channel-modes .d-icon-d-chat")
+        .exists();
+      assert
+        .dom(".workspace-groups-overview__channel-modes .d-icon-list")
+        .doesNotExist();
     });
   }
 );

@@ -422,6 +422,19 @@
   gap: 0.35rem;
 }
 
+.workspace-groups-overview__channel-modes {
+  align-items: center;
+  color: var(--primary-medium);
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.workspace-groups-overview__channel-mode {
+  align-items: center;
+  display: inline-flex;
+  font-size: var(--font-down-1);
+}
+
 .workspace-groups-overview__membership-link {
   color: var(--primary);
 }

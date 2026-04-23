@@ -38,6 +38,8 @@ en:
       channel_mode_both: "Topics and chat"
       channel_mode_chat_only: "Chat only"
       channel_mode_category_only: "Topics only"
+      channel_topics: "Topics"
+      channel_chat: "Chat"
       private_channel: "Private channel"
       private_channel_help: "Private channels are only visible to channel members."
       workspace_description: "Workspace description"
