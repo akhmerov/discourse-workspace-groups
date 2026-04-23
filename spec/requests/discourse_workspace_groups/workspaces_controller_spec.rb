@@ -132,6 +132,8 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(payload["description"]).to eq("Read the docs.")
       expect(payload["description_cooked"]).to include("href=\"https://example.com/docs\"")
       expect(payload["description_raw"]).to eq("Read [the docs](https://example.com/docs).")
+      expect(payload["color"]).to eq(linked_channel.color)
+      expect(payload["style_type"]).to eq(linked_channel.style_type)
     end
 
     it "only preloads active channels and reports archived channel count separately" do
@@ -342,6 +344,30 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response).to have_http_status(:ok)
       expect(category_chat_channel(public_channel).reload.allow_channel_wide_mentions).to eq(false)
       expect(response.parsed_body.dig("channel", "allow_channel_wide_mentions")).to eq(false)
+    end
+
+    it "updates category color and emoji style" do
+      sign_in(admin)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}.json",
+          params: {
+            name: public_channel.name,
+            description: public_channel.topic.first_post.raw,
+            visibility: "public",
+            color: "E45735",
+            style_type: "emoji",
+            emoji: "rocket",
+          }
+
+      expect(response).to have_http_status(:ok)
+
+      public_channel.reload
+      expect(public_channel.color).to eq("E45735")
+      expect(public_channel.style_type).to eq("emoji")
+      expect(public_channel.emoji).to eq("rocket")
+      expect(response.parsed_body.dig("channel", "color")).to eq("E45735")
+      expect(response.parsed_body.dig("channel", "style_type")).to eq("emoji")
+      expect(response.parsed_body.dig("channel", "emoji")).to eq("rocket")
     end
 
     it "closes paired chat when switching a channel into category-only mode" do

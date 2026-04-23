@@ -154,6 +154,11 @@ module ::DiscourseWorkspaceGroups
           visibility: params[:visibility],
           channel_mode: params[:channel_mode],
           allow_channel_wide_mentions: params[:allow_channel_wide_mentions],
+          color: params.key?(:color) ? params[:color] : DiscourseWorkspaceGroups::UpdateChannel::UNSET,
+          style_type:
+            params.key?(:style_type) ? params[:style_type] : DiscourseWorkspaceGroups::UpdateChannel::UNSET,
+          emoji: params.key?(:emoji) ? params[:emoji] : DiscourseWorkspaceGroups::UpdateChannel::UNSET,
+          icon: params.key?(:icon) ? params[:icon] : DiscourseWorkspaceGroups::UpdateChannel::UNSET,
         ).call
 
       context = build_channels_context([channel])
@@ -394,6 +399,11 @@ module ::DiscourseWorkspaceGroups
         description: category.description_text,
         description_cooked: category.description,
         description_raw: category.topic&.first_post&.raw,
+        color: category.color,
+        text_color: category.text_color,
+        style_type: category.style_type,
+        emoji: category.emoji,
+        icon: category.icon,
         visibility: category.workspace_visibility,
         mode: category.workspace_channel_mode,
         allow_channel_wide_mentions: category.category_channel&.allow_channel_wide_mentions,

@@ -15,6 +15,9 @@ export default class WorkspaceChannelSettingsModal extends Component {
   @tracked isPrivate;
   @tracked channelMode;
   @tracked allowChannelWideMentions;
+  @tracked color;
+  @tracked styleType;
+  @tracked emoji;
   @tracked saving = false;
   @tracked changingArchiveState = false;
 
@@ -27,6 +30,9 @@ export default class WorkspaceChannelSettingsModal extends Component {
     this.channelMode = this.channel?.mode || "both";
     this.allowChannelWideMentions =
       this.channel?.allow_channel_wide_mentions !== false;
+    this.color = this.channel?.color || "0088CC";
+    this.styleType = this.channel?.style_type || "square";
+    this.emoji = this.styleType === "emoji" ? this.channel?.emoji : null;
   }
 
   get category() {
@@ -89,6 +95,17 @@ export default class WorkspaceChannelSettingsModal extends Component {
   }
 
   @action
+  updateColor(color) {
+    this.color = color;
+  }
+
+  @action
+  updateEmoji(emoji) {
+    this.emoji = emoji;
+    this.styleType = emoji ? "emoji" : "square";
+  }
+
+  @action
   async saveChannel() {
     if (!this.canSave) {
       return;
@@ -110,6 +127,9 @@ export default class WorkspaceChannelSettingsModal extends Component {
                 }
               : {}),
             channel_mode: this.channelMode,
+            color: this.color,
+            style_type: this.styleType,
+            emoji: this.emoji,
             ...(this.channelMode !== "category_only"
               ? {
                   allow_channel_wide_mentions: this.allowChannelWideMentions,
@@ -172,15 +192,22 @@ export default class WorkspaceChannelSettingsModal extends Component {
           @isPrivate={{this.isPrivate}}
           @channelMode={{this.channelMode}}
           @allowChannelWideMentions={{this.allowChannelWideMentions}}
+          @color={{this.color}}
+          @styleType={{this.styleType}}
+          @emoji={{this.emoji}}
+          @categoryId={{this.channel.id}}
           @autofocus={{true}}
           @showVisibility={{this.canEditVisibility}}
           @showChannelMode={{true}}
           @showChannelWideMentions={{this.showChannelWideMentions}}
+          @showCategoryStyle={{true}}
           @onNameChange={{this.updateName}}
           @onDescriptionChange={{this.updateDescription}}
           @onPrivateToggle={{this.togglePrivate}}
           @onChannelModeChange={{this.updateChannelMode}}
           @onChannelWideMentionsToggle={{this.toggleChannelWideMentions}}
+          @onColorChange={{this.updateColor}}
+          @onEmojiChange={{this.updateEmoji}}
         />
       </:body>
       <:footer>

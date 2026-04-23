@@ -159,6 +159,17 @@
   width: 100%;
 }
 
+.workspace-groups-create-channel-modal__color-picker {
+  justify-content: flex-start;
+}
+
+.workspace-groups-create-channel-modal__emoji-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .workspace-groups-create-channel-modal__textarea {
   min-height: 7rem;
 }

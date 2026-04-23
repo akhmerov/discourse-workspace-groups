@@ -3,11 +3,20 @@ import { Input, Textarea } from "@ember/component";
 import { hash } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
+import { service } from "@ember/service";
+import ColorPicker from "discourse/components/color-picker";
+import DButton from "discourse/components/d-button";
 import DToggleSwitch from "discourse/components/d-toggle-switch";
+import EmojiPicker from "discourse/components/emoji-picker";
+import { uniqueItemsFromArray } from "discourse/lib/array-tools";
 import ComboBox from "discourse/select-kit/components/combo-box";
+import { not } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 
 export default class WorkspaceChannelForm extends Component {
+  @service site;
+  @service siteSettings;
+
   get channelModeOptions() {
     return [
       {
@@ -29,6 +38,33 @@ export default class WorkspaceChannelForm extends Component {
     return i18n("chat.settings.channel_wide_mentions_description", {
       channel: this.args.name?.trim() || "",
     });
+  }
+
+  get backgroundColors() {
+    const categories = this.site.get("categoriesList") || [];
+    return uniqueItemsFromArray(
+      this.siteSettings.category_colors
+        .split("|")
+        .filter(Boolean)
+        .map((color) => color.toUpperCase())
+        .concat(categories.map((category) => category.color?.toUpperCase()).filter(Boolean))
+    );
+  }
+
+  get usedBackgroundColors() {
+    const categories = this.site.get("categoriesList") || [];
+    return categories
+      .map((category) => {
+        return this.args.categoryId &&
+          this.args.color?.toUpperCase() === category.color?.toUpperCase()
+          ? null
+          : category.color?.toUpperCase();
+      })
+      .filter(Boolean);
+  }
+
+  get emojiPickerLabel() {
+    return this.args.emoji ? null : i18n("category.select_emoji");
   }
 
   @action
@@ -54,6 +90,21 @@ export default class WorkspaceChannelForm extends Component {
   @action
   toggleChannelWideMentions() {
     this.args.onChannelWideMentionsToggle?.();
+  }
+
+  @action
+  updateColor(color) {
+    this.args.onColorChange?.(color);
+  }
+
+  @action
+  updateEmoji(emoji) {
+    this.args.onEmojiChange?.(emoji);
+  }
+
+  @action
+  clearEmoji() {
+    this.args.onEmojiChange?.(null);
   }
 
   <template>
@@ -94,6 +145,45 @@ export default class WorkspaceChannelForm extends Component {
         <p class="workspace-groups-create-channel-modal__help">
           {{i18n "discourse_workspace_groups.channel_mode_help"}}
         </p>
+      </div>
+    {{/if}}
+
+    {{#if @showCategoryStyle}}
+      <div class="workspace-groups-create-channel-modal__field category-color-editor">
+        <span class="workspace-groups-create-channel-modal__label">
+          {{i18n "category.background_color"}}
+        </span>
+        <ColorPicker
+          @value={{@color}}
+          @colors={{this.backgroundColors}}
+          @usedColors={{this.usedBackgroundColors}}
+          @onSelectColor={{this.updateColor}}
+          @ariaLabel={{i18n "category.background_color"}}
+          class="workspace-groups-create-channel-modal__color-picker"
+        />
+      </div>
+
+      <div class="workspace-groups-create-channel-modal__field">
+        <span class="workspace-groups-create-channel-modal__label">
+          {{i18n "category.styles.emoji"}}
+        </span>
+        <div class="workspace-groups-create-channel-modal__emoji-row">
+          <EmojiPicker
+            @emoji={{@emoji}}
+            @didSelectEmoji={{this.updateEmoji}}
+            @btnClass="btn-default btn-emoji"
+            @modalForMobile={{false}}
+            @context="channel-emoji"
+            @inline={{true}}
+            @label={{this.emojiPickerLabel}}
+          />
+          <DButton
+            @label="chat.channel_edit_name_slug_modal.reset_emoji"
+            @action={{this.clearEmoji}}
+            @disabled={{not @emoji}}
+            class="btn-flat"
+          />
+        </div>
       </div>
     {{/if}}
 

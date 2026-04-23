@@ -5,6 +5,7 @@ require "digest/sha1"
 module ::DiscourseWorkspaceGroups
   class UpdateChannel
     CATEGORY_SLUG_HASH_LENGTH = 4
+    UNSET = Object.new.freeze
 
     attr_reader :channel,
                 :user,
@@ -12,7 +13,11 @@ module ::DiscourseWorkspaceGroups
                 :description,
                 :visibility,
                 :channel_mode,
-                :allow_channel_wide_mentions
+                :allow_channel_wide_mentions,
+                :color,
+                :style_type,
+                :emoji,
+                :icon
 
     def initialize(
       channel:,
@@ -21,7 +26,11 @@ module ::DiscourseWorkspaceGroups
       description:,
       visibility:,
       channel_mode: nil,
-      allow_channel_wide_mentions: nil
+      allow_channel_wide_mentions: nil,
+      color: UNSET,
+      style_type: UNSET,
+      emoji: UNSET,
+      icon: UNSET
     )
       @channel = channel
       @user = user
@@ -35,6 +44,12 @@ module ::DiscourseWorkspaceGroups
         else
           ActiveModel::Type::Boolean.new.cast(allow_channel_wide_mentions)
         end
+      @color = color == UNSET ? channel.color : normalize_color(color)
+      @style_type = style_type == UNSET ? channel.style_type : style_type.to_s.presence
+      @emoji = emoji == UNSET ? channel.emoji : emoji.to_s.presence
+      @icon = icon == UNSET ? channel.icon : icon.to_s.presence
+      @emoji = nil if @style_type != "emoji"
+      @icon = nil if @style_type != "icon"
     end
 
     def call
@@ -61,6 +76,9 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::InvalidParameters.new(:name) if name.blank?
       raise Discourse::InvalidParameters.new(:visibility) if !valid_visibility?
       raise Discourse::InvalidParameters.new(:channel_mode) if !valid_channel_mode?
+      raise Discourse::InvalidParameters.new(:color) if !valid_color?
+      raise Discourse::InvalidParameters.new(:style_type) if !valid_style_type?
+      raise Discourse::InvalidParameters.new(:emoji) if style_type == "emoji" && emoji.blank?
       if visibility == VISIBILITY_PRIVATE && channel.workspace_visibility != VISIBILITY_PRIVATE &&
            !DiscourseWorkspaceGroups.can_create_private_workspace_channel?(workspace, user)
         raise Discourse::InvalidAccess
@@ -73,6 +91,14 @@ module ::DiscourseWorkspaceGroups
 
     def valid_channel_mode?
       DiscourseWorkspaceGroups.valid_channel_mode?(channel_mode)
+    end
+
+    def valid_color?
+      color.present? && color.match?(/\A\h{6}\z/)
+    end
+
+    def valid_style_type?
+      %w[square emoji icon].include?(style_type)
     end
 
     def workspace
@@ -93,6 +119,11 @@ module ::DiscourseWorkspaceGroups
 
     def channel_mode_changed?
       channel.workspace_channel_mode != channel_mode
+    end
+
+    def style_changed?
+      channel.color != color || channel.style_type != style_type || channel.emoji != emoji ||
+        channel.icon != icon
     end
 
     def allow_channel_wide_mentions_changed?
@@ -120,6 +151,13 @@ module ::DiscourseWorkspaceGroups
       if name_changed?
         attrs[:name] = name
         attrs[:slug] = desired_category_slug
+      end
+
+      if style_changed?
+        attrs[:color] = color
+        attrs[:style_type] = style_type
+        attrs[:emoji] = emoji
+        attrs[:icon] = icon
       end
 
       channel.update!(attrs) if attrs.present?
@@ -190,6 +228,10 @@ module ::DiscourseWorkspaceGroups
       return candidate if !Category.where(slug: candidate).where.not(id: channel.id).exists?
 
       raise Discourse::InvalidParameters.new(collision_error)
+    end
+
+    def normalize_color(value)
+      value.to_s.strip.delete_prefix("#").upcase
     end
 
     def collision_error
