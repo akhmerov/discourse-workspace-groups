@@ -1,5 +1,5 @@
-import { trustHTML } from "@ember/template";
 import { on } from "@ember/modifier";
+import { trustHTML } from "@ember/template";
 import DButton from "discourse/components/d-button";
 import DecoratedHtml from "discourse/components/decorated-html";
 import Layout from "discourse/components/discovery/layout";
@@ -100,6 +100,16 @@ export default <template>
                   @label="discourse_workspace_groups.create"
                   @title="discourse_workspace_groups.create_channel_title"
                   class="btn-primary btn-small workspace-groups-overview__create-channel-button"
+                />
+              {{/if}}
+
+              {{#if @controller.canReorderChannels}}
+                <DButton
+                  @action={{@controller.openReorderChannelsModal}}
+                  @icon="arrow-up-down"
+                  @label="discourse_workspace_groups.reorder_channels"
+                  @title="discourse_workspace_groups.reorder_channels_title"
+                  class="btn-default btn-small workspace-groups-overview__reorder-channels-button"
                 />
               {{/if}}
             </div>

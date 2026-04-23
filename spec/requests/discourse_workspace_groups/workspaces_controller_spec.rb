@@ -393,6 +393,53 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "#reorder_channels" do
+    it "reorders visible active channels for workspace managers" do
+      first_public_channel = public_channel
+      hidden_private_channel = private_channel
+      second_public_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Announcements #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+        ).call
+      workspace.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/reorder-channels.json",
+          params: {
+            channel_ids: [second_public_channel.id, first_public_channel.id],
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["channels"].map { |channel| channel["id"] }).to eq(
+        [second_public_channel.id, first_public_channel.id],
+      )
+      expect(
+        Category
+          .where(id: [first_public_channel.id, hidden_private_channel.id, second_public_channel.id])
+          .order(:position)
+          .pluck(:id),
+      ).to eq([second_public_channel.id, hidden_private_channel.id, first_public_channel.id])
+    end
+
+    it "rejects reorder requests from ordinary workspace members" do
+      public_channel
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/reorder-channels.json",
+          params: {
+            channel_ids: [public_channel.id],
+          }
+
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
   describe "#update" do
     it "updates workspace description and permissions" do
       sign_in(admin)

@@ -91,6 +91,39 @@ module ::DiscourseWorkspaceGroups
              }
     end
 
+    def reorder_channels
+      guardian.ensure_can_see!(@workspace)
+      raise Discourse::InvalidAccess if !guardian.can_manage_workspace?(@workspace)
+
+      ordered_ids = Array(params.require(:channel_ids)).map(&:to_i)
+      active_channels = workspace_channels(archived: false)
+      context = build_channels_context(active_channels)
+      visible_active_channels = visible_channels(active_channels, **context)
+      visible_channels_by_id = visible_active_channels.index_by(&:id)
+
+      if ordered_ids.blank? || ordered_ids.uniq.length != ordered_ids.length ||
+           ordered_ids.sort != visible_channels_by_id.keys.sort
+        raise Discourse::InvalidParameters.new(:channel_ids)
+      end
+
+      reassignment_slots = visible_active_channels.map(&:position).sort
+
+      Category.transaction do
+        ordered_ids.each_with_index do |channel_id, index|
+          channel = visible_channels_by_id.fetch(channel_id)
+          channel.position = reassignment_slots[index]
+          channel.save! if channel.will_save_change_to_position?
+        end
+      end
+
+      render json: {
+               channels:
+                 ordered_ids.map do |channel_id|
+                   serialize_channel(visible_channels_by_id.fetch(channel_id), **context)
+                 end,
+             }
+    end
+
     def update
       guardian.ensure_can_see!(@workspace)
       raise Discourse::InvalidAccess if !guardian.can_manage_workspace?(@workspace)

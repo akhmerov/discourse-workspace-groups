@@ -6,6 +6,7 @@ DiscourseWorkspaceGroups::Engine.routes.draw do
   get "/workspaces/:id/archived-channels" => "workspaces#archived_channels"
   post "/workspaces/:id/enable" => "workspaces#enable"
   post "/workspaces/:id/channels" => "workspaces#create_channel"
+  put "/workspaces/:id/reorder-channels" => "workspaces#reorder_channels"
   put "/workspaces/:id/channels/:channel_id" => "workspaces#update_channel"
   post "/workspaces/:id/channels/:channel_id/membership" => "workspaces#join_channel"
   delete "/workspaces/:id/channels/:channel_id/membership" => "workspaces#leave_channel"
