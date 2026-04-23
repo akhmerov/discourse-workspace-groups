@@ -1,7 +1,7 @@
+import Service from "@ember/service";
 import { click, render } from "@ember/test-helpers";
 import { module, test } from "qunit";
 import sinon from "sinon";
-import Service from "@ember/service";
 import DiscourseURL from "discourse/lib/url";
 import { setupRenderingTest } from "discourse/tests/helpers/component-test";
 import WorkspaceTeamSidebarRow from "discourse/plugins/discourse-workspace-groups/discourse/components/workspace-team-sidebar-row";
@@ -170,6 +170,34 @@ module(
       assert.dom(".workspace-team-sidebar__row--editing").exists();
       assert.dom(".workspace-team-sidebar__main-link--editing").exists();
       assert.dom(".workspace-team-sidebar__modes button").doesNotExist();
+    });
+
+    test("hides the lock badge for public workspace channels", async function (assert) {
+      this.categoryLink = {
+        category: { id: 29, workspace_visibility: "public" },
+        name: "lab-notes",
+        route: "discovery.category",
+        model: "quantum-tinkerer/lab-notes/29",
+        currentWhen: "discovery.category",
+        title: "Lab Notes",
+        text: "Lab Notes",
+        prefixType: "icon",
+        prefixValue: "folder",
+        prefixBadge: "category.restricted",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Lab Notes topics"
+            @chatPath="/chat/c/lab-notes/15"
+            @chatTitle="Open Lab Notes chat"
+          />
+        </template>
+      );
+
+      assert.dom(".workspace-team-sidebar__main-link .prefix-badge").doesNotExist();
     });
   }
 );

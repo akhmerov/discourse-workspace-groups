@@ -1,18 +1,19 @@
 import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
 import { on } from "@ember/modifier";
-import { LinkTo } from "@ember/routing";
 import { action } from "@ember/object";
+import { LinkTo } from "@ember/routing";
 import { service } from "@ember/service";
 import { isHex } from "discourse/components/sidebar/section-link";
+import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix";
 import concatClass from "discourse/helpers/concat-class";
 import icon from "discourse/helpers/d-icon";
-import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix";
 import discourseLater from "discourse/lib/later";
 import DiscourseURL from "discourse/lib/url";
 
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
+
   @tracked dragCssClass;
   dragCount = 0;
 
@@ -39,6 +40,17 @@ export default class WorkspaceTeamSidebarRow extends Component {
   get prefixColor() {
     const hexCode = isHex(this.args.categoryLink.prefixColor);
     return hexCode ? `#${hexCode}` : this.args.categoryLink.prefixColor;
+  }
+
+  get prefixBadge() {
+    if (
+      this.args.categoryLink.category?.workspace_visibility === "public" &&
+      this.args.categoryLink.prefixBadge
+    ) {
+      return null;
+    }
+
+    return this.args.categoryLink.prefixBadge;
   }
 
   get categoryButtonClass() {
@@ -223,7 +235,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
               @prefixType={{@categoryLink.prefixType}}
               @prefixValue={{@categoryLink.prefixValue}}
               @prefixColor={{this.prefixColor}}
-              @prefixBadge={{@categoryLink.prefixBadge}}
+              @prefixBadge={{this.prefixBadge}}
             />
 
             <span class="sidebar-section-link-content-text">
@@ -248,7 +260,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
               @prefixType={{@categoryLink.prefixType}}
               @prefixValue={{@categoryLink.prefixValue}}
               @prefixColor={{this.prefixColor}}
-              @prefixBadge={{@categoryLink.prefixBadge}}
+              @prefixBadge={{this.prefixBadge}}
             />
 
             <span class="sidebar-section-link-content-text">
@@ -274,7 +286,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
               @prefixType={{@categoryLink.prefixType}}
               @prefixValue={{@categoryLink.prefixValue}}
               @prefixColor={{this.prefixColor}}
-              @prefixBadge={{@categoryLink.prefixBadge}}
+              @prefixBadge={{this.prefixBadge}}
             />
 
             <span class="sidebar-section-link-content-text">
