@@ -73,6 +73,12 @@
   pointer-events: none;
 }
 
+.workspace-team-sidebar__main-link--compact {
+  flex: 0 1 auto;
+  max-width: 100%;
+  width: auto;
+}
+
 .workspace-team-sidebar__modes {
   align-items: center;
   display: inline-flex;

@@ -226,6 +226,9 @@ module(
       );
 
       assert.dom(".workspace-team-sidebar__modes").doesNotExist();
+      assert
+        .dom(".workspace-team-sidebar__main-link")
+        .hasClass("workspace-team-sidebar__main-link--compact");
     });
   }
 );

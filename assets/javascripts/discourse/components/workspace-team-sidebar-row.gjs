@@ -87,6 +87,9 @@ export default class WorkspaceTeamSidebarRow extends Component {
       "sidebar-section-link",
       this.args.chatMuted && "sidebar-section-link--muted",
       this.args.editable && "workspace-team-sidebar__main-link--editing",
+      !this.showModes &&
+        !this.args.editable &&
+        "workspace-team-sidebar__main-link--compact",
       this.mainLinkActive && "active"
     );
   }
