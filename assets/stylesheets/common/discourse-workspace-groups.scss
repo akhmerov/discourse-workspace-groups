@@ -73,10 +73,12 @@
   pointer-events: none;
 }
 
-.workspace-team-sidebar__main-link--compact {
+.workspace-team-sidebar
+  .sidebar-section-link-wrapper
+  .workspace-team-sidebar__main-link--compact.sidebar-section-link {
   flex: 0 1 auto;
   max-width: 100%;
-  width: auto;
+  width: fit-content;
 }
 
 .workspace-team-sidebar__modes {
