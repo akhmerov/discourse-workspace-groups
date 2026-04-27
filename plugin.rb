@@ -397,6 +397,27 @@ after_initialize do
 
   Guardian.prepend(::DiscourseWorkspaceGroups::GuardianArchiveRestrictions)
 
+  module ::DiscourseWorkspaceGroups::UnlimitedSidebarCategoryLinks
+    def update_category_section_links(user, category_ids:)
+      return super if !SiteSetting.discourse_workspace_groups_enabled
+
+      if category_ids.blank?
+        delete_section_links(user: user, linkable_type: "Category")
+      else
+        category_ids = Category.where(id: category_ids).pluck(:id)
+        update_section_links(
+          user: user,
+          linkable_type: "Category",
+          new_linkable_ids: category_ids,
+        )
+      end
+    end
+  end
+
+  SidebarSectionLinksUpdater.singleton_class.prepend(
+    ::DiscourseWorkspaceGroups::UnlimitedSidebarCategoryLinks,
+  )
+
   Discourse::Application.routes.prepend do
     get "c/*category_slug_path/:category_id/overview" =>
           "discourse_workspace_groups/workspaces#overview_page",
