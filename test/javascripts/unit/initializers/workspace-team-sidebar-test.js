@@ -8,8 +8,8 @@ import {
   sidebarChannelCategories,
   sidebarScopedCategories,
   userSelectedScopedCategories,
-  workspaceSidebarChannelOrder,
   workspaceScopedCategory,
+  workspaceSidebarChannelOrder,
 } from "discourse/plugins/discourse-workspace-groups/discourse/lib/workspace-team-sidebar-state";
 
 module(
@@ -165,6 +165,56 @@ module(
       });
 
       assert.deepEqual(visibleChannels, [joinedChannel]);
+    });
+
+    test("hides archived team channels even when their chat channel is loaded", function (assert) {
+      const workspace = {
+        id: 40,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+      };
+      const activeChannel = {
+        id: 41,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+      const archivedChannel = {
+        id: 42,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+        workspace_archived: true,
+      };
+
+      const visibleChannels = sidebarChannelCategories({
+        currentUser: {},
+        router: {
+          currentRoute: {
+            attributes: {
+              category: workspace,
+            },
+          },
+        },
+        site: {
+          categoriesList: [workspace, activeChannel, archivedChannel],
+        },
+        siteSettings: {},
+        chatChannelsManager: {
+          channels: [
+            {
+              isCategoryChannel: true,
+              chatableId: 41,
+              currentUserMembership: { following: true },
+            },
+            {
+              isCategoryChannel: true,
+              chatableId: 42,
+              currentUserMembership: { following: true },
+            },
+          ],
+        },
+      });
+
+      assert.deepEqual(visibleChannels, [activeChannel]);
     });
 
     test("sorts muted team channels after unmuted ones", function (assert) {

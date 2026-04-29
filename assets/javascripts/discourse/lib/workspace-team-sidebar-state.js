@@ -1,5 +1,5 @@
-import Category from "discourse/models/category";
 import { canDisplayCategory } from "discourse/lib/sidebar/helpers";
+import Category from "discourse/models/category";
 
 export const LAST_WORKSPACE_KEY = "workspace-groups:last-workspace-id";
 
@@ -29,6 +29,10 @@ export function workspaceCategoryModeEnabled(category) {
 
 export function workspaceChatModeEnabled(category) {
   return workspaceChannelMode(category) !== "category_only";
+}
+
+export function workspaceArchived(category) {
+  return category?.workspace_archived === true;
 }
 
 function visibleChildren(category, siteSettings, site) {
@@ -250,6 +254,10 @@ export function sidebarChannelCategories(services, orderedIdsOverride = null) {
   const visibleChannelEntries = visibleCategories
     .slice(1)
     .filter((category) => {
+      if (workspaceArchived(category)) {
+        return false;
+      }
+
       if (category.id === currentCategory?.id) {
         return true;
       }

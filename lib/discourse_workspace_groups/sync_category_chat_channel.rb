@@ -87,7 +87,7 @@ module ::DiscourseWorkspaceGroups
     def sync_archive_status(chat_channel)
       target_status =
         if category.workspace_archived?
-          "read_only"
+          "closed"
         elsif !category.workspace_chat_enabled?
           "closed"
         else

@@ -427,6 +427,36 @@ after_initialize do
     ::DiscourseWorkspaceGroups::UnlimitedSidebarCategoryLinks,
   )
 
+  if defined?(::Chat::ChannelFetcher)
+    module ::DiscourseWorkspaceGroups::ExcludeArchivedWorkspaceChatChannels
+      def generate_allowed_channel_ids_sql(guardian, exclude_dm_channels: false)
+        allowed_channel_ids_sql = super
+        archived_field_name =
+          ActiveRecord::Base.connection.quote(DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED)
+
+        return allowed_channel_ids_sql if !SiteSetting.discourse_workspace_groups_enabled
+
+        <<~SQL
+          SELECT allowed_workspace_chat_channel_ids.id
+          FROM (#{allowed_channel_ids_sql}) allowed_workspace_chat_channel_ids
+          LEFT JOIN chat_channels workspace_chat_channels
+            ON workspace_chat_channels.id = allowed_workspace_chat_channel_ids.id
+          LEFT JOIN category_custom_fields workspace_archived_fields
+            ON workspace_archived_fields.category_id = workspace_chat_channels.chatable_id
+            AND workspace_archived_fields.name = #{archived_field_name}
+          WHERE NOT (
+            workspace_chat_channels.chatable_type = 'Category'
+            AND COALESCE(workspace_archived_fields.value, 'false') IN ('t', 'true')
+          )
+        SQL
+      end
+    end
+
+    Chat::ChannelFetcher.singleton_class.prepend(
+      ::DiscourseWorkspaceGroups::ExcludeArchivedWorkspaceChatChannels,
+    )
+  end
+
   Discourse::Application.routes.prepend do
     get "c/*category_slug_path/:category_id/overview" =>
           "discourse_workspace_groups/workspaces#overview_page",
