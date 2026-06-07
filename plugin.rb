@@ -33,6 +33,7 @@ module ::DiscourseWorkspaceGroups
   WORKSPACE_AUTO_JOIN_CHANNEL_IDS = "workspace_auto_join_channel_ids"
   WORKSPACE_CHANNEL_MODE = "workspace_channel_mode"
   USER_WORKSPACE_SIDEBAR_ORDERS = "workspace_sidebar_orders"
+  TEAM_OWNER_TRUST_LEVEL = 3
 
   WORKSPACE_KIND_ROOT = "workspace"
   WORKSPACE_KIND_CHANNEL = "channel"
@@ -114,6 +115,7 @@ module ::DiscourseWorkspaceGroups
   def self.can_manage_workspace_channel?(category, user)
     return false if user.blank? || category.blank? || !category.workspace_channel?
     return true if user.admin?
+    return true if can_manage_public_workspace_channel?(category, user)
 
     group_owner?(category.workspace_group, user)
   end
@@ -123,6 +125,42 @@ module ::DiscourseWorkspaceGroups
     return true if user.admin?
 
     group_owner?(category.workspace_group, user)
+  end
+
+  def self.workspace_owner?(user)
+    return false if user.blank?
+
+    GroupUser
+      .where(user_id: user.id, owner: true)
+      .includes(:group)
+      .any? { |group_user| workspace_root_group?(group_user.group) }
+  end
+
+  def self.workspace_root_group?(group)
+    group.present? && group.custom_fields["workspace_kind"] == WORKSPACE_KIND_ROOT
+  end
+
+  def self.promote_workspace_owner!(group, user)
+    return if user.blank? || !workspace_root_group?(group)
+
+    TrustLevelGranter.grant(TEAM_OWNER_TRUST_LEVEL, user)
+  end
+
+  def self.recalculate_workspace_owner_trust_level!(group, user)
+    return if user.blank? || !workspace_root_group?(group)
+
+    if workspace_owner?(user)
+      TrustLevelGranter.grant(TEAM_OWNER_TRUST_LEVEL, user)
+    else
+      Promotion.recalculate(user, use_previous_trust_level: true)
+    end
+  end
+
+  def self.can_manage_public_workspace_channel?(category, user)
+    return false if user.blank? || category.blank? || !category.workspace_channel?
+    return false if category.workspace_visibility != VISIBILITY_PUBLIC
+
+    can_manage_workspace?(category.workspace_parent_category, user)
   end
 
   def self.can_manage_workspace_auto_join_channel?(category, user)
@@ -365,6 +403,12 @@ require_relative "lib/discourse_workspace_groups/sync_channel_group_chat_members
 
 after_initialize do
   module ::DiscourseWorkspaceGroups::GuardianArchiveRestrictions
+    def can_edit_category?(category)
+      return true if DiscourseWorkspaceGroups.can_manage_public_workspace_channel?(category, user)
+
+      super
+    end
+
     def can_create_topic_on_category?(category)
       category = category.is_a?(Category) ? category : Category.find_by(id: category)
       return false if DiscourseWorkspaceGroups.archived_workspace_category?(category)
@@ -386,6 +430,7 @@ after_initialize do
 
     def can_edit_topic?(topic)
       return false if DiscourseWorkspaceGroups.archived_workspace_topic?(topic)
+      return true if DiscourseWorkspaceGroups.can_manage_public_workspace_channel?(topic&.category, user)
 
       super
     end
@@ -398,6 +443,7 @@ after_initialize do
 
     def can_edit_post?(post)
       return false if DiscourseWorkspaceGroups.archived_workspace_topic?(post&.topic)
+      return true if DiscourseWorkspaceGroups.can_manage_public_workspace_channel?(post&.topic&.category, user)
 
       super
     end
@@ -728,6 +774,26 @@ after_initialize do
     next if workspace.blank?
 
     DiscourseWorkspaceGroups.sync_workspace_auto_join_memberships!(workspace, users: [user])
+  end
+
+  add_model_callback(GroupUser, :after_commit, on: :update) do
+    next if !SiteSetting.discourse_workspace_groups_enabled
+    next if !previous_changes.key?("owner")
+
+    if owner?
+      DiscourseWorkspaceGroups.promote_workspace_owner!(group, user)
+    else
+      DiscourseWorkspaceGroups.recalculate_workspace_owner_trust_level!(group, user)
+    end
+  end
+
+  register_modifier(:recalculate_trust_level) do |override, user, _promotion|
+    if SiteSetting.discourse_workspace_groups_enabled && DiscourseWorkspaceGroups.workspace_owner?(user)
+      TrustLevelGranter.grant(DiscourseWorkspaceGroups::TEAM_OWNER_TRUST_LEVEL, user)
+      true
+    else
+      override
+    end
   end
 
   on(:category_updated) do |category|

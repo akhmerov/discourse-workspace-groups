@@ -75,7 +75,8 @@ module ::DiscourseWorkspaceGroups
       return if owner.blank?
 
       group.add(owner) if !group.users.exists?(id: owner.id)
-      group.group_users.where(user_id: owner.id).update_all(owner: true)
+      group.group_users.find_by!(user_id: owner.id).update!(owner: true)
+      DiscourseWorkspaceGroups.promote_workspace_owner!(group, owner)
     end
 
     def root_permissions(workspace_group)

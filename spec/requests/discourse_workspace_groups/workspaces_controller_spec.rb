@@ -480,6 +480,48 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body.dig("channel", "name")).to start_with("Member Managed")
       expect(response.parsed_body.dig("channel", "description")).to eq("Owner-managed notes.")
     end
+
+    it "allows team owners to update public channel settings without joining the channel" do
+      workspace.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}.json",
+          params: {
+            name: "Team Managed #{SecureRandom.hex(4)}",
+            description: "Team-managed notes.",
+            visibility: "public",
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "name")).to start_with("Team Managed")
+      expect(response.parsed_body.dig("channel", "description")).to eq("Team-managed notes.")
+    end
+
+    it "does not allow team owners to update private channel settings unless they own the channel" do
+      workspace.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{private_channel.id}.json",
+          params: {
+            name: "Team Private #{SecureRandom.hex(4)}",
+            description: "Private notes.",
+            visibility: "private",
+          }
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "allows team owners to edit native public channel content" do
+      workspace.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+      guardian = Guardian.new(workspace_member.reload)
+
+      expect(guardian.can_edit?(public_channel.reload)).to eq(true)
+      expect(guardian.can_edit?(public_channel.topic)).to eq(true)
+      expect(guardian.can_edit?(public_channel.topic.first_post)).to eq(true)
+      expect(guardian.can_edit?(private_channel.reload)).to eq(false)
+    end
   end
 
   describe "#update_sidebar_channels" do

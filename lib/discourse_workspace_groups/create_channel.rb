@@ -115,7 +115,10 @@ module ::DiscourseWorkspaceGroups
 
     def ensure_group_membership(group, member, owner: false)
       group.add(member) if !group.users.exists?(id: member.id)
-      group.group_users.where(user_id: member.id).update_all(owner: true) if owner
+      return if !owner
+
+      group.group_users.find_by!(user_id: member.id).update!(owner: true)
+      DiscourseWorkspaceGroups.promote_workspace_owner!(group, member)
     end
 
     def root_permissions(workspace_group, new_group_id = nil)
