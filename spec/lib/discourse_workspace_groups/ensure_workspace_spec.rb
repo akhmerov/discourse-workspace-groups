@@ -21,6 +21,15 @@ RSpec.describe DiscourseWorkspaceGroups::EnsureWorkspace do
     )
   end
 
+  it "does not rewrite already-synced public root permissions" do
+    workspace = described_class.new(category: category, user: admin, public_read: true).call
+
+    expect(workspace).not_to receive(:set_permissions)
+    expect(workspace).not_to receive(:save!)
+
+    DiscourseWorkspaceGroups.sync_workspace_root_permissions!(workspace)
+  end
+
   it "does not grant everyone access by default" do
     workspace = described_class.new(category: category, user: admin).call
 
