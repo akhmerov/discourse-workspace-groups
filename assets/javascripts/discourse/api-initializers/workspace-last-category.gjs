@@ -9,35 +9,52 @@ const LEGACY_LAST_CATEGORY_KEY = "research-groups:last-category-path";
 const REDIRECT_GUARD_KEY = "workspace-groups:last-category-redirected";
 const LEGACY_REDIRECT_GUARD_KEY = "research-groups:last-category-redirected";
 
-function normalizePath(path) {
+function sameOriginUrl(path) {
   if (!path) {
     return null;
   }
 
   try {
     const url = new URL(path, window.location.origin);
-    return `${url.pathname}${url.search}`;
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+
+    if (url.origin !== window.location.origin) {
+      return null;
+    }
+
+    return url;
   } catch {
     return null;
   }
 }
 
+function pathFromSameOriginUrl(url) {
+  const normalizedPath = `${url.pathname}${url.search}`;
+
+  return normalizedPath.startsWith("/") ? normalizedPath : null;
+}
+
+function normalizePath(path) {
+  const url = sameOriginUrl(path);
+
+  return url ? pathFromSameOriginUrl(url) : null;
+}
+
 export function normalizeSavedCategoryPath(path) {
-  if (!path) {
+  const url = sameOriginUrl(path);
+
+  if (!url) {
     return null;
   }
 
-  try {
-    const url = new URL(path, window.location.origin);
-
-    if (url.pathname.startsWith("/c/") && url.pathname.endsWith("/overview")) {
-      url.pathname = url.pathname.replace(/\/overview$/, "");
-    }
-
-    return `${url.pathname}${url.search}`;
-  } catch {
-    return null;
+  if (url.pathname.startsWith("/c/") && url.pathname.endsWith("/overview")) {
+    url.pathname = url.pathname.replace(/\/overview$/, "");
   }
+
+  return pathFromSameOriginUrl(url);
 }
 
 export function rememberedPathForPage(url, currentCategory) {
