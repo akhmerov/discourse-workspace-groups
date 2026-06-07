@@ -83,8 +83,8 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     expect(channel_two.reload.category_channel.slug).to start_with(
       "#{other_workspace.slug}-reading-group",
     )
-    expect(channel_one.slug).to start_with("reading-group")
-    expect(channel_two.slug).to start_with("#{other_workspace.slug}-reading-group")
+    expect(channel_one.slug).to eq("#{workspace.slug}-reading-group-#{channel_one.id}")
+    expect(channel_two.slug).to eq("#{other_workspace.slug}-reading-group-#{channel_two.id}")
     expect(channel_one.category_channel.slug).to end_with("-#{channel_one.id}")
     expect(channel_two.category_channel.slug).to end_with("-#{channel_two.id}")
     expect(channel_one.slug).not_to eq(channel_two.slug)
@@ -134,6 +134,24 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     expect(channel_one.slug).not_to eq(channel_two.slug)
     expect(channel_one.workspace_group.name.length).to be <= DiscourseWorkspaceGroups::MAX_GROUP_NAME_LENGTH
     expect(channel_two.workspace_group.name.length).to be <= DiscourseWorkspaceGroups::MAX_GROUP_NAME_LENGTH
+  end
+
+  it "does not vary channel slugs based on global category slug collisions" do
+    channel_name = "Hidden Project #{SecureRandom.hex(4)}"
+    base_slug = Slug.for(channel_name, "")
+
+    Fabricate(:category, name: channel_name, slug: base_slug, user: admin)
+
+    channel =
+      described_class.new(
+        workspace: workspace,
+        user: admin,
+        name: channel_name,
+        description: nil,
+        visibility: "private",
+      ).call
+
+    expect(channel.slug).to eq("#{workspace.slug}-#{base_slug}-#{channel.id}")
   end
 
   it "keeps public root permissions when adding channels to a public workspace" do

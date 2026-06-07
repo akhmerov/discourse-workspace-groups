@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-require "digest/sha1"
-
 module ::DiscourseWorkspaceGroups
   class UpdateChannel
-    CATEGORY_SLUG_HASH_LENGTH = 4
+    CATEGORY_SLUG_COLLISION_ATTEMPTS = 10
     UNSET = Object.new.freeze
 
     attr_reader :channel,
@@ -150,7 +148,6 @@ module ::DiscourseWorkspaceGroups
 
       if name_changed?
         attrs[:name] = name
-        attrs[:slug] = desired_category_slug
       end
 
       if style_changed?
@@ -160,7 +157,11 @@ module ::DiscourseWorkspaceGroups
         attrs[:icon] = icon
       end
 
-      channel.update!(attrs) if attrs.present?
+      if name_changed?
+        update_category_with_slug!(attrs)
+      elsif attrs.present?
+        channel.update!(attrs)
+      end
     end
 
     def update_description!
@@ -212,22 +213,30 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::InvalidParameters.new(collision_error)
     end
 
-    def desired_category_slug
-      base_slug = Slug.for(name, "").presence || "channel"
-      return base_slug if !Category.where(slug: base_slug).where.not(id: channel.id).exists?
+    def update_category_with_slug!(attrs)
+      CATEGORY_SLUG_COLLISION_ATTEMPTS.times do |attempt|
+        return if channel.update(attrs.merge(slug: desired_category_slug(attempt: attempt)))
 
-      workspace_scoped_slug = Slug.for("#{workspace.slug}-#{name}", "").presence
-      if workspace_scoped_slug.present? &&
-           !Category.where(slug: workspace_scoped_slug).where.not(id: channel.id).exists?
-        return workspace_scoped_slug
+        if !slug_collision?
+          raise Discourse::InvalidParameters.new(channel.errors.attribute_names.first || :category)
+        end
       end
 
-      suffix = "-#{Digest::SHA1.hexdigest("#{workspace.id}:#{name}")[0, CATEGORY_SLUG_HASH_LENGTH]}"
-      scoped_base = workspace_scoped_slug.presence || base_slug
-      candidate = "#{scoped_base.first(255 - suffix.length)}#{suffix}"
-      return candidate if !Category.where(slug: candidate).where.not(id: channel.id).exists?
-
       raise Discourse::InvalidParameters.new(collision_error)
+    end
+
+    def desired_category_slug(attempt:)
+      base_slug = Slug.for(name, "").presence || "channel"
+      workspace_slug = Slug.for(workspace.slug, "").presence || "workspace"
+      scoped_base = "#{workspace_slug}-#{base_slug}"
+      suffix = "-#{channel.id}"
+      suffix = "#{suffix}-#{attempt + 1}" if attempt.positive?
+
+      "#{scoped_base.first(255 - suffix.length)}#{suffix}"
+    end
+
+    def slug_collision?
+      channel.errors.attribute_names.include?(:slug)
     end
 
     def normalize_color(value)
