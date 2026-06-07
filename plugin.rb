@@ -317,7 +317,12 @@ module ::DiscourseWorkspaceGroups
         public_read: workspace.workspace_root_public_read?,
       )
     desired_permission_types =
-      desired_permissions.transform_values { |permission| CategoryGroup.permission_types.fetch(permission) }
+      desired_permissions.to_h do |group_id, permission|
+        [
+          group_id == :everyone ? Group::AUTO_GROUPS[:everyone] : group_id,
+          CategoryGroup.permission_types.fetch(permission),
+        ]
+      end
     current_permission_types = workspace.category_groups.pluck(:group_id, :permission_type).to_h
 
     return workspace if current_permission_types == desired_permission_types
