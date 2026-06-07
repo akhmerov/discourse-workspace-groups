@@ -13,8 +13,15 @@ export default class WorkspaceChannelActions extends Component {
   @service site;
 
   get category() {
-    const categoryId = this.args.outletArgs.category?.id;
-    return this.site.categoriesById?.get(categoryId) || this.args.outletArgs.category;
+    const outletCategory = this.args.outletArgs.category;
+    const categoryId = outletCategory?.id;
+    const categoriesById = this.site.categoriesById;
+
+    return (
+      categoriesById?.get?.(categoryId) ||
+      categoriesById?.[categoryId] ||
+      outletCategory
+    );
   }
 
   get canEnableWorkspace() {
