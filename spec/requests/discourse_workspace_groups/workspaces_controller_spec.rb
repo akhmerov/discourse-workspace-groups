@@ -650,15 +650,22 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
   describe "#remove_channel_member" do
     it "removes direct guest access and drops the paired chat membership" do
       private_channel.workspace_group.add(guest_user)
+      chat_channel = category_chat_channel(private_channel)
+      expect(chat_channel.membership_for(guest_user)).to be_present
 
       sign_in(admin)
+
+      expect(Chat::Publisher).to receive(:publish_kick_users).with(
+        chat_channel.id,
+        [guest_user.id],
+      ).and_call_original
 
       expect {
         delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{private_channel.id}/access/#{guest_user.id}.json"
       }.to change { private_channel.workspace_group.users.exists?(id: guest_user.id) }.from(true).to(false)
 
       expect(response).to have_http_status(:ok)
-      expect(category_chat_channel(private_channel).membership_for(guest_user)).to be_nil
+      expect(chat_channel.membership_for(guest_user)).to be_nil
     end
   end
 end
