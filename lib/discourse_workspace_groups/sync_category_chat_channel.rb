@@ -5,6 +5,8 @@ require "set"
 module ::DiscourseWorkspaceGroups
   class SyncCategoryChatChannel
     CHAT_DESCRIPTION_MAX_LENGTH = 500
+    MANAGED_CLOSED_CHAT_STATUS = "closed"
+    CHAT_STATUS_BEFORE_MANAGED_CLOSE = "workspace_chat_status_before_managed_close"
 
     attr_reader :category, :user, :sync_all_members
 
@@ -85,17 +87,41 @@ module ::DiscourseWorkspaceGroups
     end
 
     def sync_archive_status(chat_channel)
-      target_status =
-        if category.workspace_archived?
-          "closed"
-        elsif !category.workspace_chat_enabled?
-          "closed"
-        else
-          "open"
-        end
-      return if chat_channel.status == target_status
+      if managed_closed_chat?
+        remember_chat_status_before_managed_close(chat_channel)
+        update_chat_status(chat_channel, MANAGED_CLOSED_CHAT_STATUS)
+      else
+        restore_chat_status_before_managed_close(chat_channel)
+      end
+    end
 
-      chat_channel.update!(status: target_status)
+    def managed_closed_chat?
+      category.workspace_archived? || !category.workspace_chat_enabled?
+    end
+
+    def remember_chat_status_before_managed_close(chat_channel)
+      return if category.custom_fields[CHAT_STATUS_BEFORE_MANAGED_CLOSE].present?
+
+      category.custom_fields[CHAT_STATUS_BEFORE_MANAGED_CLOSE] = chat_channel.status
+      category.save_custom_fields(true)
+    end
+
+    def restore_chat_status_before_managed_close(chat_channel)
+      previous_status = category.custom_fields[CHAT_STATUS_BEFORE_MANAGED_CLOSE].presence
+      return if previous_status.blank?
+
+      if chat_channel.status == MANAGED_CLOSED_CHAT_STATUS
+        update_chat_status(chat_channel, previous_status)
+      end
+
+      category.custom_fields.delete(CHAT_STATUS_BEFORE_MANAGED_CLOSE)
+      category.save_custom_fields(true)
+    end
+
+    def update_chat_status(chat_channel, status)
+      return if chat_channel.status == status
+
+      chat_channel.update!(status: status)
       Chat::Publisher.publish_channel_status(chat_channel)
     end
 

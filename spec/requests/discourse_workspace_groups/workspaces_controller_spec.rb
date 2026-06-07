@@ -491,6 +491,52 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "#archive_channel" do
+    it "restores the chat status that existed before this plugin archived the channel" do
+      sign_in(admin)
+      chat_channel = category_chat_channel(public_channel)
+      expect(chat_channel.status).to eq("open")
+
+      post "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/archive.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(chat_channel.reload.status).to eq("closed")
+
+      delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/archive.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(chat_channel.reload.status).to eq("open")
+    end
+
+    it "does not reopen an already active channel with an independently closed chat" do
+      public_channel.workspace_group.add(workspace_member)
+      public_channel.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+      chat_channel = category_chat_channel(public_channel)
+      chat_channel.update!(status: "closed")
+
+      sign_in(workspace_member)
+
+      delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/archive.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(chat_channel.reload.status).to eq("closed")
+    end
+
+    it "preserves moderation changes made while the channel is archived" do
+      sign_in(admin)
+      chat_channel = category_chat_channel(public_channel)
+
+      post "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/archive.json"
+      expect(response).to have_http_status(:ok)
+      chat_channel.update!(status: "read_only")
+
+      delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/archive.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(chat_channel.reload.status).to eq("read_only")
+    end
+  end
+
   describe "#update" do
     it "updates workspace description and permissions" do
       sign_in(admin)
