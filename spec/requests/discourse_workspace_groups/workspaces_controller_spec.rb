@@ -247,7 +247,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       sign_in(workspace_member)
 
       expect(Chat::Publisher).to receive(:publish_new_channel).with(
-        kind_of(Chat::Channel),
+        a_kind_of(Chat::Channel),
         [workspace_member.id],
       ).once
 
