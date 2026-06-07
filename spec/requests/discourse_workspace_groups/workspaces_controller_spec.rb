@@ -225,6 +225,24 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "#join_channel" do
+    it "publishes a newly joined public chat channel only once" do
+      public_channel
+
+      sign_in(workspace_member)
+
+      expect(Chat::Publisher).to receive(:publish_new_channel).with(
+        kind_of(Chat::Channel),
+        [workspace_member.id],
+      ).once
+
+      post "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "joined")).to eq(true)
+    end
+  end
+
   describe "#archived_channels" do
     it "loads archived channels on demand" do
       archived_channel =
