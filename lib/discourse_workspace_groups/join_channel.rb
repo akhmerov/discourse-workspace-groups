@@ -13,9 +13,13 @@ module ::DiscourseWorkspaceGroups
       validate!
 
       channel.workspace_group.add(user)
+
+      existing_chat_channel = Chat::CategoryChannel.find_by(chatable: channel)
+      had_membership = existing_chat_channel&.membership_for(user).present?
       chat_channel = DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: channel).call
-      if channel.workspace_chat_enabled? && chat_channel.present?
-        Chat::Publisher.publish_new_channel(chat_channel, [user.id])
+      if channel.workspace_chat_enabled? && chat_channel.present? && !had_membership
+        membership = chat_channel.membership_for(user)
+        Chat::Publisher.publish_new_channel(chat_channel, [user.id]) if membership.present?
       end
 
       channel
