@@ -411,14 +411,37 @@ after_initialize do
 
   Guardian.prepend(::DiscourseWorkspaceGroups::GuardianArchiveRestrictions)
 
-  module ::DiscourseWorkspaceGroups::UnlimitedSidebarCategoryLinks
+  module ::DiscourseWorkspaceGroups::WorkspaceSidebarCategoryLinks
+    MAX_WORKSPACE_CATEGORY_LINKS = 100
+
     def update_category_section_links(user, category_ids:)
       return super if !SiteSetting.discourse_workspace_groups_enabled
 
       if category_ids.blank?
         delete_section_links(user: user, linkable_type: "Category")
       else
-        category_ids = Category.where(id: category_ids).pluck(:id)
+        requested_category_ids =
+          DiscourseWorkspaceGroups
+            .normalize_custom_field_id_list(category_ids)
+            .first(MAX_WORKSPACE_CATEGORY_LINKS)
+        categories = Category.where(id: requested_category_ids).to_a
+        Category.preload_custom_fields(categories, Site.preloaded_category_custom_fields)
+        categories_by_id = categories.index_by(&:id)
+        regular_category_link_count = 0
+
+        category_ids =
+          requested_category_ids.filter_map do |category_id|
+            category = categories_by_id[category_id]
+            next if category.blank?
+
+            if category.workspace_channel?
+              category_id
+            elsif regular_category_link_count < SidebarSection::MAX_USER_CATEGORY_LINKS
+              regular_category_link_count += 1
+              category_id
+            end
+          end
+
         update_section_links(
           user: user,
           linkable_type: "Category",
@@ -429,7 +452,7 @@ after_initialize do
   end
 
   SidebarSectionLinksUpdater.singleton_class.prepend(
-    ::DiscourseWorkspaceGroups::UnlimitedSidebarCategoryLinks,
+    ::DiscourseWorkspaceGroups::WorkspaceSidebarCategoryLinks,
   )
 
   if defined?(::Chat::ChannelFetcher)
