@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
+require "securerandom"
+
 module ::DiscourseWorkspaceGroups
   class CreateChannel
-    CATEGORY_SLUG_HASH_LENGTH = 4
+    CATEGORY_SLUG_COLLISION_ATTEMPTS = 10
+    TEMPORARY_CATEGORY_SLUG_PREFIX = "workspace-channel-pending"
 
     attr_reader :workspace, :user, :name, :description, :visibility, :channel_mode
 
@@ -29,7 +32,7 @@ module ::DiscourseWorkspaceGroups
       channel =
         Category.new(
           name: name,
-          slug: category_slug,
+          slug: temporary_category_slug,
           color: workspace.color,
           text_color: workspace.text_color,
           parent_category: workspace,
@@ -46,6 +49,7 @@ module ::DiscourseWorkspaceGroups
       channel.custom_fields[WORKSPACE_VISIBILITY] = visibility
       channel.custom_fields[WORKSPACE_CHANNEL_MODE] = channel_mode
       channel.save!
+      assign_final_category_slug!(channel)
 
       channel_group.custom_fields["workspace_category_id"] = channel.id
       channel_group.custom_fields["workspace_kind"] = WORKSPACE_KIND_CHANNEL
@@ -133,19 +137,34 @@ module ::DiscourseWorkspaceGroups
       I18n.t("discourse_workspace_groups.errors.channel_name_collision", name: name)
     end
 
-    def category_slug
-      base_slug = Slug.for(name, "").presence || "channel"
-      return base_slug if !Category.exists?(slug: base_slug)
+    def temporary_category_slug
+      "#{TEMPORARY_CATEGORY_SLUG_PREFIX}-#{SecureRandom.hex(16)}"
+    end
 
-      workspace_scoped_slug = Slug.for("#{workspace.slug}-#{name}", "").presence
-      return workspace_scoped_slug if workspace_scoped_slug.present? && !Category.exists?(slug: workspace_scoped_slug)
+    def assign_final_category_slug!(channel)
+      CATEGORY_SLUG_COLLISION_ATTEMPTS.times do |attempt|
+        return if channel.update(slug: category_slug(channel, attempt: attempt))
 
-      suffix = "-#{Digest::SHA1.hexdigest("#{workspace.id}:#{name}")[0, CATEGORY_SLUG_HASH_LENGTH]}"
-      scoped_base = workspace_scoped_slug.presence || base_slug
-      candidate = "#{scoped_base.first(255 - suffix.length)}#{suffix}"
-      return candidate if !Category.exists?(slug: candidate)
+        if !slug_collision?(channel)
+          raise Discourse::InvalidParameters.new(channel.errors.attribute_names.first || :category)
+        end
+      end
 
       raise Discourse::InvalidParameters.new(collision_error)
+    end
+
+    def category_slug(channel, attempt:)
+      base_slug = Slug.for(name, "").presence || "channel"
+      workspace_slug = Slug.for(workspace.slug, "").presence || "workspace"
+      scoped_base = "#{workspace_slug}-#{base_slug}"
+      suffix = "-#{channel.id}"
+      suffix = "#{suffix}-#{attempt + 1}" if attempt.positive?
+
+      "#{scoped_base.first(255 - suffix.length)}#{suffix}"
+    end
+
+    def slug_collision?(channel)
+      channel.errors.attribute_names.include?(:slug)
     end
   end
 end
