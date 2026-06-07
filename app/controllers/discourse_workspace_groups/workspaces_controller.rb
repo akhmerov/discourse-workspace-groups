@@ -350,6 +350,8 @@ module ::DiscourseWorkspaceGroups
           []
         end
 
+      can_view_members = guardian.is_admin? || workspace_member
+
       {
         id: workspace.id,
         name: workspace.name,
@@ -357,9 +359,9 @@ module ::DiscourseWorkspaceGroups
         can_create_channel: guardian.can_create_workspace_channel?(workspace),
         can_create_private_channel: guardian.can_create_private_workspace_channel?(workspace),
         can_manage: can_manage,
-        member_count: group.present? ? group.group_users.count : 0,
-        members_url: group_members_url(group),
-        can_view_members: guardian.is_admin? || workspace_member,
+        member_count: can_view_members && group.present? ? group.group_users.count : nil,
+        members_url: can_view_members ? group_members_url(group) : nil,
+        can_view_members: can_view_members,
         about_cooked: about_post&.cooked || workspace.description,
         about_raw: about_post&.raw,
         about_url: workspace.topic_url,
@@ -404,6 +406,10 @@ module ::DiscourseWorkspaceGroups
       can_open_topics = joined || guardian.is_admin?
       archived = category.workspace_archived?
 
+      can_view_members =
+        guardian.is_admin? || joined ||
+          (workspace_member && category.workspace_visibility != VISIBILITY_PRIVATE)
+
       {
         id: category.id,
         name: category.name,
@@ -426,9 +432,9 @@ module ::DiscourseWorkspaceGroups
         can_archive: can_manage && !archived,
         can_unarchive: can_manage && archived,
         can_open_topics: can_open_topics,
-        can_view_members: joined,
-        member_count: group.present? ? group.group_users.count : 0,
-        members_url: group_members_url(group),
+        can_view_members: can_view_members,
+        member_count: can_view_members && group.present? ? group.group_users.count : nil,
+        members_url: can_view_members ? group_members_url(group) : nil,
         topics_url: category.url,
         chat_channel_id: category.workspace_chat_enabled? ? category.category_channel&.id : nil,
         chat_channel: serialize_chat_channel(category),

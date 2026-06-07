@@ -78,7 +78,22 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body.dig("workspace", "can_view_members")).to eq(false)
+      expect(response.parsed_body.dig("workspace", "member_count")).to be_nil
+      expect(response.parsed_body.dig("workspace", "members_url")).to be_nil
       expect(response.parsed_body["channels"].map { |channel| channel["id"] }).to eq([private_channel.id])
+    end
+
+    it "shows public channel member metadata to workspace members who have not joined the channel" do
+      public_channel
+
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+
+      expect(response).to have_http_status(:ok)
+      payload = response.parsed_body["channels"].find { |channel| channel["id"] == public_channel.id }
+      expect(payload["can_view_members"]).to eq(true)
+      expect(payload["member_count"]).to eq(1)
+      expect(payload["members_url"]).to eq("/g/#{public_channel.workspace_group.name}")
     end
 
     it "routes owners to the native group members page" do

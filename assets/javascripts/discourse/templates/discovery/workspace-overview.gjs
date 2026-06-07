@@ -54,16 +54,6 @@ export default <template>
                     }}
                   </span>
                 </a>
-              {{else}}
-                <span class="workspace-groups-overview__membership">
-                  {{icon "user"}}
-                  <span>
-                    {{i18n
-                      "discourse_workspace_groups.member_count"
-                      count=@controller.teamMemberCount
-                    }}
-                  </span>
-                </span>
               {{/if}}
             </div>
 
