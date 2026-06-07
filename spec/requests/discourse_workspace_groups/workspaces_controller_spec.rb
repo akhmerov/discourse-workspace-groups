@@ -190,7 +190,37 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       )
       expect(response.parsed_body.dig("workspace", "auto_join_channel_options")).to include(
         include("id" => public_channel.id, "name" => public_channel.name, "visibility" => "public"),
-        include("id" => private_channel.id, "name" => private_channel.name, "visibility" => "private"),
+        include(
+          "id" => private_channel.id,
+          "name" => private_channel.name,
+          "visibility" => "private",
+        ),
+      )
+    end
+
+    it "hides private auto-join channels from workspace managers who cannot manage them" do
+      workspace.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+      public_channel
+      private_channel
+      workspace.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = [
+        public_channel.id,
+        private_channel.id,
+      ]
+      workspace.save_custom_fields(true)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("workspace", "can_manage")).to eq(true)
+      expect(response.parsed_body.dig("workspace", "auto_join_channel_ids")).to eq(
+        [public_channel.id],
+      )
+      expect(response.parsed_body.dig("workspace", "auto_join_channel_options")).to include(
+        include("id" => public_channel.id, "name" => public_channel.name, "visibility" => "public"),
+      )
+      expect(response.parsed_body.dig("workspace", "auto_join_channel_options")).not_to include(
+        include("id" => private_channel.id),
       )
     end
   end
@@ -511,7 +541,9 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       workspace.reload
       expect(workspace.workspace_auto_join_channel_ids).to eq([public_channel.id])
       expect(public_channel.workspace_group.users.exists?(id: workspace_member.id)).to eq(true)
-      expect(response.parsed_body.dig("workspace", "auto_join_channel_ids")).to eq([public_channel.id])
+      expect(response.parsed_body.dig("workspace", "auto_join_channel_ids")).to eq(
+        [public_channel.id],
+      )
     end
 
     it "accepts hash-style auto-join channel params from browser form payloads" do
@@ -534,7 +566,59 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
       workspace.reload
       expect(workspace.workspace_auto_join_channel_ids).to eq([public_channel.id])
-      expect(response.parsed_body.dig("workspace", "auto_join_channel_ids")).to eq([public_channel.id])
+      expect(response.parsed_body.dig("workspace", "auto_join_channel_ids")).to eq(
+        [public_channel.id],
+      )
+    end
+
+    it "rejects private auto-join channels that workspace managers cannot manage" do
+      workspace.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+      private_channel
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}.json",
+          params: {
+            description: "Workspace notes.",
+            public_read: false,
+            members_can_create_channels: true,
+            members_can_create_private_channels: true,
+            auto_join_channel_ids: [private_channel.id],
+          }
+
+      expect(response).to have_http_status(:bad_request)
+      expect(workspace.reload.workspace_auto_join_channel_ids).to eq([])
+      expect(private_channel.workspace_group.users.exists?(id: workspace_member.id)).to eq(false)
+    end
+
+    it "preserves private auto-join channels hidden from workspace managers" do
+      workspace.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+      public_channel
+      private_channel
+      workspace.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = [
+        private_channel.id,
+      ]
+      workspace.save_custom_fields(true)
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}.json",
+          params: {
+            description: "Workspace notes.",
+            public_read: false,
+            members_can_create_channels: true,
+            members_can_create_private_channels: true,
+            auto_join_channel_ids: [public_channel.id],
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(workspace.reload.workspace_auto_join_channel_ids).to contain_exactly(
+        public_channel.id,
+        private_channel.id,
+      )
+      expect(response.parsed_body.dig("workspace", "auto_join_channel_ids")).to eq(
+        [public_channel.id],
+      )
     end
 
     it "allows workspace owners to update settings and removes member channel creation for non-managers" do

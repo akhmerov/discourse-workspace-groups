@@ -330,12 +330,22 @@ module ::DiscourseWorkspaceGroups
       group = workspace.workspace_group
       about_post = workspace.topic&.first_post
       can_manage = guardian.can_manage_workspace?(workspace)
+      auto_join_channel_options =
+        if can_manage
+          serialize_auto_join_channel_options(
+            all_active_channels || workspace_channels(archived: false),
+          )
+        else
+          []
+        end
       auto_join_channels =
         if can_manage
           DiscourseWorkspaceGroups.workspace_auto_join_channels(
             workspace,
             candidates: all_active_channels,
-          )
+          ).select do |channel|
+            DiscourseWorkspaceGroups.can_manage_workspace_auto_join_channel?(channel, current_user)
+          end
         else
           []
         end
@@ -357,14 +367,15 @@ module ::DiscourseWorkspaceGroups
         members_can_create_channels: workspace.workspace_members_can_create_channels?,
         members_can_create_private_channels: workspace.workspace_members_can_create_private_channels?,
         auto_join_channel_ids: auto_join_channels.map(&:id),
-        auto_join_channel_options:
-          can_manage ? serialize_auto_join_channel_options(all_active_channels || workspace_channels(archived: false)) : [],
+        auto_join_channel_options: auto_join_channel_options,
       }
     end
 
     def serialize_auto_join_channel_options(channels)
       channels
-        .select(&:workspace_channel?)
+        .select do |channel|
+          DiscourseWorkspaceGroups.can_manage_workspace_auto_join_channel?(channel, current_user)
+        end
         .reject(&:workspace_archived?)
         .map do |channel|
           {
