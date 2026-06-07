@@ -181,16 +181,6 @@ export default class WorkspaceOverviewChannelCard extends Component {
                   }}
                 </span>
               </a>
-            {{else}}
-              <span class="workspace-groups-overview__membership">
-                {{icon "user"}}
-                <span>
-                  {{i18n
-                    "discourse_workspace_groups.member_count"
-                    count=this.channel.member_count
-                  }}
-                </span>
-              </span>
             {{/if}}
           </div>
 
