@@ -22,5 +22,41 @@ module(
         "/c/quantum-tinkerer/28"
       );
     });
+
+    test("rejects external and special-scheme saved paths", function (assert) {
+      assert.strictEqual(
+        normalizeSavedCategoryPath(
+          "blob:https://attacker.example/login?phish=1"
+        ),
+        null
+      );
+      assert.strictEqual(
+        normalizeSavedCategoryPath("//attacker.example/login?phish=1"),
+        null
+      );
+      assert.strictEqual(
+        normalizeSavedCategoryPath("https://attacker.example/login?phish=1"),
+        null
+      );
+    });
+
+    test(
+      "accepts same-origin saved paths only as root-relative targets",
+      function (assert) {
+        assert.strictEqual(
+          normalizeSavedCategoryPath(
+            `${window.location.origin}/c/quantum-tinkerer/28?order=latest`
+          ),
+          "/c/quantum-tinkerer/28?order=latest"
+        );
+      }
+    );
+
+    test("rejects external remembered paths", function (assert) {
+      assert.strictEqual(
+        rememberedPathForPage("blob:https://attacker.example/login?phish=1"),
+        null
+      );
+    });
   }
 );
