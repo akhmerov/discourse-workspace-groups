@@ -125,6 +125,15 @@ module ::DiscourseWorkspaceGroups
     group_owner?(category.workspace_group, user)
   end
 
+  def self.can_manage_workspace_auto_join_channel?(category, user)
+    return false if user.blank? || category.blank? || !category.workspace_channel?
+    return true if can_manage_workspace_channel?(category, user)
+    return false if category.workspace_visibility == VISIBILITY_PRIVATE
+
+    workspace = category.parent_category
+    can_manage_workspace?(workspace, user)
+  end
+
   def self.can_create_private_workspace_channel?(workspace, user)
     return false if user.blank? || workspace.blank? || !workspace.workspace_root?
     return true if user.admin?

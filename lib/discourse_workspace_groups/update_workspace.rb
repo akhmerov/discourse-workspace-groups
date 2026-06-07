@@ -33,6 +33,7 @@ module ::DiscourseWorkspaceGroups
           members_can_create_private_channels,
           workspace.workspace_members_can_create_private_channels?,
         )
+      @auto_join_channel_ids_submitted = !auto_join_channel_ids.nil?
       @auto_join_channel_ids =
         normalize_channel_ids(auto_join_channel_ids, workspace.workspace_auto_join_channel_ids)
     end
@@ -81,14 +82,15 @@ module ::DiscourseWorkspaceGroups
       workspace.custom_fields[WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS] = members_can_create_channels
       workspace.custom_fields[WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS] =
         members_can_create_channels && members_can_create_private_channels
-      workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = auto_join_channel_ids
+      workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = auto_join_channel_ids_to_save
       workspace.save_custom_fields(true)
 
       DiscourseWorkspaceGroups.sync_workspace_root_permissions!(workspace)
     end
 
     def sync_new_auto_join_memberships!(previous_auto_join_channel_ids)
-      newly_added_channel_ids = auto_join_channel_ids - Array.wrap(previous_auto_join_channel_ids)
+      newly_added_channel_ids =
+        auto_join_channel_ids_to_save - Array.wrap(previous_auto_join_channel_ids)
       return if newly_added_channel_ids.blank?
 
       workspace_group = workspace.workspace_group
@@ -118,15 +120,41 @@ module ::DiscourseWorkspaceGroups
     end
 
     def valid_auto_join_channel_ids?
-      return true if auto_join_channel_ids.blank?
+      return true if !@auto_join_channel_ids_submitted || auto_join_channel_ids.blank?
 
-      channels =
-        Category.where(id: auto_join_channel_ids, parent_category_id: workspace.id).to_a.tap do |categories|
+      submitted_configurable_ids =
+        configurable_auto_join_channels(auto_join_channel_ids).map(&:id)
+      invalid_ids =
+        auto_join_channel_ids - submitted_configurable_ids - preserved_auto_join_channel_ids
+      invalid_ids.blank?
+    end
+
+    def auto_join_channel_ids_to_save
+      return auto_join_channel_ids if !@auto_join_channel_ids_submitted
+
+      (preserved_auto_join_channel_ids + auto_join_channel_ids).uniq
+    end
+
+    def preserved_auto_join_channel_ids
+      @preserved_auto_join_channel_ids ||=
+        DiscourseWorkspaceGroups.workspace_auto_join_channels(workspace)
+          .reject do |channel|
+            DiscourseWorkspaceGroups.can_manage_workspace_auto_join_channel?(channel, user)
+          end
+          .map(&:id)
+    end
+
+    def configurable_auto_join_channels(channel_ids)
+      Category
+        .where(id: channel_ids, parent_category_id: workspace.id)
+        .to_a
+        .tap do |categories|
           Category.preload_custom_fields(categories, Site.preloaded_category_custom_fields)
         end
-
-      auto_join_channel_ids.sort ==
-        channels.select(&:workspace_channel?).reject(&:workspace_archived?).map(&:id).sort
+        .select do |channel|
+          DiscourseWorkspaceGroups.can_manage_workspace_auto_join_channel?(channel, user)
+        end
+        .reject(&:workspace_archived?)
     end
   end
 end
