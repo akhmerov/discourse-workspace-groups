@@ -403,12 +403,6 @@ require_relative "lib/discourse_workspace_groups/sync_channel_group_chat_members
 
 after_initialize do
   module ::DiscourseWorkspaceGroups::GuardianArchiveRestrictions
-    def can_edit_category?(category)
-      return true if DiscourseWorkspaceGroups.can_manage_public_workspace_channel?(category, user)
-
-      super
-    end
-
     def can_create_topic_on_category?(category)
       category = category.is_a?(Category) ? category : Category.find_by(id: category)
       return false if DiscourseWorkspaceGroups.archived_workspace_category?(category)
@@ -430,7 +424,6 @@ after_initialize do
 
     def can_edit_topic?(topic)
       return false if DiscourseWorkspaceGroups.archived_workspace_topic?(topic)
-      return true if DiscourseWorkspaceGroups.can_manage_public_workspace_channel?(topic&.category, user)
 
       super
     end
@@ -443,7 +436,6 @@ after_initialize do
 
     def can_edit_post?(post)
       return false if DiscourseWorkspaceGroups.archived_workspace_topic?(post&.topic)
-      return true if DiscourseWorkspaceGroups.can_manage_public_workspace_channel?(post&.topic&.category, user)
 
       super
     end

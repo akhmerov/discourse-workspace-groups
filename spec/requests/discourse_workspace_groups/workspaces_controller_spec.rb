@@ -513,15 +513,6 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response).to have_http_status(:forbidden)
     end
 
-    it "allows team owners to edit native public channel content" do
-      workspace.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
-      guardian = Guardian.new(workspace_member.reload)
-
-      expect(guardian.can_edit?(public_channel.reload)).to eq(true)
-      expect(guardian.can_edit?(public_channel.topic)).to eq(true)
-      expect(guardian.can_edit?(public_channel.topic.first_post)).to eq(true)
-      expect(guardian.can_edit?(private_channel.reload)).to eq(false)
-    end
   end
 
   describe "#update_sidebar_channels" do
