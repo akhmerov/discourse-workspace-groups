@@ -85,6 +85,10 @@
   top: -0.1rem;
 }
 
+.workspace-team-sidebar__unread-indicator--mention {
+  background: var(--danger);
+}
+
 .workspace-team-sidebar
   .sidebar-section-link-wrapper
   .workspace-team-sidebar__main-link--compact.sidebar-section-link {

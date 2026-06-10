@@ -39,19 +39,41 @@ function positiveCount(value) {
   return Number(value || 0) > 0;
 }
 
-export function chatChannelHasUnread(channel) {
-  if (!channel) {
+function lastUnreadMessageMentionsUser(channel, currentUser) {
+  const username = currentUser?.username;
+  if (!username) {
     return false;
   }
 
-  if (channel.hasUnread || channel.has_unread) {
-    return true;
+  const normalizedUsername = username.toLowerCase();
+  const lastMessage = channel.lastMessage ?? channel.last_message ?? {};
+  const raw = lastMessage.message?.toLowerCase() ?? "";
+  const cooked = lastMessage.cooked?.toLowerCase() ?? "";
+
+  return (
+    raw.includes(`@${normalizedUsername}`) ||
+    cooked.includes(`/u/${normalizedUsername}`) ||
+    cooked.includes(`>@${normalizedUsername}</a>`)
+  );
+}
+
+export function chatChannelUnreadKind(channel, currentUser = null) {
+  if (!channel) {
+    return null;
   }
 
   const tracking = channel.tracking ?? {};
+
+  if (positiveCount(tracking.mentionCount ?? tracking.mention_count)) {
+    return "mention";
+  }
+
+  if (channel.hasUnread || channel.has_unread) {
+    return "regular";
+  }
+
   if (
     positiveCount(tracking.unreadCount ?? tracking.unread_count) ||
-    positiveCount(tracking.mentionCount ?? tracking.mention_count) ||
     positiveCount(
       tracking.watchedThreadsUnreadCount ??
         tracking.watched_threads_unread_count
@@ -61,14 +83,14 @@ export function chatChannelHasUnread(channel) {
         channel.unread_threads_count_since_last_viewed
     )
   ) {
-    return true;
+    return "regular";
   }
 
   const lastMessageId = Number(
     channel.lastMessage?.id ?? channel.last_message?.id
   );
   if (!lastMessageId) {
-    return false;
+    return null;
   }
 
   const lastReadMessageId = Number(
@@ -78,10 +100,22 @@ export function chatChannelHasUnread(channel) {
   );
 
   if (!lastReadMessageId) {
-    return true;
+    return lastUnreadMessageMentionsUser(channel, currentUser)
+      ? "mention"
+      : "regular";
   }
 
-  return lastMessageId > lastReadMessageId;
+  if (lastMessageId <= lastReadMessageId) {
+    return null;
+  }
+
+  return lastUnreadMessageMentionsUser(channel, currentUser)
+    ? "mention"
+    : "regular";
+}
+
+export function chatChannelHasUnread(channel, currentUser = null) {
+  return !!chatChannelUnreadKind(channel, currentUser);
 }
 
 function visibleChildren(category, siteSettings, site) {

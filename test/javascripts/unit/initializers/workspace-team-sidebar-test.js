@@ -1,6 +1,7 @@
 import { module, test } from "qunit";
 import {
   chatChannelHasUnread,
+  chatChannelUnreadKind,
   currentScopedMode,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
@@ -427,6 +428,17 @@ module(
           },
         })
       );
+
+      assert.strictEqual(
+        chatChannelUnreadKind({
+          tracking: {
+            unreadCount: 0,
+            mentionCount: 1,
+            watchedThreadsUnreadCount: 0,
+          },
+        }),
+        "mention"
+      );
     });
 
     test("detects chat unread state from hydrated workspace channel messages", function (assert) {
@@ -455,6 +467,22 @@ module(
             last_read_message_id: 2159639,
           },
         })
+      );
+
+      assert.strictEqual(
+        chatChannelUnreadKind(
+          {
+            last_message: {
+              id: 2159640,
+              message: "@anton-akhmerov please check this",
+            },
+            current_user_membership: {
+              last_read_message_id: 2159639,
+            },
+          },
+          { username: "anton-akhmerov" }
+        ),
+        "mention"
       );
     });
 

@@ -11,6 +11,14 @@ import icon from "discourse/helpers/d-icon";
 import discourseLater from "discourse/lib/later";
 import DiscourseURL from "discourse/lib/url";
 
+function unreadIndicatorClass(kind) {
+  return concatClass(
+    "chat-channel-unread-indicator",
+    kind === "mention" &&
+      "workspace-team-sidebar__unread-indicator--mention"
+  );
+}
+
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
 
@@ -103,13 +111,31 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get mainLinkUnread() {
+    return !!this.mainLinkUnreadKind;
+  }
+
+  get mainLinkUnreadKind() {
     if (this.showModes) {
-      return false;
+      return null;
     }
 
     return this.mainLinkOpensChat
-      ? this.args.chatUnread
-      : this.args.categoryUnread;
+      ? this.args.chatUnreadKind
+      : this.args.categoryUnread
+        ? "regular"
+        : null;
+  }
+
+  get mainLinkUnreadIndicatorClass() {
+    return unreadIndicatorClass(this.mainLinkUnreadKind);
+  }
+
+  get categoryUnreadIndicatorClass() {
+    return unreadIndicatorClass(this.args.categoryUnread ? "regular" : null);
+  }
+
+  get chatUnreadIndicatorClass() {
+    return unreadIndicatorClass(this.args.chatUnreadKind);
   }
 
   get rowClass() {
@@ -257,7 +283,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
               />
 
               {{#if this.mainLinkUnread}}
-                <span class="chat-channel-unread-indicator"></span>
+                <span class={{this.mainLinkUnreadIndicatorClass}}></span>
               {{/if}}
             </span>
 
@@ -288,7 +314,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
               />
 
               {{#if this.mainLinkUnread}}
-                <span class="chat-channel-unread-indicator"></span>
+                <span class={{this.mainLinkUnreadIndicatorClass}}></span>
               {{/if}}
             </span>
 
@@ -320,7 +346,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
               />
 
               {{#if this.mainLinkUnread}}
-                <span class="chat-channel-unread-indicator"></span>
+                <span class={{this.mainLinkUnreadIndicatorClass}}></span>
               {{/if}}
             </span>
 
@@ -344,7 +370,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
                   {{icon "list"}}
 
                   {{#if @categoryUnread}}
-                    <span class="chat-channel-unread-indicator"></span>
+                    <span class={{this.categoryUnreadIndicatorClass}}></span>
                   {{/if}}
                 </span>
               </span>
@@ -361,7 +387,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
                   {{icon "list"}}
 
                   {{#if @categoryUnread}}
-                    <span class="chat-channel-unread-indicator"></span>
+                    <span class={{this.categoryUnreadIndicatorClass}}></span>
                   {{/if}}
                 </span>
               </LinkTo>
@@ -373,7 +399,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
                   {{icon "d-chat"}}
 
                   {{#if @chatUnread}}
-                    <span class="chat-channel-unread-indicator"></span>
+                    <span class={{this.chatUnreadIndicatorClass}}></span>
                   {{/if}}
                 </span>
               </span>
@@ -390,7 +416,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
                   {{icon "d-chat"}}
 
                   {{#if @chatUnread}}
-                    <span class="chat-channel-unread-indicator"></span>
+                    <span class={{this.chatUnreadIndicatorClass}}></span>
                   {{/if}}
                 </span>
               </button>
