@@ -46,6 +46,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @service("topic-tracking-state") topicTrackingState;
 
   @tracked topicCountsVersion = 0;
+  @tracked chatHydrationVersion = 0;
   @tracked editingSidebar = false;
   @tracked orderedChannelIds = null;
   @tracked savingSidebarOrder = false;
@@ -58,6 +59,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     super(...arguments);
 
     this.linkCache = new Map();
+    this.hydratedWorkspaceChatIds = new Set();
+    this.hydratingWorkspaceChatIds = new Set();
+    this.failedWorkspaceChatHydrationIds = new Set();
     this.topicTrackingCallbackId = this.topicTrackingState.onStateChange(() => {
       this.topicCountsVersion++;
       this.rows.forEach((row) => row.categoryLink.refreshCounts());
@@ -138,6 +142,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   get rows() {
     this.topicCountsVersion;
+    this.chatHydrationVersion;
+    this.ensureWorkspaceChatChannels();
 
     const categories =
       sidebarChannelCategories(this.services, this.orderedChannelIds) ?? [];
@@ -247,6 +253,42 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     this.currentUser.workspace_sidebar_orders = currentOrders;
     this.currentUser.workspaceSidebarOrders = currentOrders;
+  }
+
+  storeWorkspaceChatChannels(channels) {
+    channels.forEach((channel) => {
+      if (channel?.chat_channel) {
+        this.chatChannelsManager.store(channel.chat_channel, { replace: true });
+      }
+    });
+  }
+
+  ensureWorkspaceChatChannels() {
+    const workspaceId = this.workspaceCategory?.id;
+
+    if (
+      !workspaceId ||
+      this.hydratedWorkspaceChatIds.has(workspaceId) ||
+      this.hydratingWorkspaceChatIds.has(workspaceId) ||
+      this.failedWorkspaceChatHydrationIds.has(workspaceId)
+    ) {
+      return;
+    }
+
+    this.hydratingWorkspaceChatIds.add(workspaceId);
+
+    ajax(`/workspace-groups/workspaces/${workspaceId}`)
+      .then((payload) => {
+        this.storeWorkspaceChatChannels(payload.channels ?? []);
+        this.hydratedWorkspaceChatIds.add(workspaceId);
+        this.chatHydrationVersion++;
+      })
+      .catch(() => {
+        this.failedWorkspaceChatHydrationIds.add(workspaceId);
+      })
+      .finally(() => {
+        this.hydratingWorkspaceChatIds.delete(workspaceId);
+      });
   }
 
   @action
