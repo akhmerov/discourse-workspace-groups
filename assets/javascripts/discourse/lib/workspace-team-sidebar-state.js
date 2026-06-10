@@ -35,6 +35,55 @@ export function workspaceArchived(category) {
   return category?.workspace_archived === true;
 }
 
+function positiveCount(value) {
+  return Number(value || 0) > 0;
+}
+
+export function chatChannelHasUnread(channel) {
+  if (!channel) {
+    return false;
+  }
+
+  if (channel.hasUnread || channel.has_unread) {
+    return true;
+  }
+
+  const tracking = channel.tracking ?? {};
+  if (
+    positiveCount(tracking.unreadCount ?? tracking.unread_count) ||
+    positiveCount(tracking.mentionCount ?? tracking.mention_count) ||
+    positiveCount(
+      tracking.watchedThreadsUnreadCount ??
+        tracking.watched_threads_unread_count
+    ) ||
+    positiveCount(
+      channel.unreadThreadsCountSinceLastViewed ??
+        channel.unread_threads_count_since_last_viewed
+    )
+  ) {
+    return true;
+  }
+
+  const lastMessageId = Number(
+    channel.lastMessage?.id ?? channel.last_message?.id
+  );
+  if (!lastMessageId) {
+    return false;
+  }
+
+  const lastReadMessageId = Number(
+    channel.currentUserMembership?.lastReadMessageId ??
+      channel.currentUserMembership?.last_read_message_id ??
+      channel.current_user_membership?.last_read_message_id
+  );
+
+  if (!lastReadMessageId) {
+    return true;
+  }
+
+  return lastMessageId > lastReadMessageId;
+}
+
 function visibleChildren(category, siteSettings, site) {
   if (!category || !site?.categoriesList?.length) {
     return [];

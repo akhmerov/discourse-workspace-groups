@@ -24,6 +24,7 @@ import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import {
   currentScopedCategory,
   currentScopedMode,
+  chatChannelHasUnread,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
   sidebarChannelCategories,
@@ -175,13 +176,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           ? `/chat/c/${pairedChannel.routeModels.join("/")}`
           : null,
         chatTitle: `Open ${category.displayName} chat`,
-        chatUnread: chatAvailable && !chatMuted && !!(
-          pairedChannel &&
-          (pairedChannel.tracking.unreadCount > 0 ||
-            pairedChannel.unreadThreadsCountSinceLastViewed > 0 ||
-            pairedChannel.tracking.mentionCount > 0 ||
-            pairedChannel.tracking.watchedThreadsUnreadCount > 0)
-        ),
+        chatUnread:
+          chatAvailable && !chatMuted && chatChannelHasUnread(pairedChannel),
         chatMuted,
         categoryAvailable,
         chatAvailable,

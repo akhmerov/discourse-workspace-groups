@@ -1,5 +1,6 @@
 import { module, test } from "qunit";
 import {
+  chatChannelHasUnread,
   currentScopedMode,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
@@ -402,6 +403,58 @@ module(
           chatableId: 41,
           currentUserMembership: { following: true },
         }
+      );
+    });
+
+    test("detects chat unread state from tracking counters", function (assert) {
+      assert.true(
+        chatChannelHasUnread({
+          tracking: {
+            unreadCount: 1,
+            mentionCount: 0,
+            watchedThreadsUnreadCount: 0,
+          },
+        })
+      );
+
+      assert.true(
+        chatChannelHasUnread({
+          unreadThreadsCountSinceLastViewed: 1,
+          tracking: {
+            unreadCount: 0,
+            mentionCount: 0,
+            watchedThreadsUnreadCount: 0,
+          },
+        })
+      );
+    });
+
+    test("detects chat unread state from hydrated workspace channel messages", function (assert) {
+      assert.true(
+        chatChannelHasUnread({
+          last_message: { id: 2159639 },
+          current_user_membership: {
+            last_read_message_id: null,
+          },
+        })
+      );
+
+      assert.true(
+        chatChannelHasUnread({
+          last_message: { id: 2159639 },
+          current_user_membership: {
+            last_read_message_id: 2159638,
+          },
+        })
+      );
+
+      assert.false(
+        chatChannelHasUnread({
+          last_message: { id: 2159639 },
+          current_user_membership: {
+            last_read_message_id: 2159639,
+          },
+        })
       );
     });
 
