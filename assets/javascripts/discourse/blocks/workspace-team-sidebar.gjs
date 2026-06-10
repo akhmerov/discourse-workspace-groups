@@ -24,6 +24,7 @@ import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import {
   currentScopedCategory,
   currentScopedMode,
+  chatChannelHasUnreadState,
   chatChannelUnreadKind,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
@@ -60,6 +61,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     super(...arguments);
 
     this.linkCache = new Map();
+    this.workspaceChatChannelsByCategoryId = new Map();
     this.hydratedWorkspaceChatIds = new Set();
     this.hydratingWorkspaceChatIds = new Set();
     this.failedWorkspaceChatHydrationIds = new Set();
@@ -162,13 +164,37 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         category,
         this.chatChannelsManager
       );
+      const workspaceChatChannel = this.workspaceChatChannelsByCategoryId.get(
+        category.id
+      );
       const categoryAvailable = workspaceCategoryModeEnabled(category);
-      const chatAvailable = workspaceChatModeEnabled(category) && !!pairedChannel;
-      const chatMuted = !!pairedChannel?.currentUserMembership?.muted;
+      const chatAvailable =
+        workspaceChatModeEnabled(category) &&
+        !!(pairedChannel || workspaceChatChannel);
+      const workspaceChatMembership =
+        workspaceChatChannel?.currentUserMembership ??
+        workspaceChatChannel?.current_user_membership;
+      const chatMuted = !!(
+        pairedChannel?.currentUserMembership?.muted ??
+        workspaceChatMembership?.muted
+      );
+      const pairedChannelUnreadKind = chatChannelUnreadKind(
+        pairedChannel,
+        this.currentUser
+      );
       const chatUnreadKind =
         chatAvailable && !chatMuted
-          ? chatChannelUnreadKind(pairedChannel, this.currentUser)
+          ? pairedChannelUnreadKind ??
+            (chatChannelHasUnreadState(pairedChannel)
+              ? null
+              : chatChannelUnreadKind(workspaceChatChannel, this.currentUser))
           : null;
+      const chatPath =
+        pairedChannel?.routeModels?.length > 0
+          ? `/chat/c/${pairedChannel.routeModels.join("/")}`
+          : workspaceChatChannel?.slug && workspaceChatChannel?.id
+            ? `/chat/c/${workspaceChatChannel.slug}/${workspaceChatChannel.id}`
+            : null;
 
       return {
         category,
@@ -176,9 +202,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         categoryUnread:
           categoryAvailable && !chatMuted && !!categoryLink.activeCountable,
         categoryTitle: `Open ${category.displayName} topics`,
-        chatPath: pairedChannel
-          ? `/chat/c/${pairedChannel.routeModels.join("/")}`
-          : null,
+        chatPath,
         chatTitle: `Open ${category.displayName} chat`,
         chatUnread: !!chatUnreadKind,
         chatUnreadKind,
@@ -258,6 +282,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   storeWorkspaceChatChannels(channels) {
     channels.forEach((channel) => {
       if (channel?.chat_channel) {
+        this.workspaceChatChannelsByCategoryId.set(
+          Number(channel.id),
+          channel.chat_channel
+        );
         this.chatChannelsManager.store(channel.chat_channel, { replace: true });
       }
     });

@@ -1,6 +1,7 @@
 import { module, test } from "qunit";
 import {
   chatChannelHasUnread,
+  chatChannelHasUnreadState,
   chatChannelUnreadKind,
   currentScopedMode,
   memberWorkspaceCategories,
@@ -451,6 +452,12 @@ module(
         })
       );
 
+      assert.false(
+        chatChannelHasUnread({
+          last_message: { id: 2159639 },
+        })
+      );
+
       assert.true(
         chatChannelHasUnread({
           last_message: { id: 2159639 },
@@ -474,6 +481,7 @@ module(
           {
             last_message: {
               id: 2159640,
+              created_at: "2026-06-10T22:01:04Z",
               message: "@anton-akhmerov please check this",
             },
             current_user_membership: {
@@ -484,6 +492,31 @@ module(
         ),
         "mention"
       );
+
+      assert.strictEqual(
+        chatChannelUnreadKind({
+          last_message: {
+            id: 2159640,
+            created_at: "2026-06-10T22:01:04Z",
+          },
+          current_user_membership: {
+            last_read_message_id: null,
+            last_viewed_at: "2026-06-10T22:02:00Z",
+          },
+        }),
+        null
+      );
+
+      assert.true(
+        chatChannelHasUnreadState({
+          last_message: { id: 2159640 },
+          current_user_membership: {
+            last_read_message_id: null,
+          },
+        })
+      );
+
+      assert.false(chatChannelHasUnreadState({ tracking: {} }));
     });
 
     test("uses the remembered workspace when there is no active scoped category", function (assert) {

@@ -39,6 +39,14 @@ function positiveCount(value) {
   return Number(value || 0) > 0;
 }
 
+function present(value) {
+  return value !== null && value !== undefined;
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object ?? {}, key);
+}
+
 function lastUnreadMessageMentionsUser(channel, currentUser) {
   const username = currentUser?.username;
   if (!username) {
@@ -93,13 +101,35 @@ export function chatChannelUnreadKind(channel, currentUser = null) {
     return null;
   }
 
+  const currentUserMembership =
+    channel.currentUserMembership ?? channel.current_user_membership ?? {};
+  const hasLastReadMessageId =
+    hasOwn(currentUserMembership, "lastReadMessageId") ||
+    hasOwn(currentUserMembership, "last_read_message_id");
+  const lastViewedAt =
+    currentUserMembership.lastViewedAt ?? currentUserMembership.last_viewed_at;
+
+  if (!hasLastReadMessageId && !present(lastViewedAt)) {
+    return null;
+  }
+
   const lastReadMessageId = Number(
-    channel.currentUserMembership?.lastReadMessageId ??
-      channel.currentUserMembership?.last_read_message_id ??
-      channel.current_user_membership?.last_read_message_id
+    currentUserMembership.lastReadMessageId ??
+      currentUserMembership.last_read_message_id
   );
 
   if (!lastReadMessageId) {
+    const lastMessageCreatedAt =
+      channel.lastMessage?.createdAt ?? channel.last_message?.created_at;
+
+    if (
+      lastMessageCreatedAt &&
+      lastViewedAt &&
+      Date.parse(lastViewedAt) >= Date.parse(lastMessageCreatedAt)
+    ) {
+      return null;
+    }
+
     return lastUnreadMessageMentionsUser(channel, currentUser)
       ? "mention"
       : "regular";
@@ -116,6 +146,41 @@ export function chatChannelUnreadKind(channel, currentUser = null) {
 
 export function chatChannelHasUnread(channel, currentUser = null) {
   return !!chatChannelUnreadKind(channel, currentUser);
+}
+
+export function chatChannelHasUnreadState(channel) {
+  if (!channel) {
+    return false;
+  }
+
+  const tracking = channel.tracking ?? {};
+  if (
+    present(channel.hasUnread) ||
+    present(channel.has_unread) ||
+    present(tracking.mentionCount) ||
+    present(tracking.mention_count) ||
+    present(tracking.unreadCount) ||
+    present(tracking.unread_count) ||
+    present(tracking.watchedThreadsUnreadCount) ||
+    present(tracking.watched_threads_unread_count) ||
+    present(channel.unreadThreadsCountSinceLastViewed) ||
+    present(channel.unread_threads_count_since_last_viewed)
+  ) {
+    return true;
+  }
+
+  const lastMessageId = Number(
+    channel.lastMessage?.id ?? channel.last_message?.id
+  );
+  const currentUserMembership =
+    channel.currentUserMembership ?? channel.current_user_membership ?? {};
+  const hasLastReadMessageId =
+    hasOwn(currentUserMembership, "lastReadMessageId") ||
+    hasOwn(currentUserMembership, "last_read_message_id");
+  const lastViewedAt =
+    currentUserMembership.lastViewedAt ?? currentUserMembership.last_viewed_at;
+
+  return !!lastMessageId && (hasLastReadMessageId || present(lastViewedAt));
 }
 
 function visibleChildren(category, siteSettings, site) {

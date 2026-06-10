@@ -85,8 +85,8 @@
   top: -0.1rem;
 }
 
-.workspace-team-sidebar__unread-indicator--mention {
-  background: var(--danger);
+.chat-channel-unread-indicator.workspace-team-sidebar__unread-indicator--mention {
+  background-color: var(--danger);
 }
 
 .workspace-team-sidebar
