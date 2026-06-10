@@ -220,7 +220,6 @@ module(
             @chatPath="/chat/c/chat-first/15"
             @chatTitle="Open Chat First chat"
             @chatUnread={{true}}
-            @chatUnreadKind="regular"
             @categoryAvailable={{false}}
             @chatAvailable={{true}}
           />
@@ -293,7 +292,6 @@ module(
             @chatPath="/chat/c/mixed/15"
             @chatTitle="Open Mixed chat"
             @chatUnread={{true}}
-            @chatUnreadKind="mention"
             @categoryUnread={{true}}
             @categoryAvailable={{true}}
             @chatAvailable={{true}}
@@ -306,15 +304,10 @@ module(
         .dom(
           ".workspace-team-sidebar__main-link-prefix .chat-channel-unread-indicator"
         )
-        .doesNotExist();
+        .exists();
       assert
         .dom(".workspace-team-sidebar__mode-icon .chat-channel-unread-indicator")
         .exists({ count: 2 });
-      assert
-        .dom(
-          ".workspace-team-sidebar__mode-icon .workspace-team-sidebar__unread-indicator--mention"
-        )
-        .exists({ count: 1 });
     });
   }
 );

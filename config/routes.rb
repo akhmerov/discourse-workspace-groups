@@ -4,6 +4,7 @@ DiscourseWorkspaceGroups::Engine.routes.draw do
   get "/workspaces/:id" => "workspaces#show"
   put "/workspaces/:id" => "workspaces#update"
   get "/workspaces/:id/archived-channels" => "workspaces#archived_channels"
+  get "/workspaces/:id/chat-tracking" => "workspaces#chat_tracking"
   put "/workspaces/:id/sidebar-channels" => "workspaces#update_sidebar_channels"
   post "/workspaces/:id/enable" => "workspaces#enable"
   post "/workspaces/:id/channels" => "workspaces#create_channel"

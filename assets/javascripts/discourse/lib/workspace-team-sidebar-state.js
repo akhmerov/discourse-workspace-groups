@@ -39,49 +39,18 @@ function positiveCount(value) {
   return Number(value || 0) > 0;
 }
 
-function present(value) {
-  return value !== null && value !== undefined;
-}
-
-function hasOwn(object, key) {
-  return Object.prototype.hasOwnProperty.call(object ?? {}, key);
-}
-
-function lastUnreadMessageMentionsUser(channel, currentUser) {
-  const username = currentUser?.username;
-  if (!username) {
-    return false;
-  }
-
-  const normalizedUsername = username.toLowerCase();
-  const lastMessage = channel.lastMessage ?? channel.last_message ?? {};
-  const raw = lastMessage.message?.toLowerCase() ?? "";
-  const cooked = lastMessage.cooked?.toLowerCase() ?? "";
-
-  return (
-    raw.includes(`@${normalizedUsername}`) ||
-    cooked.includes(`/u/${normalizedUsername}`) ||
-    cooked.includes(`>@${normalizedUsername}</a>`)
-  );
-}
-
-export function chatChannelUnreadKind(channel, currentUser = null) {
+export function chatChannelHasUnread(channel) {
   if (!channel) {
-    return null;
+    return false;
   }
 
   const tracking = channel.tracking ?? {};
 
-  if (positiveCount(tracking.mentionCount ?? tracking.mention_count)) {
-    return "mention";
-  }
-
-  if (channel.hasUnread || channel.has_unread) {
-    return "regular";
-  }
-
-  if (
+  return (
+    channel.hasUnread === true ||
+    channel.has_unread === true ||
     positiveCount(tracking.unreadCount ?? tracking.unread_count) ||
+    positiveCount(tracking.mentionCount ?? tracking.mention_count) ||
     positiveCount(
       tracking.watchedThreadsUnreadCount ??
         tracking.watched_threads_unread_count
@@ -90,97 +59,7 @@ export function chatChannelUnreadKind(channel, currentUser = null) {
       channel.unreadThreadsCountSinceLastViewed ??
         channel.unread_threads_count_since_last_viewed
     )
-  ) {
-    return "regular";
-  }
-
-  const lastMessageId = Number(
-    channel.lastMessage?.id ?? channel.last_message?.id
   );
-  if (!lastMessageId) {
-    return null;
-  }
-
-  const currentUserMembership =
-    channel.currentUserMembership ?? channel.current_user_membership ?? {};
-  const hasLastReadMessageId =
-    hasOwn(currentUserMembership, "lastReadMessageId") ||
-    hasOwn(currentUserMembership, "last_read_message_id");
-  const lastViewedAt =
-    currentUserMembership.lastViewedAt ?? currentUserMembership.last_viewed_at;
-
-  if (!hasLastReadMessageId && !present(lastViewedAt)) {
-    return null;
-  }
-
-  const lastReadMessageId = Number(
-    currentUserMembership.lastReadMessageId ??
-      currentUserMembership.last_read_message_id
-  );
-
-  if (!lastReadMessageId) {
-    const lastMessageCreatedAt =
-      channel.lastMessage?.createdAt ?? channel.last_message?.created_at;
-
-    if (
-      lastMessageCreatedAt &&
-      lastViewedAt &&
-      Date.parse(lastViewedAt) >= Date.parse(lastMessageCreatedAt)
-    ) {
-      return null;
-    }
-
-    return lastUnreadMessageMentionsUser(channel, currentUser)
-      ? "mention"
-      : "regular";
-  }
-
-  if (lastMessageId <= lastReadMessageId) {
-    return null;
-  }
-
-  return lastUnreadMessageMentionsUser(channel, currentUser)
-    ? "mention"
-    : "regular";
-}
-
-export function chatChannelHasUnread(channel, currentUser = null) {
-  return !!chatChannelUnreadKind(channel, currentUser);
-}
-
-export function chatChannelHasUnreadState(channel) {
-  if (!channel) {
-    return false;
-  }
-
-  const tracking = channel.tracking ?? {};
-  if (
-    present(channel.hasUnread) ||
-    present(channel.has_unread) ||
-    present(tracking.mentionCount) ||
-    present(tracking.mention_count) ||
-    present(tracking.unreadCount) ||
-    present(tracking.unread_count) ||
-    present(tracking.watchedThreadsUnreadCount) ||
-    present(tracking.watched_threads_unread_count) ||
-    present(channel.unreadThreadsCountSinceLastViewed) ||
-    present(channel.unread_threads_count_since_last_viewed)
-  ) {
-    return true;
-  }
-
-  const lastMessageId = Number(
-    channel.lastMessage?.id ?? channel.last_message?.id
-  );
-  const currentUserMembership =
-    channel.currentUserMembership ?? channel.current_user_membership ?? {};
-  const hasLastReadMessageId =
-    hasOwn(currentUserMembership, "lastReadMessageId") ||
-    hasOwn(currentUserMembership, "last_read_message_id");
-  const lastViewedAt =
-    currentUserMembership.lastViewedAt ?? currentUserMembership.last_viewed_at;
-
-  return !!lastMessageId && (hasLastReadMessageId || present(lastViewedAt));
 }
 
 function visibleChildren(category, siteSettings, site) {

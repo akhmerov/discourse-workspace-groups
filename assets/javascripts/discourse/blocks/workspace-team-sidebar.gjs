@@ -24,8 +24,7 @@ import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import {
   currentScopedCategory,
   currentScopedMode,
-  chatChannelHasUnreadState,
-  chatChannelUnreadKind,
+  chatChannelHasUnread,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
   sidebarChannelCategories,
@@ -62,9 +61,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     this.linkCache = new Map();
     this.workspaceChatChannelsByCategoryId = new Map();
+    this.workspaceChatIdsByWorkspaceId = new Map();
     this.hydratedWorkspaceChatIds = new Set();
     this.hydratingWorkspaceChatIds = new Set();
     this.failedWorkspaceChatHydrationIds = new Set();
+    this.hydratedWorkspaceChatTrackingIds = new Set();
+    this.hydratingWorkspaceChatTrackingIds = new Set();
+    this.failedWorkspaceChatTrackingIds = new Set();
     this.topicTrackingCallbackId = this.topicTrackingState.onStateChange(() => {
       this.topicCountsVersion++;
       this.rows.forEach((row) => row.categoryLink.refreshCounts());
@@ -178,17 +181,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         pairedChannel?.currentUserMembership?.muted ??
         workspaceChatMembership?.muted
       );
-      const pairedChannelUnreadKind = chatChannelUnreadKind(
-        pairedChannel,
-        this.currentUser
-      );
-      const chatUnreadKind =
-        chatAvailable && !chatMuted
-          ? pairedChannelUnreadKind ??
-            (chatChannelHasUnreadState(pairedChannel)
-              ? null
-              : chatChannelUnreadKind(workspaceChatChannel, this.currentUser))
-          : null;
+      const chatUnread =
+        chatAvailable && !chatMuted && chatChannelHasUnread(pairedChannel);
       const chatPath =
         pairedChannel?.routeModels?.length > 0
           ? `/chat/c/${pairedChannel.routeModels.join("/")}`
@@ -204,8 +198,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         categoryTitle: `Open ${category.displayName} topics`,
         chatPath,
         chatTitle: `Open ${category.displayName} chat`,
-        chatUnread: !!chatUnreadKind,
-        chatUnreadKind,
+        chatUnread,
         chatMuted,
         categoryAvailable,
         chatAvailable,
@@ -279,16 +272,51 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.currentUser.workspaceSidebarOrders = currentOrders;
   }
 
-  storeWorkspaceChatChannels(channels) {
+  chatChannelById(channelId) {
+    return this.chatChannelsManager.channels.find(
+      (channel) => Number(channel.id) === Number(channelId)
+    );
+  }
+
+  applyTrackingState(channel, state) {
+    if (!channel?.tracking) {
+      return;
+    }
+
+    channel.tracking.unreadCount = state?.unread_count ?? 0;
+    channel.tracking.mentionCount = state?.mention_count ?? 0;
+    channel.tracking.watchedThreadsUnreadCount =
+      state?.watched_threads_unread_count ?? 0;
+  }
+
+  applyWorkspaceChatTracking(workspaceId, channelTracking = {}) {
+    const chatChannelIds = this.workspaceChatIdsByWorkspaceId.get(workspaceId);
+
+    chatChannelIds?.forEach((chatChannelId) => {
+      this.applyTrackingState(
+        this.chatChannelById(chatChannelId),
+        channelTracking[String(chatChannelId)] ?? channelTracking[chatChannelId]
+      );
+    });
+
+    this.chatHydrationVersion++;
+  }
+
+  storeWorkspaceChatChannels(workspaceId, channels) {
+    const chatChannelIds = new Set();
+
     channels.forEach((channel) => {
       if (channel?.chat_channel) {
         this.workspaceChatChannelsByCategoryId.set(
           Number(channel.id),
           channel.chat_channel
         );
+        chatChannelIds.add(Number(channel.chat_channel.id));
         this.chatChannelsManager.store(channel.chat_channel, { replace: true });
       }
     });
+
+    this.workspaceChatIdsByWorkspaceId.set(workspaceId, chatChannelIds);
   }
 
   ensureWorkspaceChatChannels() {
@@ -307,15 +335,45 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     ajax(`/workspace-groups/workspaces/${workspaceId}`)
       .then((payload) => {
-        this.storeWorkspaceChatChannels(payload.channels ?? []);
+        this.storeWorkspaceChatChannels(workspaceId, payload.channels ?? []);
         this.hydratedWorkspaceChatIds.add(workspaceId);
         this.chatHydrationVersion++;
+        this.ensureWorkspaceChatTracking(workspaceId);
       })
       .catch(() => {
         this.failedWorkspaceChatHydrationIds.add(workspaceId);
       })
       .finally(() => {
         this.hydratingWorkspaceChatIds.delete(workspaceId);
+      });
+  }
+
+  ensureWorkspaceChatTracking(workspaceId = this.workspaceCategory?.id) {
+    if (
+      !workspaceId ||
+      !this.hydratedWorkspaceChatIds.has(workspaceId) ||
+      this.hydratedWorkspaceChatTrackingIds.has(workspaceId) ||
+      this.hydratingWorkspaceChatTrackingIds.has(workspaceId) ||
+      this.failedWorkspaceChatTrackingIds.has(workspaceId)
+    ) {
+      return;
+    }
+
+    this.hydratingWorkspaceChatTrackingIds.add(workspaceId);
+
+    ajax(`/workspace-groups/workspaces/${workspaceId}/chat-tracking`)
+      .then((payload) => {
+        this.applyWorkspaceChatTracking(
+          workspaceId,
+          payload.channel_tracking ?? {}
+        );
+        this.hydratedWorkspaceChatTrackingIds.add(workspaceId);
+      })
+      .catch(() => {
+        this.failedWorkspaceChatTrackingIds.add(workspaceId);
+      })
+      .finally(() => {
+        this.hydratingWorkspaceChatTrackingIds.delete(workspaceId);
       });
   }
 
@@ -504,7 +562,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           @chatPath={{row.chatPath}}
           @chatTitle={{row.chatTitle}}
           @chatUnread={{row.chatUnread}}
-          @chatUnreadKind={{row.chatUnreadKind}}
           @chatMuted={{row.chatMuted}}
           @categoryAvailable={{row.categoryAvailable}}
           @chatAvailable={{row.chatAvailable}}

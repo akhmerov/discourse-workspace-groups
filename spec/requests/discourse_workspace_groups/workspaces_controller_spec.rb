@@ -282,6 +282,48 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "#chat_tracking" do
+    it "returns native chat tracking for visible workspace chat channels" do
+      chat_channel = category_chat_channel(public_channel)
+      category_only_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Topics Only #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+          channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CATEGORY_ONLY,
+        ).call
+      report = ::Chat::TrackingStateReport.new
+      report.channel_tracking = {
+        chat_channel.id => {
+          unread_count: 2,
+          mention_count: 1,
+          watched_threads_unread_count: 0,
+        },
+      }
+
+      expect(::Chat::TrackingStateReportQuery).to receive(:call).with(
+        guardian: an_instance_of(Guardian),
+        channel_ids: [chat_channel.id],
+        include_missing_memberships: false,
+        include_threads: false,
+        include_read: false,
+      ).and_return(report)
+
+      sign_in(admin)
+      get "/workspace-groups/workspaces/#{workspace.id}/chat-tracking.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel_tracking", chat_channel.id.to_s)).to eq(
+        "unread_count" => 2,
+        "mention_count" => 1,
+        "watched_threads_unread_count" => 0,
+      )
+      expect(category_chat_channel(category_only_channel)).to be_nil
+    end
+  end
+
   describe "#create_channel" do
     it "returns the created channel payload with paired chat data" do
       sign_in(admin)

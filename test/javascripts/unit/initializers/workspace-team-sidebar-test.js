@@ -1,8 +1,6 @@
 import { module, test } from "qunit";
 import {
   chatChannelHasUnread,
-  chatChannelHasUnreadState,
-  chatChannelUnreadKind,
   currentScopedMode,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
@@ -421,6 +419,26 @@ module(
 
       assert.true(
         chatChannelHasUnread({
+          tracking: {
+            unreadCount: 0,
+            mentionCount: 1,
+            watchedThreadsUnreadCount: 0,
+          },
+        })
+      );
+
+      assert.true(
+        chatChannelHasUnread({
+          tracking: {
+            unreadCount: 0,
+            mentionCount: 0,
+            watchedThreadsUnreadCount: 1,
+          },
+        })
+      );
+
+      assert.true(
+        chatChannelHasUnread({
           unreadThreadsCountSinceLastViewed: 1,
           tracking: {
             unreadCount: 0,
@@ -430,93 +448,26 @@ module(
         })
       );
 
-      assert.strictEqual(
-        chatChannelUnreadKind({
+      assert.false(
+        chatChannelHasUnread({
           tracking: {
             unreadCount: 0,
-            mentionCount: 1,
+            mentionCount: 0,
             watchedThreadsUnreadCount: 0,
           },
-        }),
-        "mention"
+        })
       );
     });
 
-    test("detects chat unread state from hydrated workspace channel messages", function (assert) {
-      assert.true(
-        chatChannelHasUnread({
-          last_message: { id: 2159639 },
-          current_user_membership: {
-            last_read_message_id: null,
-          },
-        })
-      );
-
-      assert.false(
-        chatChannelHasUnread({
-          last_message: { id: 2159639 },
-        })
-      );
-
-      assert.true(
-        chatChannelHasUnread({
-          last_message: { id: 2159639 },
-          current_user_membership: {
-            last_read_message_id: 2159638,
-          },
-        })
-      );
-
+    test("does not infer chat unread state from hydrated message data", function (assert) {
       assert.false(
         chatChannelHasUnread({
           last_message: { id: 2159639 },
           current_user_membership: {
-            last_read_message_id: 2159639,
-          },
-        })
-      );
-
-      assert.strictEqual(
-        chatChannelUnreadKind(
-          {
-            last_message: {
-              id: 2159640,
-              created_at: "2026-06-10T22:01:04Z",
-              message: "@anton-akhmerov please check this",
-            },
-            current_user_membership: {
-              last_read_message_id: 2159639,
-            },
-          },
-          { username: "anton-akhmerov" }
-        ),
-        "mention"
-      );
-
-      assert.strictEqual(
-        chatChannelUnreadKind({
-          last_message: {
-            id: 2159640,
-            created_at: "2026-06-10T22:01:04Z",
-          },
-          current_user_membership: {
-            last_read_message_id: null,
-            last_viewed_at: "2026-06-10T22:02:00Z",
-          },
-        }),
-        null
-      );
-
-      assert.true(
-        chatChannelHasUnreadState({
-          last_message: { id: 2159640 },
-          current_user_membership: {
             last_read_message_id: null,
           },
         })
       );
-
-      assert.false(chatChannelHasUnreadState({ tracking: {} }));
     });
 
     test("uses the remembered workspace when there is no active scoped category", function (assert) {

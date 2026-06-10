@@ -53,6 +53,35 @@ module ::DiscourseWorkspaceGroups
              }
     end
 
+    def chat_tracking
+      guardian.ensure_can_see!(@workspace)
+      raise Discourse::NotFound if !@workspace.workspace_root?
+
+      active_channels = workspace_channels(archived: false)
+      context = build_channels_context(active_channels)
+      channel_ids =
+        visible_channels(active_channels, **context).filter_map do |category|
+          next if !category.workspace_chat_enabled?
+
+          category.category_channel&.id
+        end
+
+      tracking =
+        if channel_ids.present?
+          ::Chat::TrackingStateReportQuery.call(
+            guardian: guardian,
+            channel_ids: channel_ids,
+            include_missing_memberships: false,
+            include_threads: false,
+            include_read: false,
+          ).channel_tracking
+        else
+          {}
+        end
+
+      render json: { channel_tracking: tracking }
+    end
+
     def enable
       guardian.ensure_can_see!(@workspace)
       raise Discourse::InvalidAccess if !guardian.can_enable_workspace_group?(@workspace)
