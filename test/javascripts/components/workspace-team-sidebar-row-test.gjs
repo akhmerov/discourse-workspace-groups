@@ -219,6 +219,7 @@ module(
             @categoryTitle="Open Chat First topics"
             @chatPath="/chat/c/chat-first/15"
             @chatTitle="Open Chat First chat"
+            @chatUnread={{true}}
             @categoryAvailable={{false}}
             @chatAvailable={{true}}
           />
@@ -229,6 +230,84 @@ module(
       assert
         .dom(".workspace-team-sidebar__main-link")
         .hasClass("workspace-team-sidebar__main-link--compact");
+      assert
+        .dom(
+          ".workspace-team-sidebar__main-link-prefix .chat-channel-unread-indicator"
+        )
+        .exists();
+    });
+
+    test("shows unread state on the main icon for category-only rows", async function (assert) {
+      this.categoryLink = {
+        name: "forum-first",
+        route: "discovery.category",
+        model: "quantum-tinkerer/forum-first/29",
+        currentWhen: "discovery.category",
+        title: "Forum First",
+        text: "Forum First",
+        prefixType: "square",
+        prefixValue: ["2563EB"],
+        prefixColor: "2563EB",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Forum First topics"
+            @chatPath={{null}}
+            @chatTitle="Open Forum First chat"
+            @categoryUnread={{true}}
+            @categoryAvailable={{true}}
+            @chatAvailable={{false}}
+          />
+        </template>
+      );
+
+      assert.dom(".workspace-team-sidebar__modes").doesNotExist();
+      assert
+        .dom(
+          ".workspace-team-sidebar__main-link-prefix .chat-channel-unread-indicator"
+        )
+        .exists();
+    });
+
+    test("keeps unread state on mode icons when both surfaces are available", async function (assert) {
+      this.categoryLink = {
+        name: "mixed",
+        route: "discovery.category",
+        model: "quantum-tinkerer/mixed/29",
+        currentWhen: "discovery.category",
+        title: "Mixed",
+        text: "Mixed",
+        prefixType: "icon",
+        prefixValue: "folder",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Mixed topics"
+            @chatPath="/chat/c/mixed/15"
+            @chatTitle="Open Mixed chat"
+            @chatUnread={{true}}
+            @categoryUnread={{true}}
+            @categoryAvailable={{true}}
+            @chatAvailable={{true}}
+          />
+        </template>
+      );
+
+      assert.dom(".workspace-team-sidebar__modes").exists();
+      assert
+        .dom(
+          ".workspace-team-sidebar__main-link-prefix .chat-channel-unread-indicator"
+        )
+        .doesNotExist();
+      assert
+        .dom(".workspace-team-sidebar__mode-icon .chat-channel-unread-indicator")
+        .exists({ count: 2 });
     });
   }
 );

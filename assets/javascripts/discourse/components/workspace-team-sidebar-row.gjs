@@ -102,6 +102,16 @@ export default class WorkspaceTeamSidebarRow extends Component {
     return this.args.categoryActive;
   }
 
+  get mainLinkUnread() {
+    if (this.showModes) {
+      return false;
+    }
+
+    return this.mainLinkOpensChat
+      ? this.args.chatUnread
+      : this.args.categoryUnread;
+  }
+
   get rowClass() {
     return concatClass(
       "workspace-team-sidebar__row",
@@ -238,12 +248,18 @@ export default class WorkspaceTeamSidebarRow extends Component {
             class={{this.mainLinkClass}}
             title={{if this.mainLinkOpensChat @chatTitle @categoryLink.title}}
           >
-            <SectionLinkPrefix
-              @prefixType={{@categoryLink.prefixType}}
-              @prefixValue={{@categoryLink.prefixValue}}
-              @prefixColor={{this.prefixColor}}
-              @prefixBadge={{this.prefixBadge}}
-            />
+            <span class="workspace-team-sidebar__main-link-prefix">
+              <SectionLinkPrefix
+                @prefixType={{@categoryLink.prefixType}}
+                @prefixValue={{@categoryLink.prefixValue}}
+                @prefixColor={{this.prefixColor}}
+                @prefixBadge={{this.prefixBadge}}
+              />
+
+              {{#if this.mainLinkUnread}}
+                <span class="chat-channel-unread-indicator"></span>
+              {{/if}}
+            </span>
 
             <span class="sidebar-section-link-content-text">
               {{@categoryLink.text}}
@@ -263,12 +279,18 @@ export default class WorkspaceTeamSidebarRow extends Component {
             class={{this.mainLinkClass}}
             {{on "click" this.openChat}}
           >
-            <SectionLinkPrefix
-              @prefixType={{@categoryLink.prefixType}}
-              @prefixValue={{@categoryLink.prefixValue}}
-              @prefixColor={{this.prefixColor}}
-              @prefixBadge={{this.prefixBadge}}
-            />
+            <span class="workspace-team-sidebar__main-link-prefix">
+              <SectionLinkPrefix
+                @prefixType={{@categoryLink.prefixType}}
+                @prefixValue={{@categoryLink.prefixValue}}
+                @prefixColor={{this.prefixColor}}
+                @prefixBadge={{this.prefixBadge}}
+              />
+
+              {{#if this.mainLinkUnread}}
+                <span class="chat-channel-unread-indicator"></span>
+              {{/if}}
+            </span>
 
             <span class="sidebar-section-link-content-text">
               {{@categoryLink.text}}
@@ -289,12 +311,18 @@ export default class WorkspaceTeamSidebarRow extends Component {
             @title={{@categoryLink.title}}
             class={{this.mainLinkClass}}
           >
-            <SectionLinkPrefix
-              @prefixType={{@categoryLink.prefixType}}
-              @prefixValue={{@categoryLink.prefixValue}}
-              @prefixColor={{this.prefixColor}}
-              @prefixBadge={{this.prefixBadge}}
-            />
+            <span class="workspace-team-sidebar__main-link-prefix">
+              <SectionLinkPrefix
+                @prefixType={{@categoryLink.prefixType}}
+                @prefixValue={{@categoryLink.prefixValue}}
+                @prefixColor={{this.prefixColor}}
+                @prefixBadge={{this.prefixBadge}}
+              />
+
+              {{#if this.mainLinkUnread}}
+                <span class="chat-channel-unread-indicator"></span>
+              {{/if}}
+            </span>
 
             <span class="sidebar-section-link-content-text">
               {{@categoryLink.text}}

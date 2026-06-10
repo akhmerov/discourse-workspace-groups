@@ -73,6 +73,18 @@
   pointer-events: none;
 }
 
+.workspace-team-sidebar__main-link-prefix {
+  display: inline-flex;
+  position: relative;
+}
+
+.workspace-team-sidebar__main-link-prefix .chat-channel-unread-indicator {
+  pointer-events: none;
+  position: absolute;
+  right: -0.12rem;
+  top: -0.1rem;
+}
+
 .workspace-team-sidebar
   .sidebar-section-link-wrapper
   .workspace-team-sidebar__main-link--compact.sidebar-section-link {
