@@ -131,7 +131,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get inWorkspaceContext() {
-    return !!currentWorkspaceCategory(this.services);
+    if (currentWorkspaceCategory(this.services)) {
+      return true;
+    }
+
+    const overviewPath = workspaceOverviewPath(this.workspaceCategory);
+    return !!(
+      overviewPath && this.router.currentURL?.startsWith(overviewPath)
+    );
   }
 
   get activeCategoryId() {
