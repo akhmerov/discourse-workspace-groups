@@ -90,6 +90,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
       !this.showModes &&
         !this.args.editable &&
         "workspace-team-sidebar__main-link--compact",
+      this.mainLinkUnread && "workspace-team-sidebar__main-link--unread",
       this.mainLinkActive && "active"
     );
   }

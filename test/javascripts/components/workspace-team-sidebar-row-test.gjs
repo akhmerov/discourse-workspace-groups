@@ -235,6 +235,9 @@ module(
           ".workspace-team-sidebar__main-link-prefix .chat-channel-unread-indicator"
         )
         .exists();
+      assert
+        .dom(".workspace-team-sidebar__main-link")
+        .hasClass("workspace-team-sidebar__main-link--unread");
     });
 
     test("shows unread state on the main icon for category-only rows", async function (assert) {
@@ -270,6 +273,9 @@ module(
           ".workspace-team-sidebar__main-link-prefix .chat-channel-unread-indicator"
         )
         .exists();
+      assert
+        .dom(".workspace-team-sidebar__main-link")
+        .hasClass("workspace-team-sidebar__main-link--unread");
     });
 
     test("keeps unread state on mode icons when both surfaces are available", async function (assert) {
@@ -308,6 +314,9 @@ module(
       assert
         .dom(".workspace-team-sidebar__mode-icon .chat-channel-unread-indicator")
         .exists({ count: 2 });
+      assert
+        .dom(".workspace-team-sidebar__main-link")
+        .hasClass("workspace-team-sidebar__main-link--unread");
     });
   }
 );
