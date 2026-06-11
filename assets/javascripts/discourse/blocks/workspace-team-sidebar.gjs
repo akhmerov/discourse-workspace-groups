@@ -68,6 +68,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked workspaceNavigationHintSeen = false;
   @tracked workspaceSidebarFocusId = null;
 
+  pendingSidebarSectionsSave = null;
+  sidebarSectionsSavePromise = null;
+
   sectionName = "workspace-team";
   sidebarSectionContentId = getSidebarSectionContentId(this.sectionName);
   collapsedSidebarSectionKey = getCollapsedSidebarSectionKey(this.sectionName);
@@ -788,42 +791,96 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.orderedChannelIds = this.channelIdsForLayout(normalizedLayout);
   }
 
-  async persistSidebarSections(nextLayout, rollbackLayout = this.sidebarSectionsOverride) {
-    if (!this.workspaceCategory || this.savingSidebarOrder) {
+  async persistSidebarSections(
+    nextLayout,
+    rollbackLayout = this.sidebarSectionsOverride
+  ) {
+    if (!this.workspaceCategory) {
       return false;
     }
 
     const normalizedLayout = this.normalizeSidebarLayout(nextLayout);
+    const normalizedRollbackLayout = rollbackLayout
+      ? this.normalizeSidebarLayout(rollbackLayout)
+      : null;
     this.applySidebarSectionsLocally(normalizedLayout);
+    this.pendingSidebarSectionsSave = {
+      workspaceId: this.workspaceCategory.id,
+      layout: normalizedLayout,
+    };
+
+    if (!this.sidebarSectionsSavePromise) {
+      this.sidebarSectionsSavePromise = this.flushSidebarSectionsSaveQueue(
+        normalizedRollbackLayout
+      );
+    }
+
+    return this.sidebarSectionsSavePromise;
+  }
+
+  async flushSidebarSectionsSaveQueue(rollbackLayout) {
     this.savingSidebarOrder = true;
+    let activeSave = null;
 
     try {
-      const result = await ajax(
-        `/workspace-groups/workspaces/${this.workspaceCategory.id}/sidebar-channels`,
-        {
-          type: "PUT",
-          contentType: "application/json",
-          data: JSON.stringify({
-            sections: normalizedLayout.sections,
-            other_channel_ids: normalizedLayout.other_channel_ids,
-            other_collapsed: normalizedLayout.other_collapsed,
-          }),
+      while (this.pendingSidebarSectionsSave) {
+        activeSave = this.pendingSidebarSectionsSave;
+        this.pendingSidebarSectionsSave = null;
+
+        const result = await ajax(
+          `/workspace-groups/workspaces/${activeSave.workspaceId}/sidebar-channels`,
+          {
+            type: "PUT",
+            contentType: "application/json",
+            data: JSON.stringify({
+              sections: activeSave.layout.sections,
+              other_channel_ids: activeSave.layout.other_channel_ids,
+              other_collapsed: activeSave.layout.other_collapsed,
+            }),
+          }
+        );
+        const savedLayout = this.normalizeSidebarLayout(result.sections);
+        this.updateCurrentUserSidebarSections(
+          activeSave.workspaceId,
+          savedLayout
+        );
+
+        if (
+          !this.pendingSidebarSectionsSave &&
+          Number(this.workspaceCategory?.id) === Number(activeSave.workspaceId)
+        ) {
+          this.sidebarSectionsOverride = savedLayout;
+          this.orderedChannelIds = this.channelIdsForLayout(savedLayout);
         }
-      );
-      const savedLayout = this.normalizeSidebarLayout(result.sections);
-      this.sidebarSectionsOverride = savedLayout;
-      this.orderedChannelIds = this.channelIdsForLayout(savedLayout);
-      this.updateCurrentUserSidebarSections(this.workspaceCategory.id, savedLayout);
+      }
+
       return true;
     } catch (error) {
-      this.sidebarSectionsOverride = rollbackLayout;
-      this.orderedChannelIds = rollbackLayout
-        ? this.channelIdsForLayout(rollbackLayout)
-        : null;
+      this.pendingSidebarSectionsSave = null;
+
+      const storedLayout = workspaceSidebarLayout(
+        this.currentUser,
+        activeSave?.workspaceId
+      );
+      const fallbackLayout = storedLayout
+        ? this.normalizeSidebarLayout(storedLayout)
+        : rollbackLayout;
+
+      if (
+        !activeSave ||
+        Number(this.workspaceCategory?.id) === Number(activeSave.workspaceId)
+      ) {
+        this.sidebarSectionsOverride = fallbackLayout;
+        this.orderedChannelIds = fallbackLayout
+          ? this.channelIdsForLayout(fallbackLayout)
+          : null;
+      }
+
       popupAjaxError(error);
       return false;
     } finally {
       this.savingSidebarOrder = false;
+      this.sidebarSectionsSavePromise = null;
     }
   }
 
@@ -1017,11 +1074,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.showUnreadOnly = false;
 
     if (this.editingSidebar) {
+      const rollbackLayout = this.currentSidebarLayout;
       this.applyEditingSidebarSectionTitle();
 
       const saved = await this.persistSidebarSections(
         this.sidebarSectionsOverride,
-        this.currentSidebarLayout
+        rollbackLayout
       );
 
       if (!saved) {
@@ -1056,7 +1114,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @action
   startSidebarPointerDrag(row, event) {
-    if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
+    if (!this.editingSidebar || !this.workspaceCategory) {
       return;
     }
 
@@ -1198,14 +1256,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return;
     }
 
+    const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
     const nextLayout = this.moveCategoryInSidebarLayout(
-      this.sidebarSectionsOverride,
+      currentLayout,
       draggedCategoryId,
       dropTarget.sectionId,
       dropTarget.categoryId,
       dropTarget.position
     );
-    this.applySidebarSectionsLocally(nextLayout);
+    void this.persistSidebarSections(nextLayout, currentLayout);
     this.cancelSidebarPointerDrag();
   }
 
@@ -1284,15 +1343,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     return sectionId;
   }
 
-  applyEditingSidebarSectionTitle() {
+  applyEditingSidebarSectionTitle({ persist = false } = {}) {
     if (!this.editingSidebarSectionId) {
-      return;
+      return null;
     }
 
     const title = this.editingSidebarSectionTitle.trim();
 
     if (!title) {
-      return;
+      return null;
     }
 
     const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
@@ -1307,11 +1366,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     this.applySidebarSectionsLocally(nextLayout);
     this.cancelSidebarSectionTitleEdit();
+    if (persist) {
+      void this.persistSidebarSections(nextLayout, currentLayout);
+    }
+    return nextLayout;
   }
 
   @action
   addSidebarSection() {
-    if (!this.editingSidebar || this.savingSidebarOrder) {
+    if (!this.editingSidebar) {
       return;
     }
 
@@ -1336,11 +1399,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.applySidebarSectionsLocally(nextLayout);
     this.editingSidebarSectionId = sectionId;
     this.editingSidebarSectionTitle = title;
+    void this.persistSidebarSections(nextLayout, currentLayout);
   }
 
   @action
   editSidebarSectionTitle(section) {
-    if (!this.editingSidebar || this.savingSidebarOrder || !section.editable) {
+    if (!this.editingSidebar || !section.editable) {
       return;
     }
 
@@ -1374,14 +1438,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   saveSidebarSectionTitle(section) {
     if (
       !this.editingSidebar ||
-      this.savingSidebarOrder ||
       !section.editable ||
       this.sidebarSectionTitleInvalid
     ) {
       return;
     }
 
-    this.applyEditingSidebarSectionTitle();
+    this.applyEditingSidebarSectionTitle({ persist: true });
   }
 
   @action
@@ -1392,7 +1455,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @action
   async deleteSidebarSection(section) {
-    if (!this.editingSidebar || this.savingSidebarOrder || !section.editable) {
+    if (!this.editingSidebar || !section.editable) {
       return;
     }
 
@@ -1440,6 +1503,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     this.applySidebarSectionsLocally(nextLayout);
+    void this.persistSidebarSections(nextLayout, currentLayout);
   }
 
   @action
@@ -1459,7 +1523,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     };
 
     if (this.editingSidebar) {
-      this.applySidebarSectionsLocally(nextLayout);
+      void this.persistSidebarSections(nextLayout, currentLayout);
       return;
     }
 
@@ -1571,7 +1635,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                 title={{this.addChannelGroupTitle}}
                 aria-label={{this.addChannelGroupTitle}}
                 class="workspace-team-sidebar__control"
-                disabled={{this.savingSidebarOrder}}
                 {{on "click" this.addSidebarSection}}
               >
                 {{dIcon "plus"}}
@@ -1584,7 +1647,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
               title={{this.sidebarEditTitle}}
               aria-label={{this.sidebarEditTitle}}
               class="workspace-team-sidebar__control"
-              disabled={{this.savingSidebarOrder}}
               {{on "click" this.toggleSidebarEditing}}
             >
               {{dIcon (if this.editingSidebar "check" "pencil")}}
@@ -1634,7 +1696,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                         value={{this.editingSidebarSectionTitle}}
                         class="workspace-team-sidebar__section-title-input"
                         aria-label="Group name"
-                        disabled={{this.savingSidebarOrder}}
                         {{didInsert this.focusSidebarSectionTitleInput}}
                         {{on "input" this.updateSidebarSectionTitle}}
                         {{on
@@ -1688,7 +1749,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                           title="Rename group"
                           aria-label="Rename group"
                           class="workspace-team-sidebar__section-action"
-                          disabled={{this.savingSidebarOrder}}
                           {{on
                             "click"
                             (fn this.editSidebarSectionTitle group)
@@ -1701,7 +1761,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                           title="Delete group"
                           aria-label="Delete group"
                           class="workspace-team-sidebar__section-action"
-                          disabled={{this.savingSidebarOrder}}
                           {{on "click" (fn this.deleteSidebarSection group)}}
                         >
                           {{dIcon "trash-can"}}
