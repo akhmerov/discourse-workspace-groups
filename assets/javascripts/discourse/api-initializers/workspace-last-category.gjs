@@ -118,8 +118,16 @@ export default apiInitializer((api) => {
   }
 
   const router = api.container.lookup("service:router");
+  let redirectChecked = false;
 
   api.onPageChange((url) => {
+    if (!redirectChecked) {
+      redirectChecked = true;
+      if (redirectToSavedPath(router)) {
+        return;
+      }
+    }
+
     const currentCategory = router.currentRoute?.attributes?.category;
     const currentWorkspace = currentWorkspaceCategory({
       chat: api.container.lookup("service:chat"),
@@ -153,6 +161,4 @@ export default apiInitializer((api) => {
       localStorage.setItem(LAST_WORKSPACE_KEY, String(currentWorkspace.id));
     }
   });
-
-  redirectToSavedPath(router);
 });
