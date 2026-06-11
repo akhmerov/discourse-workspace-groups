@@ -256,8 +256,20 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       : null;
   }
 
+  get openWorkspaceTitle() {
+    return this.workspaceCategory
+      ? `Open ${this.workspaceCategory.displayName} workspace`
+      : null;
+  }
+
+  get leaveWorkspaceTitle() {
+    return "Leave workspace";
+  }
+
   get canEditSidebar() {
-    return !!this.workspaceCategory && this.rows.length > 1;
+    return (
+      this.inWorkspaceContext && !!this.workspaceCategory && this.rows.length > 1
+    );
   }
 
   get sidebarEditTitle() {
@@ -434,6 +446,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
+  leaveWorkspace() {
+    DiscourseURL.routeTo("/latest");
+  }
+
+  @action
   handleWorkspaceSelection(id) {
     this.headerActions.find((headerAction) => headerAction.id === id)?.action();
   }
@@ -532,43 +549,79 @@ export default class WorkspaceTeamSidebarBlock extends Component {
             {{this.headerText}}
           </span>
         </SectionHeader>
-
-        {{#if this.canEditSidebar}}
-          <button
-            type="button"
-            title={{this.sidebarEditTitle}}
-            aria-label={{this.sidebarEditTitle}}
-            class="sidebar-section-header-button workspace-team-sidebar__edit-button btn-icon btn-flat"
-            disabled={{this.savingSidebarOrder}}
-            {{on "click" this.toggleSidebarEditing}}
-          >
-            {{icon (if this.editingSidebar "check" "pencil")}}
-          </button>
-        {{/if}}
-
-        {{#if this.headerActions.length}}
-          <DropdownSelectBox
-            @options={{hash
-              icon=this.headerActionsIcon
-              placementStrategy="absolute"
-            }}
-            @content={{this.headerActions}}
-            @onChange={{this.handleWorkspaceSelection}}
-            class="sidebar-section-header-dropdown workspace-team-sidebar__switcher"
-          />
-        {{/if}}
-
-        {{#if this.workspaceCategory}}
-          <button
-            type="button"
-            title={{this.overviewTitle}}
-            class="sidebar-section-header-button workspace-team-sidebar__overview-button btn-icon btn-flat"
-            {{on "click" this.openOverview}}
-          >
-            {{icon "layer-group"}}
-          </button>
-        {{/if}}
       </div>
+
+      {{#if this.workspaceCategory}}
+        <div class="workspace-team-sidebar__controls">
+          {{#if this.inWorkspaceContext}}
+            <button
+              type="button"
+              title={{this.leaveWorkspaceTitle}}
+              aria-label={{this.leaveWorkspaceTitle}}
+              class="workspace-team-sidebar__control"
+              {{on "click" this.leaveWorkspace}}
+            >
+              {{icon "arrow-left"}}
+              <span>Forum</span>
+            </button>
+
+            <button
+              type="button"
+              title={{this.overviewTitle}}
+              aria-label={{this.overviewTitle}}
+              class="workspace-team-sidebar__control"
+              {{on "click" this.openOverview}}
+            >
+              {{icon "layer-group"}}
+              <span>Overview</span>
+            </button>
+          {{else}}
+            <button
+              type="button"
+              title={{this.openWorkspaceTitle}}
+              aria-label={{this.openWorkspaceTitle}}
+              class="workspace-team-sidebar__control workspace-team-sidebar__control--primary"
+              {{on "click" this.openOverview}}
+            >
+              {{icon "layer-group"}}
+              <span>Open</span>
+            </button>
+          {{/if}}
+
+          {{#if this.canEditSidebar}}
+            <button
+              type="button"
+              title={{this.sidebarEditTitle}}
+              aria-label={{this.sidebarEditTitle}}
+              class="workspace-team-sidebar__control"
+              disabled={{this.savingSidebarOrder}}
+              {{on "click" this.toggleSidebarEditing}}
+            >
+              {{icon (if this.editingSidebar "check" "pencil")}}
+              <span>{{if this.editingSidebar "Done" "Edit"}}</span>
+            </button>
+          {{/if}}
+
+          {{#if this.headerActions.length}}
+            <div
+              class="workspace-team-sidebar__switch-control"
+              title="Switch workspace"
+              aria-label="Switch workspace"
+            >
+              <DropdownSelectBox
+                @options={{hash
+                  icon=this.headerActionsIcon
+                  placementStrategy="absolute"
+                }}
+                @content={{this.headerActions}}
+                @onChange={{this.handleWorkspaceSelection}}
+                class="sidebar-section-header-dropdown workspace-team-sidebar__switcher"
+              />
+              <span>Switch</span>
+            </div>
+          {{/if}}
+        </div>
+      {{/if}}
 
       {{#if this.displaySectionContent}}
         <ul
