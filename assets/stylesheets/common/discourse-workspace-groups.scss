@@ -46,8 +46,7 @@
   padding: 0 0.25rem;
 }
 
-.workspace-team-sidebar__control,
-.workspace-team-sidebar__switch-control {
+.workspace-team-sidebar__control {
   align-items: center;
   background: var(--secondary);
   border: 1px solid var(--primary-low);
@@ -62,8 +61,7 @@
   padding: 0.12rem 0.45rem;
 }
 
-.workspace-team-sidebar__control:hover,
-.workspace-team-sidebar__switch-control:hover {
+.workspace-team-sidebar__control:hover {
   background: var(--primary-low);
   color: var(--primary);
 }
@@ -79,31 +77,27 @@
   color: var(--tertiary);
 }
 
-.workspace-team-sidebar__control .d-icon,
-.workspace-team-sidebar__switch-control .d-icon {
+.workspace-team-sidebar__control .d-icon {
   height: 0.82rem;
   width: 0.82rem;
 }
 
-.workspace-team-sidebar__switch-control {
-  padding-left: 0.2rem;
+.workspace-team-sidebar__header-switcher {
+  margin-left: auto;
 }
 
-.workspace-team-sidebar__switch-control .select-kit {
-  align-items: center;
-  display: inline-flex;
+.workspace-team-sidebar__header-switcher .select-kit-header {
+  border-radius: 999px;
+  min-height: 1.55rem;
+  padding: 0 0.35rem;
 }
 
-.workspace-team-sidebar__switch-control .select-kit-header {
+.workspace-team-sidebar__workspace-link {
   background: transparent;
   border: 0;
-  color: currentColor;
-  min-height: auto;
-  padding: 0;
-}
-
-.workspace-team-sidebar__switch-control .select-kit-header .d-icon {
-  margin: 0;
+  padding-left: 0;
+  text-align: left;
+  width: 100%;
 }
 
 .workspace-team-sidebar

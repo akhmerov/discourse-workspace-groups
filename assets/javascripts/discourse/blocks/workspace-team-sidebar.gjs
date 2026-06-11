@@ -1,6 +1,6 @@
 import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
-import { hash } from "@ember/helper";
+import { fn, hash } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { getOwner } from "@ember/owner";
@@ -130,6 +130,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     return sidebarWorkspaceCategory(this.services);
   }
 
+  get memberWorkspaces() {
+    return memberWorkspaceCategories(this.services);
+  }
+
   get inWorkspaceContext() {
     if (currentWorkspaceCategory(this.services)) {
       return true;
@@ -236,7 +240,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     const actions = [];
 
-    memberWorkspaceCategories(this.services)
+    this.memberWorkspaces
       .filter((workspace) => workspace.id !== this.workspaceCategory.id)
       .forEach((workspace) =>
         actions.push({
@@ -254,7 +258,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get headerText() {
-    return this.workspaceCategory?.displayName ?? "team";
+    return this.inWorkspaceContext
+      ? (this.workspaceCategory?.displayName ?? "team")
+      : "teams";
   }
 
   get overviewTitle() {
@@ -271,6 +277,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   get leaveWorkspaceTitle() {
     return "Leave workspace";
+  }
+
+  workspaceTitle(workspace) {
+    return `Open ${workspace.displayName} workspace`;
   }
 
   get canEditSidebar() {
@@ -463,6 +473,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
+  openWorkspace(workspace) {
+    DiscourseURL.routeTo(workspaceOverviewPath(workspace));
+  }
+
+  @action
   toggleSidebarEditing() {
     if (!this.canEditSidebar) {
       return;
@@ -556,44 +571,45 @@ export default class WorkspaceTeamSidebarBlock extends Component {
             {{this.headerText}}
           </span>
         </SectionHeader>
+
+        {{#if this.inWorkspaceContext}}
+          {{#if this.headerActions.length}}
+            <DropdownSelectBox
+              @options={{hash
+                icon=this.headerActionsIcon
+                placementStrategy="absolute"
+              }}
+              @content={{this.headerActions}}
+              @onChange={{this.handleWorkspaceSelection}}
+              class="sidebar-section-header-dropdown workspace-team-sidebar__header-switcher"
+            />
+          {{/if}}
+        {{/if}}
       </div>
 
-      {{#if this.workspaceCategory}}
+      {{#if this.inWorkspaceContext}}
         <div class="workspace-team-sidebar__controls">
-          {{#if this.inWorkspaceContext}}
-            <button
-              type="button"
-              title={{this.leaveWorkspaceTitle}}
-              aria-label={{this.leaveWorkspaceTitle}}
-              class="workspace-team-sidebar__control"
-              {{on "click" this.leaveWorkspace}}
-            >
-              {{icon "arrow-left"}}
-              <span>Forum</span>
-            </button>
+          <button
+            type="button"
+            title={{this.leaveWorkspaceTitle}}
+            aria-label={{this.leaveWorkspaceTitle}}
+            class="workspace-team-sidebar__control"
+            {{on "click" this.leaveWorkspace}}
+          >
+            {{icon "arrow-left"}}
+            <span>Forum</span>
+          </button>
 
-            <button
-              type="button"
-              title={{this.overviewTitle}}
-              aria-label={{this.overviewTitle}}
-              class="workspace-team-sidebar__control"
-              {{on "click" this.openOverview}}
-            >
-              {{icon "layer-group"}}
-              <span>Overview</span>
-            </button>
-          {{else}}
-            <button
-              type="button"
-              title={{this.openWorkspaceTitle}}
-              aria-label={{this.openWorkspaceTitle}}
-              class="workspace-team-sidebar__control workspace-team-sidebar__control--primary"
-              {{on "click" this.openOverview}}
-            >
-              {{icon "layer-group"}}
-              <span>Open</span>
-            </button>
-          {{/if}}
+          <button
+            type="button"
+            title={{this.overviewTitle}}
+            aria-label={{this.overviewTitle}}
+            class="workspace-team-sidebar__control"
+            {{on "click" this.openOverview}}
+          >
+            {{icon "layer-group"}}
+            <span>Overview</span>
+          </button>
 
           {{#if this.canEditSidebar}}
             <button
@@ -608,25 +624,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
               <span>{{if this.editingSidebar "Done" "Edit"}}</span>
             </button>
           {{/if}}
-
-          {{#if this.headerActions.length}}
-            <div
-              class="workspace-team-sidebar__switch-control"
-              title="Switch workspace"
-              aria-label="Switch workspace"
-            >
-              <DropdownSelectBox
-                @options={{hash
-                  icon=this.headerActionsIcon
-                  placementStrategy="absolute"
-                }}
-                @content={{this.headerActions}}
-                @onChange={{this.handleWorkspaceSelection}}
-                class="sidebar-section-header-dropdown workspace-team-sidebar__switcher"
-              />
-              <span>Switch</span>
-            </div>
-          {{/if}}
         </div>
       {{/if}}
 
@@ -635,26 +632,47 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           id={{this.sidebarSectionContentId}}
           class="sidebar-section-content"
         >
-      {{#each this.rows as |row|}}
-        <WorkspaceTeamSidebarRow
-          @categoryLink={{row.categoryLink}}
-          @categoryUnread={{row.categoryUnread}}
-          @categoryTitle={{row.categoryTitle}}
-          @chatPath={{row.chatPath}}
-          @chatTitle={{row.chatTitle}}
-          @chatUnread={{row.chatUnread}}
-          @chatMuted={{row.chatMuted}}
-          @categoryAvailable={{row.categoryAvailable}}
-          @chatAvailable={{row.chatAvailable}}
-          @isActive={{row.isActive}}
-          @categoryActive={{row.categoryActive}}
-          @chatActive={{row.chatActive}}
-          @editable={{this.editingSidebar}}
-          @setDraggedCategory={{this.setDraggedCategory}}
-          @reorderCallback={{this.reorderSidebarRows}}
-          @dragDisabled={{this.savingSidebarOrder}}
-        />
-      {{/each}}
+          {{#if this.inWorkspaceContext}}
+            {{#each this.rows as |row|}}
+              <WorkspaceTeamSidebarRow
+                @categoryLink={{row.categoryLink}}
+                @categoryUnread={{row.categoryUnread}}
+                @categoryTitle={{row.categoryTitle}}
+                @chatPath={{row.chatPath}}
+                @chatTitle={{row.chatTitle}}
+                @chatUnread={{row.chatUnread}}
+                @chatMuted={{row.chatMuted}}
+                @categoryAvailable={{row.categoryAvailable}}
+                @chatAvailable={{row.chatAvailable}}
+                @isActive={{row.isActive}}
+                @categoryActive={{row.categoryActive}}
+                @chatActive={{row.chatActive}}
+                @editable={{this.editingSidebar}}
+                @setDraggedCategory={{this.setDraggedCategory}}
+                @reorderCallback={{this.reorderSidebarRows}}
+                @dragDisabled={{this.savingSidebarOrder}}
+              />
+            {{/each}}
+          {{else}}
+            {{#each this.memberWorkspaces as |workspace|}}
+              <li class="sidebar-section-link-wrapper">
+                <button
+                  type="button"
+                  title={{this.workspaceTitle workspace}}
+                  aria-label={{this.workspaceTitle workspace}}
+                  class="sidebar-section-link sidebar-row workspace-team-sidebar__workspace-link"
+                  {{on "click" (fn this.openWorkspace workspace)}}
+                >
+                  <span class="sidebar-section-link-prefix icon">
+                    {{icon "users"}}
+                  </span>
+                  <span class="sidebar-section-link-content-text">
+                    {{workspace.displayName}}
+                  </span>
+                </button>
+              </li>
+            {{/each}}
+          {{/if}}
         </ul>
       {{/if}}
     </div>
