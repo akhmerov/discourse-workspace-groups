@@ -61,11 +61,11 @@ export function rememberedPathForPage(url, currentCategory) {
   return normalizePath(currentCategory?.path || url);
 }
 
-function shouldRedirectToLastCategory() {
+function shouldRedirectToLastCategory(currentLocation = window.location) {
   return (
-    window.location.pathname === "/" &&
-    !window.location.search &&
-    !window.location.hash
+    currentLocation.pathname === "/" &&
+    !currentLocation.search &&
+    !currentLocation.hash
   );
 }
 
@@ -88,6 +88,28 @@ function setRedirectGuard() {
   sessionStorage.removeItem(LEGACY_REDIRECT_GUARD_KEY);
 }
 
+export function redirectToSavedPath(router, currentLocation = window.location) {
+  if (!shouldRedirectToLastCategory(currentLocation)) {
+    sessionStorage.removeItem(REDIRECT_GUARD_KEY);
+    sessionStorage.removeItem(LEGACY_REDIRECT_GUARD_KEY);
+    return false;
+  }
+
+  if (redirectGuardSet()) {
+    return false;
+  }
+
+  const savedPath = savedLastCategoryPath();
+
+  if (!savedPath || savedPath === "/") {
+    return false;
+  }
+
+  setRedirectGuard();
+  router.replaceWith(savedPath);
+  return true;
+}
+
 export default apiInitializer((api) => {
   const siteSettings = api.container.lookup("service:site-settings");
 
@@ -95,29 +117,9 @@ export default apiInitializer((api) => {
     return;
   }
 
-  const maybeRedirectToLastCategory = () => {
-    if (!shouldRedirectToLastCategory()) {
-      sessionStorage.removeItem(REDIRECT_GUARD_KEY);
-      sessionStorage.removeItem(LEGACY_REDIRECT_GUARD_KEY);
-      return;
-    }
-
-    if (redirectGuardSet()) {
-      return;
-    }
-
-    const savedPath = savedLastCategoryPath();
-
-    if (!savedPath || savedPath === "/") {
-      return;
-    }
-
-    setRedirectGuard();
-    window.location.replace(savedPath);
-  };
+  const router = api.container.lookup("service:router");
 
   api.onPageChange((url) => {
-    const router = api.container.lookup("service:router");
     const currentCategory = router.currentRoute?.attributes?.category;
     const currentWorkspace = currentWorkspaceCategory({
       chat: api.container.lookup("service:chat"),
@@ -152,5 +154,5 @@ export default apiInitializer((api) => {
     }
   });
 
-  maybeRedirectToLastCategory();
+  redirectToSavedPath(router);
 });

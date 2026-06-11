@@ -1,8 +1,15 @@
 import { module, test } from "qunit";
 import {
   normalizeSavedCategoryPath,
+  redirectToSavedPath,
   rememberedPathForPage,
 } from "discourse/plugins/discourse-workspace-groups/discourse/api-initializers/workspace-last-category";
+import { LAST_WORKSPACE_KEY } from "discourse/plugins/discourse-workspace-groups/discourse/lib/workspace-team-sidebar-state";
+
+const LAST_CATEGORY_KEY = "workspace-groups:last-category-path";
+const LEGACY_LAST_CATEGORY_KEY = "research-groups:last-category-path";
+const REDIRECT_GUARD_KEY = "workspace-groups:last-category-redirected";
+const LEGACY_REDIRECT_GUARD_KEY = "research-groups:last-category-redirected";
 
 module(
   "Discourse Workspace Groups | Initializer | workspace-last-category",
@@ -57,6 +64,32 @@ module(
         rememberedPathForPage("blob:https://attacker.example/login?phish=1"),
         null
       );
+    });
+
+    test("redirects to the saved category through the Ember router", function (assert) {
+      const replaceCalls = [];
+      const router = {
+        replaceWith(path) {
+          replaceCalls.push(path);
+        },
+      };
+
+      localStorage.setItem(LAST_CATEGORY_KEY, "/c/quantum-tinkerer/28");
+      localStorage.removeItem(LEGACY_LAST_CATEGORY_KEY);
+      localStorage.removeItem(LAST_WORKSPACE_KEY);
+      sessionStorage.removeItem(REDIRECT_GUARD_KEY);
+      sessionStorage.removeItem(LEGACY_REDIRECT_GUARD_KEY);
+
+      try {
+        assert.true(
+          redirectToSavedPath(router, { pathname: "/", search: "", hash: "" })
+        );
+      } finally {
+        localStorage.removeItem(LAST_CATEGORY_KEY);
+        sessionStorage.removeItem(REDIRECT_GUARD_KEY);
+      }
+
+      assert.deepEqual(replaceCalls, ["/c/quantum-tinkerer/28"]);
     });
   }
 );
