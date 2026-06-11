@@ -24,6 +24,7 @@ import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import {
   currentScopedCategory,
   currentScopedMode,
+  currentWorkspaceCategory,
   chatChannelHasUnread,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
@@ -55,6 +56,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   sectionName = "workspace-team";
   sidebarSectionContentId = getSidebarSectionContentId(this.sectionName);
   collapsedSidebarSectionKey = getCollapsedSidebarSectionKey(this.sectionName);
+  focusedSidebarClass = "workspace-team-sidebar--focused";
 
   constructor() {
     super(...arguments);
@@ -68,6 +70,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.hydratedWorkspaceChatTrackingIds = new Set();
     this.hydratingWorkspaceChatTrackingIds = new Set();
     this.failedWorkspaceChatTrackingIds = new Set();
+    this.routeDidChangeCallback = () => this.updateSidebarFocus();
+    this.router.on("routeDidChange", this.routeDidChangeCallback);
     this.topicTrackingCallbackId = this.topicTrackingState.onStateChange(() => {
       this.topicCountsVersion++;
       this.rows.forEach((row) => row.categoryLink.refreshCounts());
@@ -76,6 +80,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   willDestroy() {
     super.willDestroy(...arguments);
+
+    this.sidebarSectionsElement?.classList.remove(this.focusedSidebarClass);
+    this.router.off("routeDidChange", this.routeDidChangeCallback);
 
     if (this.topicTrackingCallbackId) {
       this.topicTrackingState.offStateChange(this.topicTrackingCallbackId);
@@ -121,6 +128,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   get workspaceCategory() {
     return sidebarWorkspaceCategory(this.services);
+  }
+
+  get inWorkspaceContext() {
+    return !!currentWorkspaceCategory(this.services);
   }
 
   get activeCategoryId() {
@@ -378,7 +389,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
-  initializeExpandedState() {
+  initializeSidebar(element) {
+    this.sidebarSectionsElement = element.closest(".sidebar-sections");
+    this.updateSidebarFocus();
+
     if (this.sidebarState.filter) {
       return;
     }
@@ -388,6 +402,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     } else {
       this.sidebarState.expandSection(this.sectionName);
     }
+  }
+
+  updateSidebarFocus() {
+    this.sidebarSectionsElement?.classList.toggle(
+      this.focusedSidebarClass,
+      this.inWorkspaceContext
+    );
   }
 
   @action
@@ -483,7 +504,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   <template>
     <div
-      {{didInsert this.initializeExpandedState}}
+      {{didInsert this.initializeSidebar}}
       data-section-name={{this.sectionName}}
       class={{concatClass
         "sidebar-section"

@@ -15,6 +15,25 @@
   order: 3;
 }
 
+.sidebar-sections.workspace-team-sidebar--focused > .sidebar-blocks {
+  order: 0;
+}
+
+.sidebar-sections.workspace-team-sidebar--focused
+  > .sidebar-section-wrapper[data-section-name="chat-dms"] {
+  order: 1;
+}
+
+.sidebar-sections.workspace-team-sidebar--focused > .sidebar-custom-sections,
+.sidebar-sections.workspace-team-sidebar--focused
+  > .sidebar-section-wrapper[data-section-name="categories"],
+.sidebar-sections.workspace-team-sidebar--focused
+  > .sidebar-section-wrapper[data-section-name="chat-search"],
+.sidebar-sections.workspace-team-sidebar--focused
+  > .sidebar-section-wrapper[data-section-name="chat-channels"] {
+  display: none;
+}
+
 .workspace-team-sidebar {
   margin-bottom: 0.35rem;
 }
