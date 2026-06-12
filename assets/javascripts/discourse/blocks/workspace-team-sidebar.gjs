@@ -1,6 +1,6 @@
 import Component from "@glimmer/component";
 import { tracked } from "@glimmer/tracking";
-import { fn, hash } from "@ember/helper";
+import { fn } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { getOwner } from "@ember/owner";
@@ -18,7 +18,6 @@ import {
 } from "discourse/lib/sidebar/helpers";
 import CategorySectionLink from "discourse/lib/sidebar/user/categories-section/category-section-link";
 import DiscourseURL from "discourse/lib/url";
-import DropdownSelectBox from "discourse/select-kit/components/dropdown-select-box";
 import { i18n } from "discourse-i18n";
 import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import {
@@ -606,14 +605,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
-  handleWorkspaceSelection(id) {
-    this.headerActions.find((headerAction) => headerAction.id === id)?.action();
-  }
-
-  @action
   openWorkspace(workspace) {
     this.enterWorkspaceSidebar(workspace);
     DiscourseURL.routeTo(workspaceOverviewPath(workspace));
+  }
+
+  @action
+  runHeaderAction(headerAction) {
+    headerAction.action();
   }
 
   @action
@@ -729,15 +728,27 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         </SectionHeader>
 
         {{#if this.inWorkspaceContext}}
-          <DropdownSelectBox
-            @options={{hash
-              icon=this.headerActionsIcon
-              placementStrategy="absolute"
-            }}
-            @content={{this.headerActions}}
-            @onChange={{this.handleWorkspaceSelection}}
-            class="sidebar-section-header-dropdown workspace-team-sidebar__header-switcher"
-          />
+          <details class="workspace-team-sidebar__header-switcher">
+            <summary
+              title="Switch workspace"
+              aria-label="Switch workspace"
+              class="workspace-team-sidebar__header-switcher-button"
+            >
+              {{icon this.headerActionsIcon}}
+            </summary>
+            <ul class="workspace-team-sidebar__header-switcher-menu">
+              {{#each this.headerActions as |headerAction|}}
+                <li>
+                  <button
+                    type="button"
+                    {{on "click" (fn this.runHeaderAction headerAction)}}
+                  >
+                    {{headerAction.title}}
+                  </button>
+                </li>
+              {{/each}}
+            </ul>
+          </details>
         {{/if}}
       </div>
 

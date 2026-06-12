@@ -44,6 +44,8 @@
 .sidebar-sections.workspace-team-sidebar--focused
   > .sidebar-section-wrapper[data-section-name="categories"],
 .sidebar-sections.workspace-team-sidebar--focused
+  > .sidebar-section-wrapper[data-section-name="tags"],
+.sidebar-sections.workspace-team-sidebar--focused
   > .sidebar-section-wrapper[data-section-name="chat-search"],
 .sidebar-sections.workspace-team-sidebar--focused
   > .sidebar-section-wrapper[data-section-name="chat-channels"] {
@@ -106,14 +108,61 @@
 
 .workspace-team-sidebar__header-switcher {
   margin-left: auto;
-  opacity: 1 !important;
-  visibility: visible !important;
+  position: relative;
 }
 
-.workspace-team-sidebar__header-switcher .select-kit-header {
+.workspace-team-sidebar__header-switcher-button {
+  align-items: center;
+  background: transparent;
   border-radius: 999px;
+  color: var(--d-sidebar-header-icon-color);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
   min-height: 1.55rem;
-  padding: 0 0.35rem;
+  min-width: 1.55rem;
+  padding: 0;
+}
+
+.workspace-team-sidebar__header-switcher-button::marker,
+.workspace-team-sidebar__header-switcher-button::-webkit-details-marker {
+  display: none;
+}
+
+.workspace-team-sidebar__header-switcher-button:hover {
+  background: var(--d-sidebar-highlight-hover-background);
+  color: var(--d-sidebar-highlight-color);
+}
+
+.workspace-team-sidebar__header-switcher-menu {
+  background: var(--secondary);
+  border: 1px solid var(--primary-low);
+  border-radius: var(--d-border-radius);
+  box-shadow: var(--shadow-dropdown);
+  inset-inline-end: 0;
+  list-style: none;
+  margin: 0.2rem 0 0;
+  min-width: 11rem;
+  padding: 0.25rem;
+  position: absolute;
+  z-index: 1000;
+}
+
+.workspace-team-sidebar__header-switcher-menu button {
+  background: transparent;
+  border: 0;
+  border-radius: var(--d-border-radius);
+  color: var(--primary);
+  cursor: pointer;
+  display: block;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  width: 100%;
+}
+
+.workspace-team-sidebar__header-switcher-menu button:hover,
+.workspace-team-sidebar__header-switcher-menu button:focus {
+  background: var(--d-hover);
 }
 
 .workspace-team-sidebar__hint {
