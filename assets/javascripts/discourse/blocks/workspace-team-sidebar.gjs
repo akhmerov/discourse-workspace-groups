@@ -1117,7 +1117,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     const sectionElement = targetElement?.closest?.(
-      ".workspace-team-sidebar__section-drop-target[data-workspace-sidebar-section-id]"
+      "[data-workspace-sidebar-section-id]"
     );
 
     if (sectionElement) {
@@ -1189,7 +1189,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return;
     }
 
-    this.updateSidebarPointerDrag(event);
+    event.preventDefault();
 
     const draggedCategoryId = Number(this.sidebarPointerDrag.categoryId);
     const dropTarget = this.sidebarDropTarget;
@@ -1206,7 +1206,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       dropTarget.categoryId,
       dropTarget.position
     );
-    this.applySidebarSectionsLocally(nextLayout);
+    this.applySidebarSectionsLocally(
+      dropTarget.categoryId
+        ? nextLayout
+        : this.expandSidebarLayoutSection(nextLayout, dropTarget.sectionId)
+    );
     this.cancelSidebarPointerDrag();
   }
 
@@ -1269,6 +1273,19 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       })),
       other_channel_ids: normalizedLayout.other_channel_ids.filter(
         (sectionCategoryId) => sectionCategoryId !== normalizedCategoryId
+      ),
+    };
+  }
+
+  expandSidebarLayoutSection(layout, sectionId) {
+    if (sectionId === OTHER_SECTION_ID) {
+      return { ...layout, other_collapsed: false };
+    }
+
+    return {
+      ...layout,
+      sections: layout.sections.map((section) =>
+        section.id === sectionId ? { ...section, collapsed: false } : section
       ),
     };
   }
@@ -1620,7 +1637,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
               {{#each this.editableGroups as |group|}}
                 {{#if group.title}}
                   <li
-                    class="workspace-team-sidebar__section"
+                    class={{dConcatClass
+                      "workspace-team-sidebar__section"
+                      (if
+                        group.dropTarget
+                        "workspace-team-sidebar__section--drop-target"
+                      )
+                    }}
+                    data-workspace-sidebar-section-id={{group.id}}
                   >
                     {{#if group.editingTitle}}
                       <input

@@ -247,6 +247,14 @@
   color: var(--primary);
 }
 
+.workspace-team-sidebar__section--drop-target
+  .workspace-team-sidebar__section-heading {
+  background: var(--tertiary-low);
+  color: var(--primary);
+  outline: 2px solid var(--tertiary);
+  outline-offset: -2px;
+}
+
 .workspace-team-sidebar__section-heading .d-icon {
   height: 0.65rem;
   width: 0.65rem;
