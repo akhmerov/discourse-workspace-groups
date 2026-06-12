@@ -83,6 +83,12 @@
   color: var(--tertiary);
 }
 
+.workspace-team-sidebar__control--active {
+  background: var(--tertiary-low);
+  border-color: var(--tertiary-medium);
+  color: var(--tertiary);
+}
+
 .workspace-team-sidebar__control .d-icon {
   height: 0.82rem;
   width: 0.82rem;
@@ -114,6 +120,13 @@
 
 .workspace-team-sidebar .sidebar-section-link-wrapper {
   list-style: none;
+}
+
+.workspace-team-sidebar__empty {
+  color: var(--primary-medium);
+  font-size: var(--font-down-1);
+  list-style: none;
+  padding: 0.35rem 0.5rem;
 }
 
 .workspace-team-sidebar__row {

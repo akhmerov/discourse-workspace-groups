@@ -52,6 +52,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked editingSidebar = false;
   @tracked orderedChannelIds = null;
   @tracked savingSidebarOrder = false;
+  @tracked showUnreadOnly = false;
 
   sectionName = "workspace-team";
   sidebarSectionContentId = getSidebarSectionContentId(this.sectionName);
@@ -203,8 +204,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         pairedChannel?.currentUserMembership?.muted ??
         workspaceChatMembership?.muted
       );
+      const chatChannel = pairedChannel ?? workspaceChatChannel;
       const chatUnread =
-        chatAvailable && !chatMuted && chatChannelHasUnread(pairedChannel);
+        chatAvailable && !chatMuted && chatChannelHasUnread(chatChannel);
       const chatPath =
         pairedChannel?.routeModels?.length > 0
           ? `/chat/c/${pairedChannel.routeModels.join("/")}`
@@ -231,6 +233,16 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           this.mode === "chat" && this.activeCategoryId === category.id,
       };
     });
+  }
+
+  get filteredRows() {
+    if (this.editingSidebar || !this.showUnreadOnly) {
+      return this.rows;
+    }
+
+    return this.rows.filter(
+      (row) => row.categoryUnread || row.chatUnread || row.isActive
+    );
   }
 
   get headerActions() {
@@ -277,6 +289,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   get leaveWorkspaceTitle() {
     return "Leave workspace";
+  }
+
+  get unreadFilterTitle() {
+    return this.showUnreadOnly ? "Show all channels" : "Show unread channels";
   }
 
   workspaceTitle(workspace) {
@@ -483,6 +499,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return;
     }
 
+    this.showUnreadOnly = false;
+
     if (this.editingSidebar) {
       this.editingSidebar = false;
       this.orderedChannelIds = null;
@@ -491,6 +509,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     this.editingSidebar = true;
     this.orderedChannelIds = this.rows.map((row) => row.category.id);
+  }
+
+  @action
+  toggleUnreadFilter() {
+    if (this.editingSidebar) {
+      return;
+    }
+
+    this.showUnreadOnly = !this.showUnreadOnly;
   }
 
   @action
@@ -611,6 +638,25 @@ export default class WorkspaceTeamSidebarBlock extends Component {
             <span>Overview</span>
           </button>
 
+          <button
+            type="button"
+            title={{this.unreadFilterTitle}}
+            aria-label={{this.unreadFilterTitle}}
+            aria-pressed={{if this.showUnreadOnly "true" "false"}}
+            class={{concatClass
+              "workspace-team-sidebar__control"
+              (if
+                this.showUnreadOnly
+                "workspace-team-sidebar__control--active"
+              )
+            }}
+            disabled={{this.editingSidebar}}
+            {{on "click" this.toggleUnreadFilter}}
+          >
+            {{icon "filter"}}
+            <span>Unread</span>
+          </button>
+
           {{#if this.canEditSidebar}}
             <button
               type="button"
@@ -633,7 +679,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           class="sidebar-section-content"
         >
           {{#if this.inWorkspaceContext}}
-            {{#each this.rows as |row|}}
+            {{#each this.filteredRows as |row|}}
               <WorkspaceTeamSidebarRow
                 @categoryLink={{row.categoryLink}}
                 @categoryUnread={{row.categoryUnread}}
@@ -652,6 +698,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                 @reorderCallback={{this.reorderSidebarRows}}
                 @dragDisabled={{this.savingSidebarOrder}}
               />
+            {{else}}
+              <li class="workspace-team-sidebar__empty">
+                No unread channels
+              </li>
             {{/each}}
           {{else}}
             {{#each this.memberWorkspaces as |workspace|}}
