@@ -412,11 +412,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
       return {
         ...section,
-        rows: sectionRows.map((row, index) => ({
+        rows: sectionRows.map((row) => ({
           ...row,
           sidebarSectionId: section.id,
-          moveUpDisabled: index === 0,
-          moveDownDisabled: index === sectionRows.length - 1,
         })),
         collapsed: !this.showUnreadOnly && !!section.collapsed,
         unread: sectionRows.some((row) => row.categoryUnread || row.chatUnread),
@@ -435,8 +433,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         rows: otherRows.map((row) => ({
           ...row,
           sidebarSectionId: OTHER_SECTION_ID,
-          moveUpDisabled: true,
-          moveDownDisabled: true,
         })),
         collapsed: !this.showUnreadOnly && !!layout.other_collapsed,
         unread: otherRows.some((row) => row.categoryUnread || row.chatUnread),
@@ -513,16 +509,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   get unreadFilterTitle() {
     return this.showUnreadOnly ? "Show all channels" : "Show unread channels";
-  }
-
-  get sidebarSectionOptions() {
-    const layout = this.currentSidebarLayout;
-    const sections = layout.sections.map((section) => ({
-      id: section.id,
-      title: section.title,
-    }));
-
-    return [...sections, { id: OTHER_SECTION_ID, title: "Other" }];
   }
 
   workspaceTitle(workspace) {
@@ -672,16 +658,21 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     };
   }
 
-  async persistSidebarSections(nextLayout, rollbackLayout = this.sidebarSectionsOverride) {
-    if (!this.workspaceCategory || this.savingSidebarOrder) {
-      return;
-    }
-
+  applySidebarSectionsLocally(nextLayout) {
     const normalizedLayout = this.normalizeSidebarLayout(nextLayout);
     this.sidebarSectionsOverride = normalizedLayout;
     this.orderedChannelIds = normalizedLayout.sections.flatMap(
       (section) => section.channel_ids
     );
+  }
+
+  async persistSidebarSections(nextLayout, rollbackLayout = this.sidebarSectionsOverride) {
+    if (!this.workspaceCategory || this.savingSidebarOrder) {
+      return false;
+    }
+
+    const normalizedLayout = this.normalizeSidebarLayout(nextLayout);
+    this.applySidebarSectionsLocally(normalizedLayout);
     this.savingSidebarOrder = true;
 
     try {
@@ -702,12 +693,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         (section) => section.channel_ids
       );
       this.updateCurrentUserSidebarSections(this.workspaceCategory.id, savedLayout);
+      return true;
     } catch (error) {
       this.sidebarSectionsOverride = rollbackLayout;
       this.orderedChannelIds = rollbackLayout?.sections?.flatMap(
         (section) => section.channel_ids
       ) ?? null;
       popupAjaxError(error);
+      return false;
     } finally {
       this.savingSidebarOrder = false;
     }
@@ -895,7 +888,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
-  toggleSidebarEditing() {
+  async toggleSidebarEditing() {
     if (!this.canEditSidebar) {
       return;
     }
@@ -903,6 +896,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.showUnreadOnly = false;
 
     if (this.editingSidebar) {
+      const saved = await this.persistSidebarSections(
+        this.sidebarSectionsOverride,
+        this.currentSidebarLayout
+      );
+
+      if (!saved) {
+        return;
+      }
+
       this.editingSidebar = false;
       this.orderedChannelIds = null;
       this.sidebarSectionsOverride = null;
@@ -927,92 +929,100 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
-  async moveSidebarRow(category, sectionId, direction) {
-    if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
-      return;
-    }
-
-    if (sectionId === OTHER_SECTION_ID) {
-      return;
-    }
-
-    const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
-    const categoryId = Number(category?.id);
-    const section = currentLayout.sections.find(
-      (currentSection) => currentSection.id === sectionId
-    );
-
-    if (!categoryId || !section) {
-      return;
-    }
-
-    const currentIndex = section.channel_ids.indexOf(categoryId);
-    const nextIndex = currentIndex + direction;
-
-    if (
-      currentIndex < 0 ||
-      nextIndex < 0 ||
-      nextIndex >= section.channel_ids.length
-    ) {
-      return;
-    }
-
-    const nextLayout = {
-      ...currentLayout,
-      sections: currentLayout.sections.map((currentSection) => {
-        if (currentSection.id !== sectionId) {
-          return currentSection;
-        }
-
-        const channelIds = [...currentSection.channel_ids];
-        [channelIds[currentIndex], channelIds[nextIndex]] = [
-          channelIds[nextIndex],
-          channelIds[currentIndex],
-        ];
-
-        return { ...currentSection, channel_ids: channelIds };
-      }),
-    };
-
-    await this.persistSidebarSections(nextLayout, currentLayout);
+  setDraggedCategory(category) {
+    this.draggedCategoryId = category?.id ?? null;
   }
 
   @action
-  async moveSidebarRowToSection(category, targetSectionId) {
+  dropSidebarRow(targetCategory, targetSectionId, above) {
     if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
       return;
     }
 
     const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
-    const categoryId = Number(category?.id);
-    const alreadyInTarget =
-      targetSectionId !== OTHER_SECTION_ID &&
-      currentLayout.sections
-        .find((section) => section.id === targetSectionId)
-        ?.channel_ids.includes(categoryId);
+    const draggedCategoryId = Number(this.draggedCategoryId);
+    const targetCategoryId = Number(targetCategory?.id);
 
-    if (!categoryId || alreadyInTarget) {
+    if (!draggedCategoryId || draggedCategoryId === targetCategoryId) {
       return;
     }
 
-    const nextLayout = this.removeCategoryFromSidebarLayout(
+    const nextLayout = this.moveCategoryInSidebarLayout(
       currentLayout,
-      categoryId
+      draggedCategoryId,
+      targetSectionId,
+      targetCategoryId,
+      above
     );
 
-    if (targetSectionId !== OTHER_SECTION_ID) {
-      const targetSection = nextLayout.sections.find(
-        (section) => section.id === targetSectionId
-      );
+    this.applySidebarSectionsLocally(nextLayout);
+  }
 
-      if (!targetSection) {
-        return;
-      }
-
-      targetSection.channel_ids.push(categoryId);
+  @action
+  dropOnSidebarSection(sectionId, event) {
+    if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
+      return;
     }
 
-    await this.persistSidebarSections(nextLayout, currentLayout);
+    event.preventDefault();
+    event.stopPropagation();
+
+    const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
+    const draggedCategoryId = Number(this.draggedCategoryId);
+
+    if (!draggedCategoryId) {
+      return;
+    }
+
+    const nextLayout = this.moveCategoryInSidebarLayout(
+      currentLayout,
+      draggedCategoryId,
+      sectionId
+    );
+
+    this.applySidebarSectionsLocally(nextLayout);
+  }
+
+  @action
+  allowSectionDrop(event) {
+    if (this.editingSidebar && !this.savingSidebarOrder) {
+      event.preventDefault();
+    }
+  }
+
+  moveCategoryInSidebarLayout(
+    layout,
+    categoryId,
+    targetSectionId,
+    targetCategoryId = null,
+    above = false
+  ) {
+    const nextLayout = this.removeCategoryFromSidebarLayout(layout, categoryId);
+
+    if (targetSectionId === OTHER_SECTION_ID) {
+      return nextLayout;
+    }
+
+    return {
+      ...nextLayout,
+      sections: nextLayout.sections.map((section) => {
+        if (section.id !== targetSectionId) {
+          return section;
+        }
+
+        const channelIds = [...section.channel_ids];
+        const targetIndex = channelIds.indexOf(Number(targetCategoryId));
+        const insertIndex =
+          targetIndex < 0
+            ? channelIds.length
+            : above
+              ? targetIndex
+              : targetIndex + 1;
+        channelIds.splice(insertIndex, 0, categoryId);
+
+        return { ...section, channel_ids: channelIds };
+      }),
+    };
   }
 
   removeCategoryFromSidebarLayout(layout, categoryId) {
@@ -1043,6 +1053,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           : currentLayout.other_collapsed,
     };
 
+    if (this.editingSidebar) {
+      this.applySidebarSectionsLocally(nextLayout);
+      return;
+    }
+
     await this.persistSidebarSections(nextLayout, currentLayout);
   }
 
@@ -1071,7 +1086,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       ],
     };
 
-    await this.persistSidebarSections(nextLayout, currentLayout);
+    this.applySidebarSectionsLocally(nextLayout);
   }
 
   @action
@@ -1095,7 +1110,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       ),
     };
 
-    await this.persistSidebarSections(nextLayout, currentLayout);
+    this.applySidebarSectionsLocally(nextLayout);
   }
 
   @action
@@ -1112,7 +1127,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       ),
     };
 
-    await this.persistSidebarSections(nextLayout, currentLayout);
+    this.applySidebarSectionsLocally(nextLayout);
   }
 
   <template>
@@ -1264,6 +1279,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
               {{#if group.title}}
                 <li
                   class="workspace-team-sidebar__section"
+                  {{on "dragover" this.allowSectionDrop}}
+                  {{on "drop" (fn this.dropOnSidebarSection group.id)}}
                 >
                   <button
                     type="button"
@@ -1315,9 +1332,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                   {{#unless group.rows.length}}
                     <li
                       class="workspace-team-sidebar__section-dropzone"
+                      {{on "dragover" this.allowSectionDrop}}
+                      {{on "drop" (fn this.dropOnSidebarSection group.id)}}
                     >
-                      {{icon "arrow-right"}}
-                      <span>Move channels here with the section selector</span>
+                      {{icon "hand-paper"}}
+                      <span>Drag channels here</span>
                     </li>
                   {{/unless}}
                 {{/if}}
@@ -1337,13 +1356,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                     @categoryActive={{row.categoryActive}}
                     @chatActive={{row.chatActive}}
                     @editable={{this.editingSidebar}}
-                    @saving={{this.savingSidebarOrder}}
                     @sectionId={{row.sidebarSectionId}}
-                    @sectionOptions={{this.sidebarSectionOptions}}
-                    @moveUpDisabled={{row.moveUpDisabled}}
-                    @moveDownDisabled={{row.moveDownDisabled}}
-                    @moveRow={{this.moveSidebarRow}}
-                    @moveToSection={{this.moveSidebarRowToSection}}
+                    @setDraggedCategory={{this.setDraggedCategory}}
+                    @dropRow={{this.dropSidebarRow}}
                   />
                 {{/each}}
               {{/unless}}
