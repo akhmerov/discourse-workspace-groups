@@ -250,13 +250,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return [];
     }
 
-    const actions = [
-      {
-        id: "leave-workspace",
-        title: "Forum",
-        action: () => DiscourseURL.routeTo("/latest"),
-      },
-    ];
+    const actions = [];
 
     this.memberWorkspaces
       .filter((workspace) => workspace.id !== this.workspaceCategory.id)
@@ -267,6 +261,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           action: () => DiscourseURL.routeTo(workspaceOverviewPath(workspace)),
         })
       );
+
+    actions.push({
+      id: "leave-workspace",
+      title: "Back to forum",
+      action: () => DiscourseURL.routeTo("/latest"),
+    });
 
     return actions;
   }
