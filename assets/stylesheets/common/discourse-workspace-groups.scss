@@ -20,8 +20,14 @@
 }
 
 .sidebar-sections.workspace-team-sidebar--focused
-  > .sidebar-section-wrapper[data-section-name="chat-dms"] {
+  > .sidebar-section-wrapper[data-section-name="chat-starred-channels"] {
+  display: block;
   order: 1;
+}
+
+.sidebar-sections.workspace-team-sidebar--focused
+  > .sidebar-section-wrapper[data-section-name="chat-dms"] {
+  order: 2;
 }
 
 .sidebar-sections.workspace-team-sidebar--focused > .sidebar-custom-sections,
