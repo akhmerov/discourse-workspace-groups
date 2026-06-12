@@ -53,6 +53,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked orderedChannelIds = null;
   @tracked savingSidebarOrder = false;
   @tracked showUnreadOnly = false;
+  @tracked keepWorkspaceSidebar = false;
 
   sectionName = "workspace-team";
   sidebarSectionContentId = getSidebarSectionContentId(this.sectionName);
@@ -135,14 +136,28 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     return memberWorkspaceCategories(this.services);
   }
 
-  get inWorkspaceContext() {
-    if (currentWorkspaceCategory(this.services)) {
-      return true;
-    }
-
+  get routeIsWorkspaceContext() {
     const overviewPath = workspaceOverviewPath(this.workspaceCategory);
+
     return !!(
+      currentWorkspaceCategory(this.services) ||
       overviewPath && this.router.currentURL?.startsWith(overviewPath)
+    );
+  }
+
+  get routeIsChatContext() {
+    return !!(
+      this.router.currentRouteName?.startsWith("chat.") ||
+      this.router.currentURL?.startsWith("/chat")
+    );
+  }
+
+  get inWorkspaceContext() {
+    return !!(
+      this.routeIsWorkspaceContext ||
+      (this.keepWorkspaceSidebar &&
+        this.routeIsChatContext &&
+        this.workspaceCategory)
     );
   }
 
@@ -265,7 +280,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     actions.push({
       id: "leave-workspace",
       title: "Back to forum",
-      action: () => DiscourseURL.routeTo("/latest"),
+      action: () => {
+        this.keepWorkspaceSidebar = false;
+        DiscourseURL.routeTo("/latest");
+      },
     });
 
     return actions;
@@ -452,6 +470,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   updateSidebarFocus() {
+    if (this.routeIsWorkspaceContext) {
+      this.keepWorkspaceSidebar = true;
+    } else if (!this.routeIsChatContext) {
+      this.keepWorkspaceSidebar = false;
+    }
+
     this.sidebarSectionsElement?.classList.toggle(
       this.focusedSidebarClass,
       this.inWorkspaceContext
