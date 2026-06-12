@@ -1265,6 +1265,19 @@ export default class WorkspaceTeamSidebarBlock extends Component {
               {{/if}}
 
               {{#unless group.collapsed}}
+                {{#if this.editingSidebar}}
+                  {{#unless group.rows.length}}
+                    <li
+                      class="workspace-team-sidebar__section-dropzone"
+                      {{on "dragover" this.allowSectionDrop}}
+                      {{on "drop" (fn this.dropOnSidebarSection group.id)}}
+                    >
+                      {{icon "hand-paper"}}
+                      <span>Drag channels here</span>
+                    </li>
+                  {{/unless}}
+                {{/if}}
+
                 {{#each group.rows as |row|}}
                   <WorkspaceTeamSidebarRow
                     @categoryLink={{row.categoryLink}}
