@@ -14,6 +14,7 @@ register_asset "stylesheets/common/discourse-workspace-groups.scss"
 register_svg_icon "layer-group"
 register_svg_icon "lock"
 register_svg_icon "table-cells-large"
+register_svg_icon "right-left"
 
 require "digest/sha1"
 

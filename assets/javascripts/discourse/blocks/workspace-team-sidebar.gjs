@@ -323,7 +323,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get headerActionsIcon() {
-    return "shuffle";
+    return "right-left";
   }
 
   get headerText() {
