@@ -144,71 +144,12 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   @action
-  dragHasStarted(event) {
+  startPointerDrag(event) {
     if (!this.args.editable) {
-      event.preventDefault();
       return;
     }
 
-    const category = this.args.categoryLink.category;
-
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(category.id));
-    event.dataTransfer.setData(
-      "application/x-workspace-category-id",
-      String(category.id)
-    );
-    this.setDragImage(event);
-    this.args.setDraggedCategory?.(category);
-  }
-
-  @action
-  dragEnd() {
-    this.clearDragImage();
-    this.args.setDraggedCategory?.(null);
-  }
-
-  @action
-  dragOverRow(event) {
-    this.args.dragOverRow?.(event);
-  }
-
-  @action
-  dragLeaveRow(event) {
-    this.args.dragLeaveRow?.(event);
-  }
-
-  @action
-  dropOnRow(event) {
-    this.args.dropOnRow?.(event);
-  }
-
-  setDragImage(event) {
-    const row = event.currentTarget.closest(".workspace-team-sidebar__row");
-
-    if (!row || !event.dataTransfer?.setDragImage) {
-      return;
-    }
-
-    const rowRect = row.getBoundingClientRect();
-    const dragImage = row.cloneNode(true);
-
-    dragImage.classList.add("workspace-team-sidebar__drag-image");
-    dragImage.style.width = `${rowRect.width}px`;
-    dragImage.style.position = "fixed";
-    dragImage.style.top = "-1000px";
-    dragImage.style.left = "-1000px";
-    dragImage.style.pointerEvents = "none";
-    document.body.appendChild(dragImage);
-    event.dataTransfer.setDragImage(dragImage, 16, rowRect.height / 2);
-
-    this.dragImage = dragImage;
-    requestAnimationFrame(() => this.clearDragImage());
-  }
-
-  clearDragImage() {
-    this.dragImage?.remove();
-    this.dragImage = null;
+    this.args.startPointerDrag?.(event);
   }
 
   <template>
@@ -221,17 +162,15 @@ export default class WorkspaceTeamSidebarRow extends Component {
           this.rowClass
         }}
         data-workspace-category-id={{@categoryLink.category.id}}
-        {{on "dragover" this.dragOverRow}}
-        {{on "dragleave" this.dragLeaveRow}}
-        {{on "drop" this.dropOnRow}}
       >
         {{#if @editable}}
           <div
             class="workspace-team-sidebar__drag-handle"
             title="Drag to reorder"
-            draggable="true"
-            {{on "dragstart" this.dragHasStarted}}
-            {{on "dragend" this.dragEnd}}
+            role="button"
+            draggable="false"
+            {{! eslint-disable-next-line ember/template-no-pointer-down-event-binding }}
+            {{on "mousedown" this.startPointerDrag}}
           >
             {{dIcon "grip-lines"}}
           </div>
