@@ -669,10 +669,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         `/workspace-groups/workspaces/${this.workspaceCategory.id}/sidebar-channels`,
         {
           type: "PUT",
-          data: {
+          contentType: "application/json",
+          data: JSON.stringify({
             sections: normalizedLayout.sections,
             other_collapsed: normalizedLayout.other_collapsed,
-          },
+          }),
         }
       );
       const savedLayout = this.normalizeSidebarLayout(result.sections);
