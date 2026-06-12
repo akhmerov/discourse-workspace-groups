@@ -156,12 +156,42 @@ export default class WorkspaceTeamSidebarRow extends Component {
       "application/x-workspace-category-id",
       String(category.id)
     );
+    this.setDragImage(event);
     this.args.setDraggedCategory?.(category);
   }
 
   @action
   dragEnd() {
+    this.clearDragImage();
     this.args.setDraggedCategory?.(null);
+  }
+
+  setDragImage(event) {
+    const row = event.currentTarget.closest(".workspace-team-sidebar__row");
+
+    if (!row || !event.dataTransfer?.setDragImage) {
+      return;
+    }
+
+    const rowRect = row.getBoundingClientRect();
+    const dragImage = row.cloneNode(true);
+
+    dragImage.classList.add("workspace-team-sidebar__drag-image");
+    dragImage.style.width = `${rowRect.width}px`;
+    dragImage.style.position = "fixed";
+    dragImage.style.top = "-1000px";
+    dragImage.style.left = "-1000px";
+    dragImage.style.pointerEvents = "none";
+    document.body.appendChild(dragImage);
+    event.dataTransfer.setDragImage(dragImage, 16, rowRect.height / 2);
+
+    this.dragImage = dragImage;
+    requestAnimationFrame(() => this.clearDragImage());
+  }
+
+  clearDragImage() {
+    this.dragImage?.remove();
+    this.dragImage = null;
   }
 
   <template>
