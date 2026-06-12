@@ -280,9 +280,27 @@
   color: var(--primary);
 }
 
+.workspace-team-sidebar__section-action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .workspace-team-sidebar__section-action .d-icon {
   height: 0.7rem;
   width: 0.7rem;
+}
+
+.workspace-team-sidebar__section-title-input {
+  background: var(--secondary);
+  border: 1px solid var(--primary-low-mid);
+  border-radius: 0.35rem;
+  color: var(--primary);
+  flex: 1 1 auto;
+  font-size: var(--font-down-2);
+  font-weight: 700;
+  min-height: 1.55rem;
+  min-width: 0;
+  padding: 0.15rem 0.35rem;
 }
 
 .workspace-team-sidebar__empty {

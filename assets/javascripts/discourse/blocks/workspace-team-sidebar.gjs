@@ -45,6 +45,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @service chat;
   @service("chat-channels-manager") chatChannelsManager;
   @service currentUser;
+  @service dialog;
   @service keyValueStore;
   @service router;
   @service site;
@@ -57,6 +58,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked draggedCategoryId = null;
   @tracked sidebarDropTarget = null;
   @tracked editingSidebar = false;
+  @tracked editingSidebarSectionId = null;
+  @tracked editingSidebarSectionTitle = "";
   @tracked headerActionsMenuOpen = false;
   @tracked orderedChannelIds = null;
   @tracked sidebarSectionsOverride = null;
@@ -625,6 +628,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.editingSidebar = false;
     this.orderedChannelIds = null;
     this.sidebarSectionsOverride = null;
+    this.cancelSidebarSectionTitleEdit();
 
     try {
       sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
@@ -645,9 +649,23 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       : i18n("discourse_workspace_groups.edit_sidebar");
   }
 
+  get addChannelGroupTitle() {
+    return i18n("discourse_workspace_groups.add_channel_group");
+  }
+
+  get addChannelGroupLabel() {
+    return i18n("discourse_workspace_groups.channel_group");
+  }
+
+  get sidebarSectionTitleInvalid() {
+    return this.editingSidebarSectionTitle.trim().length === 0;
+  }
+
   get editableGroups() {
     return this.groupedRows.map((group) => ({
       ...group,
+      editingTitle:
+        group.editable && this.editingSidebarSectionId === group.id,
       dropTarget:
         this.sidebarDropTarget?.sectionId === group.id &&
         !this.sidebarDropTarget?.categoryId,
@@ -999,6 +1017,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.showUnreadOnly = false;
 
     if (this.editingSidebar) {
+      this.applyEditingSidebarSectionTitle();
+
       const saved = await this.persistSidebarSections(
         this.sidebarSectionsOverride,
         this.currentSidebarLayout
@@ -1009,6 +1029,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       }
 
       this.editingSidebar = false;
+      this.cancelSidebarSectionTitleEdit();
       this.orderedChannelIds = null;
       this.sidebarSectionsOverride = null;
       this.sidebarDropTarget = null;
@@ -1018,6 +1039,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.editingSidebar = true;
     const editableLayout = this.editableSidebarLayout();
     this.sidebarSectionsOverride = editableLayout;
+    this.cancelSidebarSectionTitleEdit();
     this.sidebarDropTarget = null;
     this.orderedChannelIds = this.channelIdsForLayout(editableLayout);
   }
@@ -1251,6 +1273,176 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     };
   }
 
+  uniqueSidebarSectionId(layout) {
+    const existingIds = new Set(layout.sections.map((section) => section.id));
+    let sectionId = `section-${Date.now()}`;
+    let suffix = 1;
+
+    while (existingIds.has(sectionId)) {
+      sectionId = `section-${Date.now()}-${suffix++}`;
+    }
+
+    return sectionId;
+  }
+
+  applyEditingSidebarSectionTitle() {
+    if (!this.editingSidebarSectionId) {
+      return;
+    }
+
+    const title = this.editingSidebarSectionTitle.trim();
+
+    if (!title) {
+      return;
+    }
+
+    const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
+    const nextLayout = {
+      ...currentLayout,
+      sections: currentLayout.sections.map((section) =>
+        section.id === this.editingSidebarSectionId
+          ? { ...section, title }
+          : section
+      ),
+    };
+
+    this.applySidebarSectionsLocally(nextLayout);
+    this.cancelSidebarSectionTitleEdit();
+  }
+
+  @action
+  addSidebarSection() {
+    if (!this.editingSidebar || this.savingSidebarOrder) {
+      return;
+    }
+
+    this.applyEditingSidebarSectionTitle();
+
+    const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
+    const sectionId = this.uniqueSidebarSectionId(currentLayout);
+    const title = i18n("discourse_workspace_groups.new_channel_group");
+    const nextLayout = {
+      ...currentLayout,
+      sections: [
+        ...currentLayout.sections,
+        {
+          id: sectionId,
+          title,
+          channel_ids: [],
+          collapsed: false,
+        },
+      ],
+    };
+
+    this.applySidebarSectionsLocally(nextLayout);
+    this.editingSidebarSectionId = sectionId;
+    this.editingSidebarSectionTitle = title;
+  }
+
+  @action
+  editSidebarSectionTitle(section) {
+    if (!this.editingSidebar || this.savingSidebarOrder || !section.editable) {
+      return;
+    }
+
+    this.editingSidebarSectionId = section.id;
+    this.editingSidebarSectionTitle = section.title;
+  }
+
+  @action
+  updateSidebarSectionTitle(event) {
+    this.editingSidebarSectionTitle = event.target.value;
+  }
+
+  @action
+  handleSidebarSectionTitleKeydown(section, event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      this.saveSidebarSectionTitle(section);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      this.cancelSidebarSectionTitleEdit();
+    }
+  }
+
+  @action
+  focusSidebarSectionTitleInput(element) {
+    element.focus();
+    element.select();
+  }
+
+  @action
+  saveSidebarSectionTitle(section) {
+    if (
+      !this.editingSidebar ||
+      this.savingSidebarOrder ||
+      !section.editable ||
+      this.sidebarSectionTitleInvalid
+    ) {
+      return;
+    }
+
+    this.applyEditingSidebarSectionTitle();
+  }
+
+  @action
+  cancelSidebarSectionTitleEdit() {
+    this.editingSidebarSectionId = null;
+    this.editingSidebarSectionTitle = "";
+  }
+
+  @action
+  async deleteSidebarSection(section) {
+    if (!this.editingSidebar || this.savingSidebarOrder || !section.editable) {
+      return;
+    }
+
+    if (section.rows.length > 0) {
+      const confirmed = await this.dialog.confirm({
+        message: i18n(
+          "discourse_workspace_groups.delete_channel_group_message",
+          { group_name: section.title }
+        ),
+        confirmButtonLabel:
+          "discourse_workspace_groups.delete_channel_group_confirm",
+        cancelButtonLabel: "cancel",
+      });
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
+    const deletedSection = currentLayout.sections.find(
+      (currentSection) => currentSection.id === section.id
+    );
+
+    if (!deletedSection) {
+      return;
+    }
+
+    const nextLayout = {
+      ...currentLayout,
+      sections: currentLayout.sections.filter(
+        (currentSection) => currentSection.id !== section.id
+      ),
+      other_channel_ids: [
+        ...currentLayout.other_channel_ids,
+        ...deletedSection.channel_ids,
+      ],
+      other_collapsed: deletedSection.channel_ids.length
+        ? false
+        : currentLayout.other_collapsed,
+    };
+
+    if (this.editingSidebarSectionId === section.id) {
+      this.cancelSidebarSectionTitleEdit();
+    }
+
+    this.applySidebarSectionsLocally(nextLayout);
+  }
+
   @action
   async toggleSidebarSection(section) {
     const currentLayout = this.normalizeSidebarLayout(this.currentSidebarLayout);
@@ -1374,6 +1566,20 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           </button>
 
           {{#if this.canEditSidebar}}
+            {{#if this.editingSidebar}}
+              <button
+                type="button"
+                title={{this.addChannelGroupTitle}}
+                aria-label={{this.addChannelGroupTitle}}
+                class="workspace-team-sidebar__control"
+                disabled={{this.savingSidebarOrder}}
+                {{on "click" this.addSidebarSection}}
+              >
+                {{dIcon "plus"}}
+                <span>{{this.addChannelGroupLabel}}</span>
+              </button>
+            {{/if}}
+
             <button
               type="button"
               title={{this.sidebarEditTitle}}
@@ -1416,23 +1622,86 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                   <li
                     class="workspace-team-sidebar__section"
                   >
-                    <button
-                      type="button"
-                      class={{dConcatClass
-                        "workspace-team-sidebar__section-heading"
-                        (if
-                          group.unread
-                          "workspace-team-sidebar__section-heading--unread"
-                        )
-                      }}
-                      {{on "click" (fn this.toggleSidebarSection group)}}
-                    >
-                      {{dIcon (if group.collapsed "angle-right" "angle-down")}}
-                      <span>{{group.title}}</span>
-                      {{#if group.unread}}
-                        <span class="chat-channel-unread-indicator"></span>
+                    {{#if group.editingTitle}}
+                      <input
+                        type="text"
+                        value={{this.editingSidebarSectionTitle}}
+                        class="workspace-team-sidebar__section-title-input"
+                        aria-label="Group name"
+                        disabled={{this.savingSidebarOrder}}
+                        {{didInsert this.focusSidebarSectionTitleInput}}
+                        {{on "input" this.updateSidebarSectionTitle}}
+                        {{on
+                          "keydown"
+                          (fn this.handleSidebarSectionTitleKeydown group)
+                        }}
+                      />
+                      <button
+                        type="button"
+                        title="Save group name"
+                        aria-label="Save group name"
+                        class="workspace-team-sidebar__section-action"
+                        disabled={{this.sidebarSectionTitleInvalid}}
+                        {{on "click" (fn this.saveSidebarSectionTitle group)}}
+                      >
+                        {{dIcon "check"}}
+                      </button>
+                      <button
+                        type="button"
+                        title="Cancel rename"
+                        aria-label="Cancel rename"
+                        class="workspace-team-sidebar__section-action"
+                        {{on "click" this.cancelSidebarSectionTitleEdit}}
+                      >
+                        {{dIcon "xmark"}}
+                      </button>
+                    {{else}}
+                      <button
+                        type="button"
+                        class={{dConcatClass
+                          "workspace-team-sidebar__section-heading"
+                          (if
+                            group.unread
+                            "workspace-team-sidebar__section-heading--unread"
+                          )
+                        }}
+                        {{on "click" (fn this.toggleSidebarSection group)}}
+                      >
+                        {{dIcon
+                          (if group.collapsed "angle-right" "angle-down")
+                        }}
+                        <span>{{group.title}}</span>
+                        {{#if group.unread}}
+                          <span class="chat-channel-unread-indicator"></span>
+                        {{/if}}
+                      </button>
+
+                      {{#if group.editable}}
+                        <button
+                          type="button"
+                          title="Rename group"
+                          aria-label="Rename group"
+                          class="workspace-team-sidebar__section-action"
+                          disabled={{this.savingSidebarOrder}}
+                          {{on
+                            "click"
+                            (fn this.editSidebarSectionTitle group)
+                          }}
+                        >
+                          {{dIcon "pencil"}}
+                        </button>
+                        <button
+                          type="button"
+                          title="Delete group"
+                          aria-label="Delete group"
+                          class="workspace-team-sidebar__section-action"
+                          disabled={{this.savingSidebarOrder}}
+                          {{on "click" (fn this.deleteSidebarSection group)}}
+                        >
+                          {{dIcon "trash-can"}}
+                        </button>
                       {{/if}}
-                    </button>
+                    {{/if}}
                   </li>
                 {{/if}}
 
