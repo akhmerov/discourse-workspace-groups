@@ -1105,15 +1105,17 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     event.preventDefault();
     this.moveSidebarDragPreview(event);
+    this.sidebarDropTarget = this.dropTargetForPointer(event);
+  }
 
+  dropTargetForPointer(event) {
     const targetElement = document.elementFromPoint(event.clientX, event.clientY);
     const rowElement = targetElement?.closest?.(
       ".workspace-team-sidebar__row[data-workspace-category-id]"
     );
 
     if (rowElement) {
-      this.setRowPointerDropTarget(rowElement, event.clientY);
-      return;
+      return this.dropTargetForRowElement(rowElement, event.clientY);
     }
 
     const sectionElement = targetElement?.closest?.(
@@ -1121,15 +1123,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     );
 
     if (sectionElement) {
-      this.sidebarDropTarget = {
+      return {
         sectionId: sectionElement.dataset.workspaceSidebarSectionId,
         categoryId: null,
         position: "end",
       };
-      return;
     }
 
-    this.sidebarDropTarget = null;
+    return null;
   }
 
   moveSidebarDragPreview(event) {
@@ -1144,26 +1145,24 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }px, ${event.clientY - drag.offsetY}px, 0)`;
   }
 
-  setRowPointerDropTarget(rowElement, pointerY) {
+  dropTargetForRowElement(rowElement, pointerY) {
     const targetCategoryId = Number(rowElement.dataset.workspaceCategoryId);
 
     if (
       !targetCategoryId ||
       targetCategoryId === Number(this.sidebarPointerDrag?.categoryId)
     ) {
-      this.sidebarDropTarget = null;
-      return;
+      return null;
     }
 
     const targetRow = this.rowForCategoryId(targetCategoryId);
 
     if (!targetRow?.sidebarSectionId) {
-      this.sidebarDropTarget = null;
-      return;
+      return null;
     }
 
     const rect = rowElement.getBoundingClientRect();
-    this.sidebarDropTarget = {
+    return {
       sectionId: targetRow.sidebarSectionId,
       categoryId: targetCategoryId,
       position: pointerY < rect.top + rect.height / 2 ? "before" : "after",
@@ -1192,7 +1191,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     event.preventDefault();
 
     const draggedCategoryId = Number(this.sidebarPointerDrag.categoryId);
-    const dropTarget = this.sidebarDropTarget;
+    const dropTarget = this.dropTargetForPointer(event) ?? this.sidebarDropTarget;
 
     if (!draggedCategoryId || !dropTarget) {
       this.cancelSidebarPointerDrag();
@@ -1206,11 +1205,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       dropTarget.categoryId,
       dropTarget.position
     );
-    this.applySidebarSectionsLocally(
-      dropTarget.categoryId
-        ? nextLayout
-        : this.expandSidebarLayoutSection(nextLayout, dropTarget.sectionId)
-    );
+    this.applySidebarSectionsLocally(nextLayout);
     this.cancelSidebarPointerDrag();
   }
 
@@ -1273,19 +1268,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       })),
       other_channel_ids: normalizedLayout.other_channel_ids.filter(
         (sectionCategoryId) => sectionCategoryId !== normalizedCategoryId
-      ),
-    };
-  }
-
-  expandSidebarLayoutSection(layout, sectionId) {
-    if (sectionId === OTHER_SECTION_ID) {
-      return { ...layout, other_collapsed: false };
-    }
-
-    return {
-      ...layout,
-      sections: layout.sections.map((section) =>
-        section.id === sectionId ? { ...section, collapsed: false } : section
       ),
     };
   }
