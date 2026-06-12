@@ -1,5 +1,4 @@
 import Component from "@glimmer/component";
-import { tracked } from "@glimmer/tracking";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { LinkTo } from "@ember/routing";
@@ -8,14 +7,10 @@ import { isHex } from "discourse/components/sidebar/section-link";
 import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix";
 import concatClass from "discourse/helpers/concat-class";
 import icon from "discourse/helpers/d-icon";
-import discourseLater from "discourse/lib/later";
 import DiscourseURL from "discourse/lib/url";
 
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
-
-  @tracked dragCssClass;
-  dragCount = 0;
 
   get categoryModels() {
     if (this.args.categoryLink.model) {
@@ -124,16 +119,16 @@ export default class WorkspaceTeamSidebarRow extends Component {
       "workspace-team-sidebar__row",
       "sidebar-row",
       this.args.chatMuted && "workspace-team-sidebar__row--muted",
-      this.args.editable && "workspace-team-sidebar__row--editing",
-      this.dragCssClass
+      this.args.editable && "workspace-team-sidebar__row--editing"
     );
   }
 
-  isAboveElement(event) {
-    event.preventDefault();
-    const target = event.currentTarget;
-    const domRect = target.getBoundingClientRect();
-    return event.clientY - domRect.top < domRect.height / 2;
+  get moveUpDisabled() {
+    return !!(this.args.saving || this.args.moveUpDisabled);
+  }
+
+  get moveDownDisabled() {
+    return !!(this.args.saving || this.args.moveDownDisabled);
   }
 
   @action
@@ -154,77 +149,27 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   @action
-  dragHasStarted(event) {
-    if (!this.args.editable || this.args.dragDisabled) {
+  moveUp(event) {
+    event.preventDefault();
+    this.args.moveRow?.(this.args.categoryLink.category, this.args.sectionId, -1);
+  }
+
+  @action
+  moveDown(event) {
+    event.preventDefault();
+    this.args.moveRow?.(this.args.categoryLink.category, this.args.sectionId, 1);
+  }
+
+  @action
+  moveToSection(event) {
+    const sectionId = event.target.value;
+
+    if (!sectionId || sectionId === this.args.sectionId) {
       event.preventDefault();
       return;
     }
 
-    event.dataTransfer.effectAllowed = "move";
-    this.args.setDraggedCategory?.(this.args.categoryLink.category);
-    this.dragCssClass = "dragging";
-  }
-
-  @action
-  dragOver(event) {
-    if (!this.args.editable || this.args.dragDisabled) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (this.dragCssClass !== "dragging") {
-      this.dragCssClass = this.isAboveElement(event) ? "drag-above" : "drag-below";
-    }
-  }
-
-  @action
-  dragEnter() {
-    if (!this.args.editable || this.args.dragDisabled) {
-      return;
-    }
-
-    this.dragCount++;
-  }
-
-  @action
-  dragLeave() {
-    if (!this.args.editable || this.args.dragDisabled) {
-      return;
-    }
-
-    this.dragCount--;
-
-    if (
-      this.dragCount === 0 &&
-      (this.dragCssClass === "drag-above" || this.dragCssClass === "drag-below")
-    ) {
-      discourseLater(() => {
-        this.dragCssClass = null;
-      }, 10);
-    }
-  }
-
-  @action
-  dropItem(event) {
-    if (!this.args.editable || this.args.dragDisabled) {
-      return;
-    }
-
-    event.stopPropagation();
-    this.dragCount = 0;
-    this.args.reorderCallback?.(
-      this.args.categoryLink.category,
-      this.isAboveElement(event)
-    );
-    this.dragCssClass = null;
-  }
-
-  @action
-  dragEnd() {
-    this.dragCount = 0;
-    this.dragCssClass = null;
-    this.args.setDraggedCategory?.(null);
+    this.args.moveToSection?.(this.args.categoryLink.category, sectionId);
   }
 
   <template>
@@ -236,17 +181,29 @@ export default class WorkspaceTeamSidebarRow extends Component {
         class={{concatClass
           this.rowClass
         }}
-        draggable={{if @editable "true" "false"}}
-        {{on "dragstart" this.dragHasStarted}}
-        {{on "dragover" this.dragOver}}
-        {{on "dragenter" this.dragEnter}}
-        {{on "dragleave" this.dragLeave}}
-        {{on "dragend" this.dragEnd}}
-        {{on "drop" this.dropItem}}
       >
         {{#if @editable}}
-          <div class="workspace-team-sidebar__drag-handle">
-            {{icon "grip-lines"}}
+          <div class="workspace-team-sidebar__order-controls">
+            <button
+              type="button"
+              title="Move up"
+              aria-label="Move up"
+              class="workspace-team-sidebar__order-button"
+              disabled={{this.moveUpDisabled}}
+              {{on "click" this.moveUp}}
+            >
+              {{icon "chevron-up"}}
+            </button>
+            <button
+              type="button"
+              title="Move down"
+              aria-label="Move down"
+              class="workspace-team-sidebar__order-button"
+              disabled={{this.moveDownDisabled}}
+              {{on "click" this.moveDown}}
+            >
+              {{icon "chevron-down"}}
+            </button>
           </div>
         {{/if}}
 
@@ -403,6 +360,23 @@ export default class WorkspaceTeamSidebarRow extends Component {
               </button>
             {{/if}}
           </div>
+        {{/if}}
+
+        {{#if @editable}}
+          <select
+            title="Move to section"
+            aria-label="Move to section"
+            class="workspace-team-sidebar__section-select"
+            value={{@sectionId}}
+            disabled={{@saving}}
+            {{on "change" this.moveToSection}}
+          >
+            {{#each @sectionOptions as |section|}}
+              <option value={{section.id}}>
+                {{section.title}}
+              </option>
+            {{/each}}
+          </select>
         {{/if}}
       </div>
     </li>
