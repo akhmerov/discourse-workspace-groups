@@ -250,7 +250,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return [];
     }
 
-    const actions = [];
+    const actions = [
+      {
+        id: "leave-workspace",
+        title: "Forum",
+        action: () => DiscourseURL.routeTo("/latest"),
+      },
+    ];
 
     this.memberWorkspaces
       .filter((workspace) => workspace.id !== this.workspaceCategory.id)
@@ -266,7 +272,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get headerActionsIcon() {
-    return "users";
+    return "shuffle";
   }
 
   get headerText() {
@@ -285,10 +291,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     return this.workspaceCategory
       ? `Open ${this.workspaceCategory.displayName} workspace`
       : null;
-  }
-
-  get leaveWorkspaceTitle() {
-    return "Leave workspace";
   }
 
   get unreadFilterTitle() {
@@ -479,11 +481,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
-  leaveWorkspace() {
-    DiscourseURL.routeTo("/latest");
-  }
-
-  @action
   handleWorkspaceSelection(id) {
     this.headerActions.find((headerAction) => headerAction.id === id)?.action();
   }
@@ -600,33 +597,20 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         </SectionHeader>
 
         {{#if this.inWorkspaceContext}}
-          {{#if this.headerActions.length}}
-            <DropdownSelectBox
-              @options={{hash
-                icon=this.headerActionsIcon
-                placementStrategy="absolute"
-              }}
-              @content={{this.headerActions}}
-              @onChange={{this.handleWorkspaceSelection}}
-              class="sidebar-section-header-dropdown workspace-team-sidebar__header-switcher"
-            />
-          {{/if}}
+          <DropdownSelectBox
+            @options={{hash
+              icon=this.headerActionsIcon
+              placementStrategy="absolute"
+            }}
+            @content={{this.headerActions}}
+            @onChange={{this.handleWorkspaceSelection}}
+            class="sidebar-section-header-dropdown workspace-team-sidebar__header-switcher"
+          />
         {{/if}}
       </div>
 
       {{#if this.inWorkspaceContext}}
         <div class="workspace-team-sidebar__controls">
-          <button
-            type="button"
-            title={{this.leaveWorkspaceTitle}}
-            aria-label={{this.leaveWorkspaceTitle}}
-            class="workspace-team-sidebar__control"
-            {{on "click" this.leaveWorkspace}}
-          >
-            {{icon "arrow-left"}}
-            <span>Forum</span>
-          </button>
-
           <button
             type="button"
             title={{this.overviewTitle}}
