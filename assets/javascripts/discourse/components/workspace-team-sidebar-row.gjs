@@ -5,9 +5,9 @@ import { LinkTo } from "@ember/routing";
 import { service } from "@ember/service";
 import { isHex } from "discourse/components/sidebar/section-link";
 import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix";
-import concatClass from "discourse/helpers/concat-class";
-import icon from "discourse/helpers/d-icon";
 import DiscourseURL from "discourse/lib/url";
+import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
+import dIcon from "discourse/ui-kit/helpers/d-icon";
 
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
@@ -49,7 +49,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get categoryButtonClass() {
-    return concatClass(
+    return dConcatClass(
       "workspace-team-sidebar__mode-button",
       this.args.chatMuted && "workspace-team-sidebar__mode-button--muted",
       this.args.categoryActive && "workspace-team-sidebar__mode-button--active"
@@ -57,7 +57,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get chatButtonClass() {
-    return concatClass(
+    return dConcatClass(
       "workspace-team-sidebar__mode-button",
       this.args.chatMuted && "workspace-team-sidebar__mode-button--muted",
       this.args.chatActive && "workspace-team-sidebar__mode-button--active"
@@ -77,7 +77,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get mainLinkClass() {
-    return concatClass(
+    return dConcatClass(
       "workspace-team-sidebar__main-link",
       "sidebar-section-link",
       this.args.chatMuted && "sidebar-section-link--muted",
@@ -115,12 +115,14 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get rowClass() {
-    return concatClass(
+    return dConcatClass(
       "workspace-team-sidebar__row",
       "sidebar-row",
       this.args.chatMuted && "workspace-team-sidebar__row--muted",
       this.args.editable && "workspace-team-sidebar__row--editing",
-      this.args.dragging && "workspace-team-sidebar__row--dragging"
+      this.args.dragging && "workspace-team-sidebar__row--dragging",
+      this.args.dropBefore && "workspace-team-sidebar__row--drop-before",
+      this.args.dropAfter && "workspace-team-sidebar__row--drop-after"
     );
   }
 
@@ -166,6 +168,21 @@ export default class WorkspaceTeamSidebarRow extends Component {
     this.args.setDraggedCategory?.(null);
   }
 
+  @action
+  dragOverRow(event) {
+    this.args.dragOverRow?.(event);
+  }
+
+  @action
+  dragLeaveRow(event) {
+    this.args.dragLeaveRow?.(event);
+  }
+
+  @action
+  dropOnRow(event) {
+    this.args.dropOnRow?.(event);
+  }
+
   setDragImage(event) {
     const row = event.currentTarget.closest(".workspace-team-sidebar__row");
 
@@ -200,10 +217,13 @@ export default class WorkspaceTeamSidebarRow extends Component {
       data-list-item-name={{@categoryLink.name}}
     >
       <div
-        class={{concatClass
+        class={{dConcatClass
           this.rowClass
         }}
         data-workspace-category-id={{@categoryLink.category.id}}
+        {{on "dragover" this.dragOverRow}}
+        {{on "dragleave" this.dragLeaveRow}}
+        {{on "drop" this.dropOnRow}}
       >
         {{#if @editable}}
           <div
@@ -213,7 +233,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
             {{on "dragstart" this.dragHasStarted}}
             {{on "dragend" this.dragEnd}}
           >
-            {{icon "grip-lines"}}
+            {{dIcon "grip-lines"}}
           </div>
         {{/if}}
 
@@ -315,7 +335,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
             {{#if @editable}}
               <span class={{this.categoryButtonClass}}>
                 <span class="workspace-team-sidebar__mode-icon">
-                  {{icon "list"}}
+                  {{dIcon "list"}}
 
                   {{#if @categoryUnread}}
                     <span class={{this.categoryUnreadIndicatorClass}}></span>
@@ -332,7 +352,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
                 class={{this.categoryButtonClass}}
               >
                 <span class="workspace-team-sidebar__mode-icon">
-                  {{icon "list"}}
+                  {{dIcon "list"}}
 
                   {{#if @categoryUnread}}
                     <span class={{this.categoryUnreadIndicatorClass}}></span>
@@ -344,7 +364,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
             {{#if @editable}}
               <span class={{this.chatButtonClass}}>
                 <span class="workspace-team-sidebar__mode-icon">
-                  {{icon "d-chat"}}
+                  {{dIcon "d-chat"}}
 
                   {{#if @chatUnread}}
                     <span class={{this.chatUnreadIndicatorClass}}></span>
@@ -361,7 +381,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
                 {{on "click" this.openChat}}
               >
                 <span class="workspace-team-sidebar__mode-icon">
-                  {{icon "d-chat"}}
+                  {{dIcon "d-chat"}}
 
                   {{#if @chatUnread}}
                     <span class={{this.chatUnreadIndicatorClass}}></span>

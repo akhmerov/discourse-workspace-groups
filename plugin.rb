@@ -393,11 +393,18 @@ module ::DiscourseWorkspaceGroups
             seen_channel_ids.include?(channel_id).tap { |seen| seen_channel_ids.add(channel_id) if !seen }
           end
 
+        collapsed_value =
+          if section.key?(:collapsed)
+            section[:collapsed]
+          else
+            section["collapsed"]
+          end
+
         {
           id: id,
           title: title,
           channel_ids: channel_ids,
-          collapsed: ActiveModel::Type::Boolean.new.cast(section[:collapsed] || section["collapsed"]),
+          collapsed: !!ActiveModel::Type::Boolean.new.cast(collapsed_value),
         }
       end
 
@@ -406,10 +413,17 @@ module ::DiscourseWorkspaceGroups
         seen_channel_ids.include?(channel_id).tap { |seen| seen_channel_ids.add(channel_id) if !seen }
       end
 
+    other_collapsed_value =
+      if raw_layout.key?(:other_collapsed)
+        raw_layout[:other_collapsed]
+      else
+        raw_layout["other_collapsed"]
+      end
+
     {
       sections: sections,
       other_channel_ids: other_channel_ids,
-      other_collapsed: ActiveModel::Type::Boolean.new.cast(raw_layout[:other_collapsed] || raw_layout["other_collapsed"]),
+      other_collapsed: !!ActiveModel::Type::Boolean.new.cast(other_collapsed_value),
     }
   end
 

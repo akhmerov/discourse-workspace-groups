@@ -292,35 +292,24 @@
   padding: 0.35rem 0.5rem;
 }
 
-.workspace-team-sidebar__group-drop-area {
+.workspace-team-sidebar__section-drop-target {
+  border-radius: 0.35rem;
   list-style: none;
-}
-
-.workspace-team-sidebar__drop-slot {
-  border-radius: 999px;
-  height: 0;
-  margin: 0 0.45rem;
-  position: relative;
+  margin: 0.05rem 0.4rem;
+  min-height: 0.35rem;
   transition:
-    background-color 0.1s ease,
-    height 0.1s ease,
-    margin 0.1s ease;
-  z-index: 1;
+    background-color 0.12s ease,
+    min-height 0.12s ease,
+    outline-color 0.12s ease;
 }
 
-.workspace-team-sidebar__drop-slot--active {
-  background: var(--tertiary-low);
-  border: 2px solid var(--tertiary);
-  border-radius: 0.5rem;
-  height: 2.15rem;
-  margin: 0.1rem 0.45rem;
-  z-index: 2;
+.workspace-team-sidebar__section-drop-target--tail {
+  margin-bottom: 0.25rem;
 }
 
-.workspace-team-sidebar__drop-slot--empty {
+.workspace-team-sidebar__section-drop-target--empty {
   align-items: center;
   border: 1px dashed var(--primary-low-mid);
-  border-radius: 0.35rem;
   color: var(--primary-medium);
   display: flex;
   font-size: var(--font-down-1);
@@ -331,13 +320,19 @@
   padding: 0.35rem 0.5rem;
 }
 
-.workspace-team-sidebar__drop-slot--empty.workspace-team-sidebar__drop-slot--active {
-  background: var(--d-sidebar-highlight-hover-background);
+.workspace-team-sidebar__section-drop-target--active {
+  background: var(--tertiary-low);
+  min-height: 1.75rem;
+  outline: 2px solid var(--tertiary);
+  outline-offset: -2px;
+}
+
+.workspace-team-sidebar__section-drop-target--empty.workspace-team-sidebar__section-drop-target--active {
   border-color: var(--tertiary);
   color: var(--primary);
 }
 
-.workspace-team-sidebar__drop-slot--empty .d-icon {
+.workspace-team-sidebar__section-drop-target--empty .d-icon {
   height: 0.8rem;
   width: 0.8rem;
 }
@@ -347,6 +342,7 @@
   border-radius: 0.5rem;
   display: flex;
   gap: 0.25rem;
+  position: relative;
   transition:
     background-color 0.15s ease,
     box-shadow 0.15s ease,
@@ -362,6 +358,25 @@
 
 .workspace-team-sidebar__row--dragging {
   opacity: 0.38;
+}
+
+.workspace-team-sidebar__row--drop-before::before,
+.workspace-team-sidebar__row--drop-after::after {
+  background: var(--tertiary);
+  border-radius: 999px;
+  content: "";
+  height: 3px;
+  inset-inline: 0.45rem;
+  position: absolute;
+  z-index: 2;
+}
+
+.workspace-team-sidebar__row--drop-before::before {
+  top: -2px;
+}
+
+.workspace-team-sidebar__row--drop-after::after {
+  bottom: -2px;
 }
 
 .workspace-team-sidebar__drag-image {
