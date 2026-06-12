@@ -597,6 +597,87 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
       expect(response).to have_http_status(:bad_request)
     end
+
+    it "stores per-user sidebar sections and clears the old order for that workspace" do
+      first_public_channel = public_channel
+      second_public_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Papers #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+        ).call
+
+      DiscourseWorkspaceGroups.persist_workspace_sidebar_orders!(
+        workspace_member,
+        workspace.id.to_s => [first_public_channel.id, second_public_channel.id],
+      )
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/sidebar-channels.json",
+          params: {
+            sections: [
+              {
+                id: "papers",
+                title: "Papers",
+                channel_ids: [second_public_channel.id],
+                collapsed: true,
+              },
+              {
+                id: "students",
+                title: "Students",
+                channel_ids: [first_public_channel.id],
+              },
+            ],
+            other_collapsed: true,
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["sections"]["sections"]).to contain_exactly(
+        include(
+          "id" => "papers",
+          "title" => "Papers",
+          "channel_ids" => [second_public_channel.id],
+          "collapsed" => true,
+        ),
+        include(
+          "id" => "students",
+          "title" => "Students",
+          "channel_ids" => [first_public_channel.id],
+          "collapsed" => false,
+        ),
+      )
+      expect(response.parsed_body["sections"]["other_collapsed"]).to eq(true)
+
+      workspace_member.reload
+      expect(
+        DiscourseWorkspaceGroups.workspace_sidebar_sections_for(workspace_member)[workspace.id.to_s],
+      ).to include(other_collapsed: true)
+      expect(
+        DiscourseWorkspaceGroups.workspace_sidebar_orders_for(workspace_member),
+      ).not_to have_key(workspace.id.to_s)
+    end
+
+    it "rejects sidebar sections containing channels the user cannot see" do
+      private_channel
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/sidebar-channels.json",
+          params: {
+            sections: [
+              {
+                id: "private",
+                title: "Private",
+                channel_ids: [private_channel.id],
+              },
+            ],
+          }
+
+      expect(response).to have_http_status(:bad_request)
+    end
   end
 
   describe "#archive_channel" do

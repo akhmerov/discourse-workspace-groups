@@ -11,6 +11,7 @@ import {
   userSelectedScopedCategories,
   workspaceScopedCategory,
   workspaceSidebarChannelOrder,
+  workspaceSidebarSectionChannelOrder,
 } from "discourse/plugins/discourse-workspace-groups/discourse/lib/workspace-team-sidebar-state";
 
 module(
@@ -323,6 +324,71 @@ module(
         ),
         [41, 42]
       );
+    });
+
+    test("uses saved per-user workspace sidebar sections before legacy order", function (assert) {
+      const workspace = {
+        id: 40,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+      };
+      const firstChannel = {
+        id: 41,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+      const secondChannel = {
+        id: 42,
+        parent_category_id: 40,
+        workspace_kind: "channel",
+      };
+
+      const currentUser = {
+        workspaceSidebarOrders: { "40": [41, 42] },
+        workspaceSidebarSections: {
+          "40": {
+            sections: [
+              { id: "papers", title: "Papers", channel_ids: [42] },
+              { id: "other", title: "Other", channel_ids: [41] },
+            ],
+          },
+        },
+      };
+
+      const visibleChannels = sidebarChannelCategories({
+        currentUser,
+        router: {
+          currentRoute: {
+            attributes: {
+              category: workspace,
+            },
+          },
+        },
+        site: {
+          categoriesList: [workspace, firstChannel, secondChannel],
+        },
+        siteSettings: {},
+        chatChannelsManager: {
+          channels: [
+            {
+              isCategoryChannel: true,
+              chatableId: 41,
+              currentUserMembership: { following: true },
+            },
+            {
+              isCategoryChannel: true,
+              chatableId: 42,
+              currentUserMembership: { following: true },
+            },
+          ],
+        },
+      });
+
+      assert.deepEqual(visibleChannels, [secondChannel, firstChannel]);
+      assert.deepEqual(workspaceSidebarSectionChannelOrder(currentUser, 40), [
+        42,
+        41,
+      ]);
     });
 
     test("keeps the current channel visible while local sidebar state catches up", function (assert) {

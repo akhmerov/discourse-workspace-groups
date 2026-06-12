@@ -208,6 +208,32 @@ export function workspaceSidebarOrders(currentUser) {
   );
 }
 
+export function workspaceSidebarSections(currentUser) {
+  return (
+    currentUser?.workspaceSidebarSections ??
+    currentUser?.workspace_sidebar_sections ??
+    {}
+  );
+}
+
+export function workspaceSidebarLayout(currentUser, workspaceId) {
+  if (!workspaceId) {
+    return null;
+  }
+
+  return workspaceSidebarSections(currentUser)?.[String(workspaceId)] ?? null;
+}
+
+export function workspaceSidebarSectionChannelOrder(currentUser, workspaceId) {
+  const layout = workspaceSidebarLayout(currentUser, workspaceId);
+
+  if (!layout?.sections?.length) {
+    return [];
+  }
+
+  return layout.sections.flatMap((section) => section.channel_ids ?? []);
+}
+
 export function workspaceSidebarChannelOrder(currentUser, workspaceId) {
   if (!workspaceId) {
     return [];
@@ -302,9 +328,15 @@ export function sidebarChannelCategories(services, orderedIdsOverride = null) {
         ?.currentUserMembership?.muted,
     }));
 
+  const sectionOrder = workspaceSidebarSectionChannelOrder(
+    services.currentUser,
+    currentWorkspace?.id
+  );
   const explicitOrder =
     orderedIdsOverride ??
-    workspaceSidebarChannelOrder(services.currentUser, currentWorkspace?.id);
+    (sectionOrder.length > 0
+      ? sectionOrder
+      : workspaceSidebarChannelOrder(services.currentUser, currentWorkspace?.id));
 
   if (explicitOrder.length > 0) {
     return sortCategoriesByExplicitOrder(

@@ -124,10 +124,35 @@ module ::DiscourseWorkspaceGroups
       guardian.ensure_can_see!(@workspace)
       raise Discourse::NotFound if !@workspace.workspace_root?
 
-      ordered_ids = Array(params.require(:channel_ids)).map(&:to_i)
       active_channels = workspace_channels(archived: false)
       context = build_channels_context(active_channels)
       visible_channel_ids = visible_channels(active_channels, **context).map(&:id).to_set
+
+      if params.key?(:sections) || params.key?("sections")
+        layout = DiscourseWorkspaceGroups.normalize_workspace_sidebar_layout(sidebar_layout_params)
+        section_channel_ids = layout[:sections].flat_map { |section| section[:channel_ids] }
+
+        if section_channel_ids.any? { |id| !visible_channel_ids.include?(id) }
+          raise Discourse::InvalidParameters.new(:sections)
+        end
+
+        sidebar_sections = DiscourseWorkspaceGroups.workspace_sidebar_sections_for(current_user)
+        if layout[:sections].present?
+          sidebar_sections[@workspace.id.to_s] = layout
+        else
+          sidebar_sections.delete(@workspace.id.to_s)
+        end
+        DiscourseWorkspaceGroups.persist_workspace_sidebar_sections!(current_user, sidebar_sections)
+
+        sidebar_orders = DiscourseWorkspaceGroups.workspace_sidebar_orders_for(current_user)
+        sidebar_orders.delete(@workspace.id.to_s)
+        DiscourseWorkspaceGroups.persist_workspace_sidebar_orders!(current_user, sidebar_orders)
+
+        render json: { sections: sidebar_sections[@workspace.id.to_s] || { sections: [] } }
+        return
+      end
+
+      ordered_ids = Array(params.require(:channel_ids)).map(&:to_i)
 
       if ordered_ids.uniq.length != ordered_ids.length || ordered_ids.any? { |id| !visible_channel_ids.include?(id) }
         raise Discourse::InvalidParameters.new(:channel_ids)
@@ -315,6 +340,16 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::NotFound if channel.blank? || !channel.workspace_channel?
 
       channel
+    end
+
+    def sidebar_layout_params
+      {
+        sections:
+          Array.wrap(params[:sections]).map do |section|
+            section.respond_to?(:permit) ? section.permit(:id, :title, :collapsed, channel_ids: []).to_h : section
+          end,
+        other_collapsed: params[:other_collapsed],
+      }
     end
 
     def build_channels_context(channels)

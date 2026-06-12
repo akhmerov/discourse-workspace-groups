@@ -16,6 +16,7 @@ register_svg_icon "lock"
 register_svg_icon "table-cells-large"
 
 require "digest/sha1"
+require "set"
 
 module ::DiscourseWorkspaceGroups
   PLUGIN_NAME = "discourse-workspace-groups"
@@ -33,6 +34,7 @@ module ::DiscourseWorkspaceGroups
   WORKSPACE_AUTO_JOIN_CHANNEL_IDS = "workspace_auto_join_channel_ids"
   WORKSPACE_CHANNEL_MODE = "workspace_channel_mode"
   USER_WORKSPACE_SIDEBAR_ORDERS = "workspace_sidebar_orders"
+  USER_WORKSPACE_SIDEBAR_SECTIONS = "workspace_sidebar_sections"
   TEAM_OWNER_TRUST_LEVEL = 3
 
   WORKSPACE_KIND_ROOT = "workspace"
@@ -335,6 +337,72 @@ module ::DiscourseWorkspaceGroups
     user.save_custom_fields(true)
   end
 
+  def self.workspace_sidebar_sections_for(user)
+    return {} if user.blank?
+
+    raw_value = user.custom_fields[USER_WORKSPACE_SIDEBAR_SECTIONS]
+    raw_sections =
+      case raw_value
+      when String
+        begin
+          parsed = JSON.parse(raw_value)
+          parsed.is_a?(Hash) ? parsed : {}
+        rescue JSON::ParserError
+          {}
+        end
+      when Hash
+        raw_value
+      else
+        {}
+      end
+
+    raw_sections.each_with_object({}) do |(workspace_id, layout), normalized|
+      normalized_layout = normalize_workspace_sidebar_layout(layout)
+      normalized[workspace_id.to_s] = normalized_layout if normalized_layout[:sections].present?
+    end
+  end
+
+  def self.persist_workspace_sidebar_sections!(user, sections)
+    normalized_sections =
+      sections.each_with_object({}) do |(workspace_id, layout), memo|
+        normalized_layout = normalize_workspace_sidebar_layout(layout)
+        memo[workspace_id.to_s] = normalized_layout if normalized_layout[:sections].present?
+      end
+
+    user.custom_fields[USER_WORKSPACE_SIDEBAR_SECTIONS] = normalized_sections
+    user.save_custom_fields(true)
+  end
+
+  def self.normalize_workspace_sidebar_layout(layout)
+    raw_layout = layout.is_a?(Hash) ? layout : {}
+    raw_sections = raw_layout[:sections] || raw_layout["sections"] || []
+    seen_channel_ids = Set.new
+
+    sections =
+      Array.wrap(raw_sections).filter_map.with_index do |section, index|
+        next if !section.is_a?(Hash)
+
+        title = (section[:title] || section["title"]).to_s.strip.presence || "Channels"
+        id = (section[:id] || section["id"]).to_s.strip.presence || "section-#{index + 1}"
+        channel_ids =
+          normalize_custom_field_id_list(section[:channel_ids] || section["channel_ids"]).reject do |channel_id|
+            seen_channel_ids.include?(channel_id).tap { |seen| seen_channel_ids.add(channel_id) if !seen }
+          end
+
+        {
+          id: id,
+          title: title,
+          channel_ids: channel_ids,
+          collapsed: ActiveModel::Type::Boolean.new.cast(section[:collapsed] || section["collapsed"]),
+        }
+      end
+
+    {
+      sections: sections,
+      other_collapsed: ActiveModel::Type::Boolean.new.cast(raw_layout[:other_collapsed] || raw_layout["other_collapsed"]),
+    }
+  end
+
   def self.workspace_root_permissions(workspace_group, channel_group_ids, public_read: false)
     permissions = { workspace_group.id => :full }
     permissions[:everyone] = :readonly if public_read
@@ -589,6 +657,10 @@ after_initialize do
 
   add_to_serializer(:current_user, :workspace_sidebar_orders) do
     DiscourseWorkspaceGroups.workspace_sidebar_orders_for(object)
+  end
+
+  add_to_serializer(:current_user, :workspace_sidebar_sections) do
+    DiscourseWorkspaceGroups.workspace_sidebar_sections_for(object)
   end
 
   add_to_class(:category, :workspace_enabled?) do
