@@ -658,6 +658,7 @@ after_initialize do
   register_group_custom_field_type("workspace_kind", :string)
   register_group_custom_field_type("workspace_parent_group_id", :integer)
   register_user_custom_field_type(DiscourseWorkspaceGroups::USER_WORKSPACE_SIDEBAR_ORDERS, :json)
+  register_user_custom_field_type(DiscourseWorkspaceGroups::USER_WORKSPACE_SIDEBAR_SECTIONS, :json)
 
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_ENABLED)
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_KIND)
