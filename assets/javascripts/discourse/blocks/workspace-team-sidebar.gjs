@@ -55,6 +55,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked topicCountsVersion = 0;
   @tracked chatHydrationVersion = 0;
   @tracked draggedCategoryId = null;
+  @tracked sidebarDropTarget = null;
   @tracked editingSidebar = false;
   @tracked headerActionsMenuOpen = false;
   @tracked orderedChannelIds = null;
@@ -282,7 +283,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     const storedLayout = this.storedSidebarLayout;
-    if (storedLayout.sections.length > 0) {
+    if (
+      storedLayout.sections.length > 0 ||
+      storedLayout.other_channel_ids.length > 0
+    ) {
       return storedLayout;
     }
 
@@ -647,7 +651,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         {}),
     };
 
-    if (layout.sections.length > 0) {
+    if (layout.sections.length > 0 || layout.other_channel_ids.length > 0) {
       currentSections[String(workspaceId)] = layout;
     } else {
       delete currentSections[String(workspaceId)];
@@ -952,11 +956,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       this.editingSidebar = false;
       this.orderedChannelIds = null;
       this.sidebarSectionsOverride = null;
+      this.sidebarDropTarget = null;
       return;
     }
 
     this.editingSidebar = true;
     this.sidebarSectionsOverride = this.editableSidebarLayout();
+    this.sidebarDropTarget = null;
     this.orderedChannelIds = this.sidebarSectionsOverride.sections.flatMap(
       (section) => section.channel_ids
     );
@@ -975,55 +981,108 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @action
   setDraggedCategory(category) {
     this.draggedCategoryId = category?.id ? Number(category.id) : null;
+
+    if (!this.draggedCategoryId) {
+      this.sidebarDropTarget = null;
+    }
   }
 
   @action
-  allowDropSlot(event) {
+  dragOverSidebarGroup(group, event) {
     if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
       return;
     }
 
     event.preventDefault();
-    event.currentTarget.classList.add(
-      "workspace-team-sidebar__drop-slot--active"
-    );
+    this.sidebarDropTarget = this.dropTargetForPointer(group, event.clientY);
   }
 
   @action
-  leaveDropSlot(event) {
-    event.currentTarget.classList.remove(
-      "workspace-team-sidebar__drop-slot--active"
-    );
+  leaveSidebarGroup(group, event) {
+    const relatedTarget = event.relatedTarget;
+
+    if (relatedTarget && event.currentTarget.contains(relatedTarget)) {
+      return;
+    }
+
+    if (this.sidebarDropTarget?.sectionId === group.id) {
+      this.sidebarDropTarget = null;
+    }
   }
 
   @action
-  dropOnSidebarSlot(sectionId, targetCategoryId, event) {
+  dropOnSidebarGroup(group, event) {
     if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.classList.remove(
-      "workspace-team-sidebar__drop-slot--active"
-    );
 
     const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
     const draggedCategoryId = Number(this.draggedCategoryId);
-    const normalizedTargetCategoryId = Number(targetCategoryId);
+    const dropTarget =
+      this.sidebarDropTarget?.sectionId === group.id
+        ? this.sidebarDropTarget
+        : this.dropTargetForPointer(group, event.clientY);
+    const normalizedTargetCategoryId = Number(dropTarget?.targetCategoryId);
 
     if (!draggedCategoryId || draggedCategoryId === normalizedTargetCategoryId) {
+      this.sidebarDropTarget = null;
       return;
     }
 
     const nextLayout = this.moveCategoryInSidebarLayout(
       currentLayout,
       draggedCategoryId,
-      sectionId,
+      group.id,
       normalizedTargetCategoryId || null
     );
 
     this.applySidebarSectionsLocally(nextLayout);
+    this.sidebarDropTarget = null;
+  }
+
+  dropTargetForPointer(group, pointerY) {
+    if (!group.rows.length) {
+      return { sectionId: group.id, targetCategoryId: null };
+    }
+
+    const rowElements = [
+      ...document.querySelectorAll(
+        `[data-workspace-sidebar-section-id="${group.id}"] .workspace-team-sidebar__row`
+      ),
+    ];
+
+    for (const rowElement of rowElements) {
+      const rect = rowElement.getBoundingClientRect();
+      const categoryId = Number(rowElement.dataset.workspaceCategoryId);
+
+      if (pointerY < rect.top + rect.height / 2) {
+        return { sectionId: group.id, targetCategoryId: categoryId };
+      }
+    }
+
+    return { sectionId: group.id, targetCategoryId: null };
+  }
+
+  isActiveDropTarget(groupId, targetCategoryId = null) {
+    if (!this.draggedCategoryId || !this.sidebarDropTarget) {
+      return false;
+    }
+
+    return (
+      this.sidebarDropTarget.sectionId === groupId &&
+      Number(this.sidebarDropTarget.targetCategoryId || 0) === Number(targetCategoryId || 0)
+    );
+  }
+
+  dropSlotClass(groupId, targetCategoryId = null) {
+    return concatClass(
+      "workspace-team-sidebar__drop-slot",
+      this.isActiveDropTarget(groupId, targetCategoryId) &&
+        "workspace-team-sidebar__drop-slot--active"
+    );
   }
 
   moveCategoryInSidebarLayout(
@@ -1370,58 +1429,77 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
               {{#unless group.collapsed}}
                 {{#if this.editingSidebar}}
-                  {{#unless group.rows.length}}
-                    <li
-                      class="workspace-team-sidebar__drop-slot workspace-team-sidebar__drop-slot--empty"
-                      {{on "dragover" this.allowDropSlot}}
-                      {{on "dragleave" this.leaveDropSlot}}
-                      {{on "drop" (fn this.dropOnSidebarSlot group.id null)}}
-                    >
-                      {{icon "hand-paper"}}
-                      <span>Drag channels here</span>
-                    </li>
-                  {{/unless}}
-                {{/if}}
+                  <li
+                    class="workspace-team-sidebar__group-drop-area"
+                    data-workspace-sidebar-section-id={{group.id}}
+                    {{on "dragover" (fn this.dragOverSidebarGroup group)}}
+                    {{on "dragleave" (fn this.leaveSidebarGroup group)}}
+                    {{on "drop" (fn this.dropOnSidebarGroup group)}}
+                  >
+                    {{#unless group.rows.length}}
+                      <div
+                        class={{concatClass
+                          "workspace-team-sidebar__drop-slot"
+                          "workspace-team-sidebar__drop-slot--empty"
+                          (if
+                            (this.isActiveDropTarget group.id null)
+                            "workspace-team-sidebar__drop-slot--active"
+                          )
+                        }}
+                      >
+                        {{icon "hand-paper"}}
+                        <span>Drag channels here</span>
+                      </div>
+                    {{/unless}}
 
-                {{#each group.rows as |row|}}
-                  {{#if this.editingSidebar}}
-                    <li
-                      class="workspace-team-sidebar__drop-slot"
-                      {{on "dragover" this.allowDropSlot}}
-                      {{on "dragleave" this.leaveDropSlot}}
-                      {{on "drop" (fn this.dropOnSidebarSlot group.id row.category.id)}}
-                    ></li>
-                  {{/if}}
+                    {{#each group.rows as |row|}}
+                      <div class={{this.dropSlotClass group.id row.category.id}}></div>
 
-                  <WorkspaceTeamSidebarRow
-                    @categoryLink={{row.categoryLink}}
-                    @categoryUnread={{row.categoryUnread}}
-                    @categoryTitle={{row.categoryTitle}}
-                    @chatPath={{row.chatPath}}
-                    @chatTitle={{row.chatTitle}}
-                    @chatUnread={{row.chatUnread}}
-                    @chatMuted={{row.chatMuted}}
-                    @categoryAvailable={{row.categoryAvailable}}
-                    @chatAvailable={{row.chatAvailable}}
-                    @isActive={{row.isActive}}
-                    @categoryActive={{row.categoryActive}}
-                    @chatActive={{row.chatActive}}
-                    @editable={{this.editingSidebar}}
-                    @dragging={{row.dragging}}
-                    @sectionId={{row.sidebarSectionId}}
-                    @setDraggedCategory={{this.setDraggedCategory}}
-                  />
-                {{/each}}
+                      <WorkspaceTeamSidebarRow
+                        @categoryLink={{row.categoryLink}}
+                        @categoryUnread={{row.categoryUnread}}
+                        @categoryTitle={{row.categoryTitle}}
+                        @chatPath={{row.chatPath}}
+                        @chatTitle={{row.chatTitle}}
+                        @chatUnread={{row.chatUnread}}
+                        @chatMuted={{row.chatMuted}}
+                        @categoryAvailable={{row.categoryAvailable}}
+                        @chatAvailable={{row.chatAvailable}}
+                        @isActive={{row.isActive}}
+                        @categoryActive={{row.categoryActive}}
+                        @chatActive={{row.chatActive}}
+                        @editable={{this.editingSidebar}}
+                        @dragging={{row.dragging}}
+                        @sectionId={{row.sidebarSectionId}}
+                        @setDraggedCategory={{this.setDraggedCategory}}
+                      />
+                    {{/each}}
 
-                {{#if this.editingSidebar}}
-                  {{#if group.rows.length}}
-                    <li
-                      class="workspace-team-sidebar__drop-slot"
-                      {{on "dragover" this.allowDropSlot}}
-                      {{on "dragleave" this.leaveDropSlot}}
-                      {{on "drop" (fn this.dropOnSidebarSlot group.id null)}}
-                    ></li>
-                  {{/if}}
+                    {{#if group.rows.length}}
+                      <div class={{this.dropSlotClass group.id null}}></div>
+                    {{/if}}
+                  </li>
+                {{else}}
+                  {{#each group.rows as |row|}}
+                    <WorkspaceTeamSidebarRow
+                      @categoryLink={{row.categoryLink}}
+                      @categoryUnread={{row.categoryUnread}}
+                      @categoryTitle={{row.categoryTitle}}
+                      @chatPath={{row.chatPath}}
+                      @chatTitle={{row.chatTitle}}
+                      @chatUnread={{row.chatUnread}}
+                      @chatMuted={{row.chatMuted}}
+                      @categoryAvailable={{row.categoryAvailable}}
+                      @chatAvailable={{row.chatAvailable}}
+                      @isActive={{row.isActive}}
+                      @categoryActive={{row.categoryActive}}
+                      @chatActive={{row.chatActive}}
+                      @editable={{this.editingSidebar}}
+                      @dragging={{row.dragging}}
+                      @sectionId={{row.sidebarSectionId}}
+                      @setDraggedCategory={{this.setDraggedCategory}}
+                    />
+                  {{/each}}
                 {{/if}}
               {{/unless}}
             {{else}}

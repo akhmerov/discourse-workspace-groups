@@ -203,6 +203,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
         class={{concatClass
           this.rowClass
         }}
+        data-workspace-category-id={{@categoryLink.category.id}}
       >
         {{#if @editable}}
           <div
