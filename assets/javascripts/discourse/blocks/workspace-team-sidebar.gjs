@@ -794,7 +794,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           <div class="workspace-team-sidebar__hint">
             <p>
               Open a team to focus this sidebar on its channels and DMs.
-              Use <strong>Back to forum</strong> in the team switcher to return.
             </p>
             <button
               type="button"
