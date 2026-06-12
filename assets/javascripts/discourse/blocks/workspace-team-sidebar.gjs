@@ -35,6 +35,8 @@ import {
   workspaceOverviewPath,
 } from "../lib/workspace-team-sidebar-state";
 
+const WORKSPACE_FOCUS_KEY = "workspace-groups:focused-workspace-id";
+
 @block("discourse-workspace-groups:workspace-team-sidebar")
 export default class WorkspaceTeamSidebarBlock extends Component {
   @service chat;
@@ -53,7 +55,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked orderedChannelIds = null;
   @tracked savingSidebarOrder = false;
   @tracked showUnreadOnly = false;
-  @tracked keepWorkspaceSidebar = false;
+  @tracked workspaceSidebarFocusId = null;
 
   sectionName = "workspace-team";
   sidebarSectionContentId = getSidebarSectionContentId(this.sectionName);
@@ -63,6 +65,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   constructor() {
     super(...arguments);
 
+    this.workspaceSidebarFocusId = this.readWorkspaceSidebarFocusId();
     this.linkCache = new Map();
     this.workspaceChatChannelsByCategoryId = new Map();
     this.workspaceChatIdsByWorkspaceId = new Map();
@@ -128,7 +131,27 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       : null;
   }
 
+  get focusedWorkspaceCategory() {
+    const focusedWorkspaceId = Number(this.workspaceSidebarFocusId);
+
+    if (!focusedWorkspaceId) {
+      return null;
+    }
+
+    return (
+      this.memberWorkspaces.find(
+        (workspace) => Number(workspace.id) === focusedWorkspaceId
+      ) ?? null
+    );
+  }
+
   get workspaceCategory() {
+    if (this.routeIsChatContext && !currentWorkspaceCategory(this.services)) {
+      return (
+        this.focusedWorkspaceCategory ?? sidebarWorkspaceCategory(this.services)
+      );
+    }
+
     return sidebarWorkspaceCategory(this.services);
   }
 
@@ -153,11 +176,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get inWorkspaceContext() {
+    const focusedWorkspace = this.focusedWorkspaceCategory;
+
     return !!(
       this.routeIsWorkspaceContext ||
-      (this.keepWorkspaceSidebar &&
-        this.routeIsChatContext &&
-        this.workspaceCategory)
+      (this.routeIsChatContext &&
+        focusedWorkspace &&
+        Number(focusedWorkspace.id) === Number(this.workspaceCategory?.id))
     );
   }
 
@@ -273,7 +298,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         actions.push({
           id: `open-workspace-${workspace.id}`,
           title: workspace.displayName,
-          action: () => DiscourseURL.routeTo(workspaceOverviewPath(workspace)),
+          action: () => {
+            this.enterWorkspaceSidebar(workspace);
+            DiscourseURL.routeTo(workspaceOverviewPath(workspace));
+          },
         })
       );
 
@@ -281,7 +309,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       id: "leave-workspace",
       title: "Back to forum",
       action: () => {
-        this.keepWorkspaceSidebar = false;
+        this.exitWorkspaceSidebar();
         DiscourseURL.routeTo("/latest");
       },
     });
@@ -317,6 +345,42 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   workspaceTitle(workspace) {
     return `Open ${workspace.displayName} workspace`;
+  }
+
+  readWorkspaceSidebarFocusId() {
+    try {
+      return sessionStorage.getItem(WORKSPACE_FOCUS_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  enterWorkspaceSidebar(workspace = this.workspaceCategory) {
+    if (!workspace?.id) {
+      return;
+    }
+
+    const workspaceId = String(workspace.id);
+    this.workspaceSidebarFocusId = workspaceId;
+
+    try {
+      sessionStorage.setItem(WORKSPACE_FOCUS_KEY, workspaceId);
+    } catch {
+      // Ignore storage failures; tracked state still controls this tab.
+    }
+  }
+
+  exitWorkspaceSidebar() {
+    this.workspaceSidebarFocusId = null;
+    this.showUnreadOnly = false;
+    this.editingSidebar = false;
+    this.orderedChannelIds = null;
+
+    try {
+      sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
+    } catch {
+      // Nothing to clean up if storage is unavailable.
+    }
   }
 
   get canEditSidebar() {
@@ -471,9 +535,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   updateSidebarFocus() {
     if (this.routeIsWorkspaceContext) {
-      this.keepWorkspaceSidebar = true;
-    } else if (!this.routeIsChatContext) {
-      this.keepWorkspaceSidebar = false;
+      this.enterWorkspaceSidebar(this.workspaceCategory);
     }
 
     this.sidebarSectionsElement?.classList.toggle(
@@ -501,6 +563,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return;
     }
 
+    this.enterWorkspaceSidebar(this.workspaceCategory);
     DiscourseURL.routeTo(workspaceOverviewPath(this.workspaceCategory));
   }
 
@@ -511,6 +574,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @action
   openWorkspace(workspace) {
+    this.enterWorkspaceSidebar(workspace);
     DiscourseURL.routeTo(workspaceOverviewPath(workspace));
   }
 
