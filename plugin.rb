@@ -357,8 +357,10 @@ module ::DiscourseWorkspaceGroups
       end
 
     raw_sections.each_with_object({}) do |(workspace_id, layout), normalized|
-      normalized_layout = normalize_workspace_sidebar_layout(layout)
-      normalized[workspace_id.to_s] = normalized_layout if normalized_layout[:sections].present?
+        normalized_layout = normalize_workspace_sidebar_layout(layout)
+        if normalized_layout[:sections].present? || normalized_layout[:other_channel_ids].present?
+          normalized[workspace_id.to_s] = normalized_layout
+        end
     end
   end
 
@@ -366,7 +368,9 @@ module ::DiscourseWorkspaceGroups
     normalized_sections =
       sections.each_with_object({}) do |(workspace_id, layout), memo|
         normalized_layout = normalize_workspace_sidebar_layout(layout)
-        memo[workspace_id.to_s] = normalized_layout if normalized_layout[:sections].present?
+        if normalized_layout[:sections].present? || normalized_layout[:other_channel_ids].present?
+          memo[workspace_id.to_s] = normalized_layout
+        end
       end
 
     user.custom_fields[USER_WORKSPACE_SIDEBAR_SECTIONS] = normalized_sections
@@ -397,8 +401,14 @@ module ::DiscourseWorkspaceGroups
         }
       end
 
+    other_channel_ids =
+      normalize_custom_field_id_list(raw_layout[:other_channel_ids] || raw_layout["other_channel_ids"]).reject do |channel_id|
+        seen_channel_ids.include?(channel_id).tap { |seen| seen_channel_ids.add(channel_id) if !seen }
+      end
+
     {
       sections: sections,
+      other_channel_ids: other_channel_ids,
       other_collapsed: ActiveModel::Type::Boolean.new.cast(raw_layout[:other_collapsed] || raw_layout["other_collapsed"]),
     }
   end

@@ -130,14 +130,15 @@ module ::DiscourseWorkspaceGroups
 
       if params.key?(:sections) || params.key?("sections")
         layout = DiscourseWorkspaceGroups.normalize_workspace_sidebar_layout(sidebar_layout_params)
-        section_channel_ids = layout[:sections].flat_map { |section| section[:channel_ids] }
+        layout_channel_ids =
+          layout[:sections].flat_map { |section| section[:channel_ids] } + layout[:other_channel_ids]
 
-        if section_channel_ids.any? { |id| !visible_channel_ids.include?(id) }
+        if layout_channel_ids.any? { |id| !visible_channel_ids.include?(id) }
           raise Discourse::InvalidParameters.new(:sections)
         end
 
         sidebar_sections = DiscourseWorkspaceGroups.workspace_sidebar_sections_for(current_user)
-        if layout[:sections].present?
+        if layout[:sections].present? || layout[:other_channel_ids].present?
           sidebar_sections[@workspace.id.to_s] = layout
         else
           sidebar_sections.delete(@workspace.id.to_s)
@@ -348,6 +349,7 @@ module ::DiscourseWorkspaceGroups
           Array.wrap(params[:sections]).map do |section|
             section.respond_to?(:permit) ? section.permit(:id, :title, :collapsed, channel_ids: []).to_h : section
           end,
+        other_channel_ids: params[:other_channel_ids],
         other_collapsed: params[:other_collapsed],
       }
     end

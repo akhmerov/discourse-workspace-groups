@@ -1,5 +1,4 @@
 import Component from "@glimmer/component";
-import { tracked } from "@glimmer/tracking";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { LinkTo } from "@ember/routing";
@@ -8,13 +7,10 @@ import { isHex } from "discourse/components/sidebar/section-link";
 import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix";
 import concatClass from "discourse/helpers/concat-class";
 import icon from "discourse/helpers/d-icon";
-import discourseLater from "discourse/lib/later";
 import DiscourseURL from "discourse/lib/url";
 
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
-
-  @tracked dragCssClass;
 
   get categoryModels() {
     if (this.args.categoryLink.model) {
@@ -123,16 +119,8 @@ export default class WorkspaceTeamSidebarRow extends Component {
       "workspace-team-sidebar__row",
       "sidebar-row",
       this.args.chatMuted && "workspace-team-sidebar__row--muted",
-      this.args.editable && "workspace-team-sidebar__row--editing",
-      this.dragCssClass
+      this.args.editable && "workspace-team-sidebar__row--editing"
     );
-  }
-
-  isAboveElement(event) {
-    event.preventDefault();
-    const target = event.currentTarget;
-    const domRect = target.getBoundingClientRect();
-    return event.clientY - domRect.top < domRect.height / 2;
   }
 
   @action
@@ -168,54 +156,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
       String(category.id)
     );
     this.args.setDraggedCategory?.(category);
-    this.dragCssClass = "dragging";
-  }
-
-  @action
-  dragOver(event) {
-    if (!this.args.editable) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (this.dragCssClass !== "dragging") {
-      this.dragCssClass = this.isAboveElement(event) ? "drag-above" : "drag-below";
-    }
-  }
-
-  @action
-  dragLeave() {
-    if (!this.args.editable) {
-      return;
-    }
-
-    discourseLater(() => {
-      if (this.dragCssClass !== "dragging") {
-        this.dragCssClass = null;
-      }
-    }, 10);
-  }
-
-  @action
-  dropItem(event) {
-    if (!this.args.editable) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    this.args.dropRow?.(
-      this.args.categoryLink.category,
-      this.args.sectionId,
-      this.isAboveElement(event)
-    );
-    this.dragCssClass = null;
   }
 
   @action
   dragEnd() {
-    this.dragCssClass = null;
     this.args.setDraggedCategory?.(null);
   }
 
@@ -228,10 +172,6 @@ export default class WorkspaceTeamSidebarRow extends Component {
         class={{concatClass
           this.rowClass
         }}
-        {{on "dragover" this.dragOver}}
-        {{on "dragleave" this.dragLeave}}
-        {{on "dragend" this.dragEnd}}
-        {{on "drop" this.dropItem}}
       >
         {{#if @editable}}
           <div
@@ -239,6 +179,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
             title="Drag to reorder"
             draggable="true"
             {{on "dragstart" this.dragHasStarted}}
+            {{on "dragend" this.dragEnd}}
           >
             {{icon "grip-lines"}}
           </div>

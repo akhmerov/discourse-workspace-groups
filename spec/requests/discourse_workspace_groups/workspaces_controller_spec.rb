@@ -608,10 +608,22 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
           description: nil,
           visibility: "public",
         ).call
+      third_public_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Other #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+        ).call
 
       DiscourseWorkspaceGroups.persist_workspace_sidebar_orders!(
         workspace_member,
-        workspace.id.to_s => [first_public_channel.id, second_public_channel.id],
+        workspace.id.to_s => [
+          first_public_channel.id,
+          second_public_channel.id,
+          third_public_channel.id,
+        ],
       )
 
       sign_in(workspace_member)
@@ -631,6 +643,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
                 channel_ids: [first_public_channel.id],
               },
             ],
+            other_channel_ids: [third_public_channel.id],
             other_collapsed: true,
           }
 
@@ -649,12 +662,13 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
           "collapsed" => false,
         ),
       )
+      expect(response.parsed_body["sections"]["other_channel_ids"]).to eq([third_public_channel.id])
       expect(response.parsed_body["sections"]["other_collapsed"]).to eq(true)
 
       workspace_member.reload
       expect(
         DiscourseWorkspaceGroups.workspace_sidebar_sections_for(workspace_member)[workspace.id.to_s],
-      ).to include(other_collapsed: true)
+      ).to include(other_channel_ids: [third_public_channel.id], other_collapsed: true)
       expect(
         DiscourseWorkspaceGroups.workspace_sidebar_orders_for(workspace_member),
       ).not_to have_key(workspace.id.to_s)

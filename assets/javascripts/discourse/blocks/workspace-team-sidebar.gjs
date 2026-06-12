@@ -240,9 +240,24 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         collapsed: !!section.collapsed,
       };
     });
+    const otherChannelIds = (
+      layout?.other_channel_ids ??
+      layout?.otherChannelIds ??
+      []
+    )
+      .map((channelId) => Number(channelId))
+      .filter((channelId) => {
+        if (!channelId || seen.has(channelId)) {
+          return false;
+        }
+
+        seen.add(channelId);
+        return true;
+      });
 
     return {
       sections,
+      other_channel_ids: otherChannelIds,
       other_collapsed: !!(layout?.other_collapsed ?? layout?.otherCollapsed),
     };
   }
@@ -281,11 +296,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
             collapsed: false,
           },
         ],
+        other_channel_ids: [],
         other_collapsed: false,
       };
     }
 
-    return { sections: [], other_collapsed: false };
+    return { sections: [], other_channel_ids: [], other_collapsed: false };
   }
 
   get sidebarOrderedChannelIds() {
@@ -425,17 +441,37 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     const otherRows = rows.filter(
       (row) => !assignedCategoryIds.has(Number(row.category.id))
     );
+    const otherRowsByCategoryId = new Map(
+      otherRows.map((row) => [Number(row.category.id), row])
+    );
+    const orderedOtherRows = [];
+    const orderedOtherCategoryIds = new Set();
 
-    if (otherRows.length > 0 || this.editingSidebar) {
+    layout.other_channel_ids.forEach((categoryId) => {
+      const row = otherRowsByCategoryId.get(Number(categoryId));
+
+      if (row) {
+        orderedOtherRows.push(row);
+        orderedOtherCategoryIds.add(Number(categoryId));
+      }
+    });
+
+    otherRows.forEach((row) => {
+      if (!orderedOtherCategoryIds.has(Number(row.category.id))) {
+        orderedOtherRows.push(row);
+      }
+    });
+
+    if (orderedOtherRows.length > 0 || this.editingSidebar) {
       groups.push({
         id: OTHER_SECTION_ID,
         title: "Other",
-        rows: otherRows.map((row) => ({
+        rows: orderedOtherRows.map((row) => ({
           ...row,
           sidebarSectionId: OTHER_SECTION_ID,
         })),
         collapsed: !this.showUnreadOnly && !!layout.other_collapsed,
-        unread: otherRows.some((row) => row.categoryUnread || row.chatUnread),
+        unread: orderedOtherRows.some((row) => row.categoryUnread || row.chatUnread),
         editable: false,
       });
     }
@@ -643,6 +679,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
             collapsed: false,
           },
         ],
+        other_channel_ids: [],
         other_collapsed: false,
       };
     }
@@ -654,6 +691,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           visibleCategoryIds.has(Number(categoryId))
         ),
       })),
+      other_channel_ids: layout.other_channel_ids.filter((categoryId) =>
+        visibleCategoryIds.has(Number(categoryId))
+      ),
       other_collapsed: layout.other_collapsed,
     };
   }
@@ -683,6 +723,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           contentType: "application/json",
           data: JSON.stringify({
             sections: normalizedLayout.sections,
+            other_channel_ids: normalizedLayout.other_channel_ids,
             other_collapsed: normalizedLayout.other_collapsed,
           }),
         }
@@ -934,73 +975,69 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
-  dropSidebarRow(targetCategory, targetSectionId, above) {
+  allowDropSlot(event) {
     if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
       return;
     }
 
-    const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
-    const draggedCategoryId = Number(this.draggedCategoryId);
-    const targetCategoryId = Number(targetCategory?.id);
-
-    if (!draggedCategoryId || draggedCategoryId === targetCategoryId) {
-      return;
-    }
-
-    const nextLayout = this.moveCategoryInSidebarLayout(
-      currentLayout,
-      draggedCategoryId,
-      targetSectionId,
-      targetCategoryId,
-      above
+    event.preventDefault();
+    event.currentTarget.classList.add(
+      "workspace-team-sidebar__drop-slot--active"
     );
-
-    this.applySidebarSectionsLocally(nextLayout);
   }
 
   @action
-  dropOnSidebarSection(sectionId, event) {
+  leaveDropSlot(event) {
+    event.currentTarget.classList.remove(
+      "workspace-team-sidebar__drop-slot--active"
+    );
+  }
+
+  @action
+  dropOnSidebarSlot(sectionId, targetCategoryId, event) {
     if (!this.editingSidebar || this.savingSidebarOrder || !this.workspaceCategory) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.classList.remove(
+      "workspace-team-sidebar__drop-slot--active"
+    );
 
     const currentLayout = this.normalizeSidebarLayout(this.sidebarSectionsOverride);
     const draggedCategoryId = Number(this.draggedCategoryId);
+    const normalizedTargetCategoryId = Number(targetCategoryId);
 
-    if (!draggedCategoryId) {
+    if (!draggedCategoryId || draggedCategoryId === normalizedTargetCategoryId) {
       return;
     }
 
     const nextLayout = this.moveCategoryInSidebarLayout(
       currentLayout,
       draggedCategoryId,
-      sectionId
+      sectionId,
+      normalizedTargetCategoryId || null
     );
 
     this.applySidebarSectionsLocally(nextLayout);
-  }
-
-  @action
-  allowSectionDrop(event) {
-    if (this.editingSidebar && !this.savingSidebarOrder) {
-      event.preventDefault();
-    }
   }
 
   moveCategoryInSidebarLayout(
     layout,
     categoryId,
     targetSectionId,
-    targetCategoryId = null,
-    above = false
+    targetCategoryId = null
   ) {
     const nextLayout = this.removeCategoryFromSidebarLayout(layout, categoryId);
 
     if (targetSectionId === OTHER_SECTION_ID) {
-      return nextLayout;
+      const otherChannelIds = [...nextLayout.other_channel_ids];
+      const targetIndex = otherChannelIds.indexOf(Number(targetCategoryId));
+      const insertIndex = targetIndex < 0 ? otherChannelIds.length : targetIndex;
+      otherChannelIds.splice(insertIndex, 0, categoryId);
+
+      return { ...nextLayout, other_channel_ids: otherChannelIds };
     }
 
     return {
@@ -1013,11 +1050,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         const channelIds = [...section.channel_ids];
         const targetIndex = channelIds.indexOf(Number(targetCategoryId));
         const insertIndex =
-          targetIndex < 0
-            ? channelIds.length
-            : above
-              ? targetIndex
-              : targetIndex + 1;
+          targetIndex < 0 ? channelIds.length : targetIndex;
         channelIds.splice(insertIndex, 0, categoryId);
 
         return { ...section, channel_ids: channelIds };
@@ -1034,6 +1067,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           (sectionCategoryId) => Number(sectionCategoryId) !== Number(categoryId)
         ),
       })),
+      other_channel_ids: layout.other_channel_ids.filter(
+        (sectionCategoryId) => Number(sectionCategoryId) !== Number(categoryId)
+      ),
     };
   }
 
@@ -1279,8 +1315,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
               {{#if group.title}}
                 <li
                   class="workspace-team-sidebar__section"
-                  {{on "dragover" this.allowSectionDrop}}
-                  {{on "drop" (fn this.dropOnSidebarSection group.id)}}
                 >
                   <button
                     type="button"
@@ -1331,9 +1365,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                 {{#if this.editingSidebar}}
                   {{#unless group.rows.length}}
                     <li
-                      class="workspace-team-sidebar__section-dropzone"
-                      {{on "dragover" this.allowSectionDrop}}
-                      {{on "drop" (fn this.dropOnSidebarSection group.id)}}
+                      class="workspace-team-sidebar__drop-slot workspace-team-sidebar__drop-slot--empty"
+                      {{on "dragover" this.allowDropSlot}}
+                      {{on "dragleave" this.leaveDropSlot}}
+                      {{on "drop" (fn this.dropOnSidebarSlot group.id null)}}
                     >
                       {{icon "hand-paper"}}
                       <span>Drag channels here</span>
@@ -1342,6 +1377,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                 {{/if}}
 
                 {{#each group.rows as |row|}}
+                  {{#if this.editingSidebar}}
+                    <li
+                      class="workspace-team-sidebar__drop-slot"
+                      {{on "dragover" this.allowDropSlot}}
+                      {{on "dragleave" this.leaveDropSlot}}
+                      {{on "drop" (fn this.dropOnSidebarSlot group.id row.category.id)}}
+                    ></li>
+                  {{/if}}
+
                   <WorkspaceTeamSidebarRow
                     @categoryLink={{row.categoryLink}}
                     @categoryUnread={{row.categoryUnread}}
@@ -1358,9 +1402,19 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                     @editable={{this.editingSidebar}}
                     @sectionId={{row.sidebarSectionId}}
                     @setDraggedCategory={{this.setDraggedCategory}}
-                    @dropRow={{this.dropSidebarRow}}
                   />
                 {{/each}}
+
+                {{#if this.editingSidebar}}
+                  {{#if group.rows.length}}
+                    <li
+                      class="workspace-team-sidebar__drop-slot"
+                      {{on "dragover" this.allowDropSlot}}
+                      {{on "dragleave" this.leaveDropSlot}}
+                      {{on "drop" (fn this.dropOnSidebarSlot group.id null)}}
+                    ></li>
+                  {{/if}}
+                {{/if}}
               {{/unless}}
             {{else}}
               <li class="workspace-team-sidebar__empty">
