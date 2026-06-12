@@ -54,6 +54,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @tracked topicCountsVersion = 0;
   @tracked chatHydrationVersion = 0;
+  @tracked draggedCategoryId = null;
   @tracked editingSidebar = false;
   @tracked headerActionsMenuOpen = false;
   @tracked orderedChannelIds = null;
@@ -431,6 +432,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         rows: sectionRows.map((row) => ({
           ...row,
           sidebarSectionId: section.id,
+          dragging: Number(row.category.id) === Number(this.draggedCategoryId),
         })),
         collapsed: !this.showUnreadOnly && !!section.collapsed,
         unread: sectionRows.some((row) => row.categoryUnread || row.chatUnread),
@@ -469,6 +471,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         rows: orderedOtherRows.map((row) => ({
           ...row,
           sidebarSectionId: OTHER_SECTION_ID,
+          dragging: Number(row.category.id) === Number(this.draggedCategoryId),
         })),
         collapsed: !this.showUnreadOnly && !!layout.other_collapsed,
         unread: orderedOtherRows.some((row) => row.categoryUnread || row.chatUnread),
@@ -971,7 +974,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @action
   setDraggedCategory(category) {
-    this.draggedCategoryId = category?.id ?? null;
+    this.draggedCategoryId = category?.id ? Number(category.id) : null;
   }
 
   @action
@@ -1174,6 +1177,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         "sidebar-section"
         "sidebar-section-wrapper"
         "workspace-team-sidebar"
+        (if
+          this.draggedCategoryId
+          "workspace-team-sidebar--dragging"
+        )
         (if
           this.displaySectionContent
           "sidebar-section--expanded"
@@ -1400,6 +1407,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                     @categoryActive={{row.categoryActive}}
                     @chatActive={{row.chatActive}}
                     @editable={{this.editingSidebar}}
+                    @dragging={{row.dragging}}
                     @sectionId={{row.sidebarSectionId}}
                     @setDraggedCategory={{this.setDraggedCategory}}
                   />

@@ -119,7 +119,8 @@ export default class WorkspaceTeamSidebarRow extends Component {
       "workspace-team-sidebar__row",
       "sidebar-row",
       this.args.chatMuted && "workspace-team-sidebar__row--muted",
-      this.args.editable && "workspace-team-sidebar__row--editing"
+      this.args.editable && "workspace-team-sidebar__row--editing",
+      this.args.dragging && "workspace-team-sidebar__row--dragging"
     );
   }
 
