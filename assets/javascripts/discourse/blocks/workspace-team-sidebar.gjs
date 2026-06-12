@@ -52,6 +52,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked topicCountsVersion = 0;
   @tracked chatHydrationVersion = 0;
   @tracked editingSidebar = false;
+  @tracked headerActionsMenuOpen = false;
   @tracked orderedChannelIds = null;
   @tracked savingSidebarOrder = false;
   @tracked showUnreadOnly = false;
@@ -323,7 +324,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get headerActionsIcon() {
-    return "right-left";
+    return "shuffle";
   }
 
   get headerText() {
@@ -611,7 +612,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
+  toggleHeaderActionsMenu() {
+    this.headerActionsMenuOpen = !this.headerActionsMenuOpen;
+  }
+
+  @action
   runHeaderAction(headerAction) {
+    this.headerActionsMenuOpen = false;
     headerAction.action();
   }
 
@@ -728,27 +735,33 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         </SectionHeader>
 
         {{#if this.inWorkspaceContext}}
-          <details class="workspace-team-sidebar__header-switcher">
-            <summary
+          <div class="workspace-team-sidebar__header-switcher">
+            <button
+              type="button"
               title="Switch workspace"
               aria-label="Switch workspace"
+              aria-haspopup="menu"
+              aria-expanded={{if this.headerActionsMenuOpen "true" "false"}}
               class="workspace-team-sidebar__header-switcher-button"
+              {{on "click" this.toggleHeaderActionsMenu}}
             >
               {{icon this.headerActionsIcon}}
-            </summary>
-            <ul class="workspace-team-sidebar__header-switcher-menu">
-              {{#each this.headerActions as |headerAction|}}
-                <li>
-                  <button
-                    type="button"
-                    {{on "click" (fn this.runHeaderAction headerAction)}}
-                  >
-                    {{headerAction.title}}
-                  </button>
-                </li>
-              {{/each}}
-            </ul>
-          </details>
+            </button>
+            {{#if this.headerActionsMenuOpen}}
+              <ul class="workspace-team-sidebar__header-switcher-menu">
+                {{#each this.headerActions as |headerAction|}}
+                  <li>
+                    <button
+                      type="button"
+                      {{on "click" (fn this.runHeaderAction headerAction)}}
+                    >
+                      {{headerAction.title}}
+                    </button>
+                  </li>
+                {{/each}}
+              </ul>
+            {{/if}}
+          </div>
         {{/if}}
       </div>
 
