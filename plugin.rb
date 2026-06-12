@@ -235,6 +235,17 @@ module ::DiscourseWorkspaceGroups
     values.filter_map { |entry| positive_custom_field_id(entry) }.uniq
   end
 
+  def self.hash_value(hash, *keys)
+    keys.each do |key|
+      next if !hash.key?(key)
+
+      value = hash[key]
+      return value if !value.nil?
+    end
+
+    nil
+  end
+
   def self.workspace_root_category_for_group(group)
     return if group.blank?
     return if group.custom_fields["workspace_kind"] != WORKSPACE_KIND_ROOT
@@ -357,10 +368,10 @@ module ::DiscourseWorkspaceGroups
       end
 
     raw_sections.each_with_object({}) do |(workspace_id, layout), normalized|
-        normalized_layout = normalize_workspace_sidebar_layout(layout)
-        if normalized_layout[:sections].present? || normalized_layout[:other_channel_ids].present?
-          normalized[workspace_id.to_s] = normalized_layout
-        end
+      normalized_layout = normalize_workspace_sidebar_layout(layout)
+      if normalized_layout[:sections].present? || normalized_layout[:other_channel_ids].present?
+        normalized[workspace_id.to_s] = normalized_layout
+      end
     end
   end
 
@@ -379,7 +390,7 @@ module ::DiscourseWorkspaceGroups
 
   def self.normalize_workspace_sidebar_layout(layout)
     raw_layout = layout.is_a?(Hash) ? layout : {}
-    raw_sections = raw_layout[:sections] || raw_layout["sections"] || []
+    raw_sections = hash_value(raw_layout, :sections, "sections") || []
     seen_channel_ids = Set.new
 
     sections =
@@ -389,16 +400,13 @@ module ::DiscourseWorkspaceGroups
         title = (section[:title] || section["title"]).to_s.strip.presence || "Channels"
         id = (section[:id] || section["id"]).to_s.strip.presence || "section-#{index + 1}"
         channel_ids =
-          normalize_custom_field_id_list(section[:channel_ids] || section["channel_ids"]).reject do |channel_id|
+          normalize_custom_field_id_list(
+            hash_value(section, :channel_ids, "channel_ids", :channelIds, "channelIds"),
+          ).reject do |channel_id|
             seen_channel_ids.include?(channel_id).tap { |seen| seen_channel_ids.add(channel_id) if !seen }
           end
 
-        collapsed_value =
-          if section.key?(:collapsed)
-            section[:collapsed]
-          else
-            section["collapsed"]
-          end
+        collapsed_value = hash_value(section, :collapsed, "collapsed")
 
         {
           id: id,
@@ -409,16 +417,13 @@ module ::DiscourseWorkspaceGroups
       end
 
     other_channel_ids =
-      normalize_custom_field_id_list(raw_layout[:other_channel_ids] || raw_layout["other_channel_ids"]).reject do |channel_id|
+      normalize_custom_field_id_list(
+        hash_value(raw_layout, :other_channel_ids, "other_channel_ids", :otherChannelIds, "otherChannelIds"),
+      ).reject do |channel_id|
         seen_channel_ids.include?(channel_id).tap { |seen| seen_channel_ids.add(channel_id) if !seen }
       end
 
-    other_collapsed_value =
-      if raw_layout.key?(:other_collapsed)
-        raw_layout[:other_collapsed]
-      else
-        raw_layout["other_collapsed"]
-      end
+    other_collapsed_value = hash_value(raw_layout, :other_collapsed, "other_collapsed", :otherCollapsed, "otherCollapsed")
 
     {
       sections: sections,

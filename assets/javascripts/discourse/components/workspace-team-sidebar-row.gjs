@@ -8,6 +8,7 @@ import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix"
 import DiscourseURL from "discourse/lib/url";
 import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
+import { i18n } from "discourse-i18n";
 
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
@@ -126,6 +127,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
     );
   }
 
+  get dragToReorderTitle() {
+    return i18n("discourse_workspace_groups.drag_channel_to_reorder");
+  }
+
   @action
   openChat(event) {
     if (this.args.editable) {
@@ -166,7 +171,8 @@ export default class WorkspaceTeamSidebarRow extends Component {
         {{#if @editable}}
           <div
             class="workspace-team-sidebar__drag-handle"
-            title="Drag to reorder"
+            title={{this.dragToReorderTitle}}
+            aria-label={{this.dragToReorderTitle}}
             role="button"
             draggable="false"
             {{! eslint-disable-next-line ember/template-no-pointer-down-event-binding }}
