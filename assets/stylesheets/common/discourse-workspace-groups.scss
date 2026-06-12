@@ -30,6 +30,16 @@
   order: 2;
 }
 
+.sidebar-sections.workspace-team-sidebar--unread-only
+  > .sidebar-section-wrapper[data-section-name="chat-dms"]
+  .sidebar-section-link-wrapper:not(:has(.active)):not(
+    :has(.badge-notification)
+  ):not(:has(.chat-channel-unread-indicator)):not(:has(.unread)):not(
+    :has([class*="unread"])
+  ):not(:has([class*="mention"])) {
+  display: none;
+}
+
 .sidebar-sections.workspace-team-sidebar--focused > .sidebar-custom-sections,
 .sidebar-sections.workspace-team-sidebar--focused
   > .sidebar-section-wrapper[data-section-name="categories"],

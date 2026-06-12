@@ -61,6 +61,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   sidebarSectionContentId = getSidebarSectionContentId(this.sectionName);
   collapsedSidebarSectionKey = getCollapsedSidebarSectionKey(this.sectionName);
   focusedSidebarClass = "workspace-team-sidebar--focused";
+  unreadOnlySidebarClass = "workspace-team-sidebar--unread-only";
 
   constructor() {
     super(...arguments);
@@ -87,6 +88,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     super.willDestroy(...arguments);
 
     this.sidebarSectionsElement?.classList.remove(this.focusedSidebarClass);
+    this.sidebarSectionsElement?.classList.remove(this.unreadOnlySidebarClass);
     this.router.off("routeDidChange", this.routeDidChangeCallback);
 
     if (this.topicTrackingCallbackId) {
@@ -542,6 +544,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       this.focusedSidebarClass,
       this.inWorkspaceContext
     );
+    this.sidebarSectionsElement?.classList.toggle(
+      this.unreadOnlySidebarClass,
+      this.inWorkspaceContext && this.showUnreadOnly
+    );
   }
 
   @action
@@ -603,6 +609,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     this.showUnreadOnly = !this.showUnreadOnly;
+    this.updateSidebarFocus();
   }
 
   @action
