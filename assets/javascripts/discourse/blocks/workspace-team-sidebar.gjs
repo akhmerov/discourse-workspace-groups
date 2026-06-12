@@ -36,6 +36,7 @@ import {
 } from "../lib/workspace-team-sidebar-state";
 
 const WORKSPACE_FOCUS_KEY = "workspace-groups:focused-workspace-id";
+const WORKSPACE_NAV_HINT_KEY = "workspace-groups:navigation-hint-seen";
 
 @block("discourse-workspace-groups:workspace-team-sidebar")
 export default class WorkspaceTeamSidebarBlock extends Component {
@@ -55,6 +56,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked orderedChannelIds = null;
   @tracked savingSidebarOrder = false;
   @tracked showUnreadOnly = false;
+  @tracked workspaceNavigationHintSeen = false;
   @tracked workspaceSidebarFocusId = null;
 
   sectionName = "workspace-team";
@@ -67,6 +69,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     super(...arguments);
 
     this.workspaceSidebarFocusId = this.readWorkspaceSidebarFocusId();
+    this.workspaceNavigationHintSeen =
+      this.readWorkspaceNavigationHintSeen();
     this.linkCache = new Map();
     this.workspaceChatChannelsByCategoryId = new Map();
     this.workspaceChatIdsByWorkspaceId = new Map();
@@ -329,6 +333,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       : "teams";
   }
 
+  get showWorkspaceNavigationHint() {
+    return !!(
+      !this.inWorkspaceContext &&
+      this.memberWorkspaces.length > 0 &&
+      !this.workspaceNavigationHintSeen
+    );
+  }
+
   get overviewTitle() {
     return this.workspaceCategory
       ? `Open ${this.workspaceCategory.displayName} overview`
@@ -357,10 +369,30 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
   }
 
+  readWorkspaceNavigationHintSeen() {
+    try {
+      return localStorage.getItem(WORKSPACE_NAV_HINT_KEY) === "true";
+    } catch {
+      return false;
+    }
+  }
+
+  markWorkspaceNavigationHintSeen() {
+    this.workspaceNavigationHintSeen = true;
+
+    try {
+      localStorage.setItem(WORKSPACE_NAV_HINT_KEY, "true");
+    } catch {
+      // Keep the dismissal for this page when persistent storage is unavailable.
+    }
+  }
+
   enterWorkspaceSidebar(workspace = this.workspaceCategory) {
     if (!workspace?.id) {
       return;
     }
+
+    this.markWorkspaceNavigationHintSeen();
 
     const workspaceId = String(workspace.id);
     this.workspaceSidebarFocusId = workspaceId;
@@ -585,6 +617,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
+  dismissWorkspaceNavigationHint() {
+    this.markWorkspaceNavigationHintSeen();
+  }
+
+  @action
   toggleSidebarEditing() {
     if (!this.canEditSidebar) {
       return;
@@ -753,6 +790,22 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       {{/if}}
 
       {{#if this.displaySectionContent}}
+        {{#if this.showWorkspaceNavigationHint}}
+          <div class="workspace-team-sidebar__hint">
+            <p>
+              Open a team to focus this sidebar on its channels and DMs.
+              Use <strong>Back to forum</strong> in the team switcher to return.
+            </p>
+            <button
+              type="button"
+              class="workspace-team-sidebar__hint-dismiss"
+              {{on "click" this.dismissWorkspaceNavigationHint}}
+            >
+              Got it
+            </button>
+          </div>
+        {{/if}}
+
         <ul
           id={{this.sidebarSectionContentId}}
           class="sidebar-section-content"

@@ -114,6 +114,36 @@
   padding: 0 0.35rem;
 }
 
+.workspace-team-sidebar__hint {
+  background: var(--primary-very-low);
+  border: 1px solid var(--primary-low);
+  border-radius: 0.65rem;
+  color: var(--primary-medium);
+  font-size: var(--font-down-2);
+  line-height: var(--line-height-small);
+  margin: 0.15rem 0.25rem 0.45rem;
+  padding: 0.5rem 0.55rem;
+}
+
+.workspace-team-sidebar__hint p {
+  margin: 0 0 0.4rem;
+}
+
+.workspace-team-sidebar__hint-dismiss {
+  background: transparent;
+  border: 0;
+  color: var(--tertiary);
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: 600;
+  padding: 0;
+}
+
+.workspace-team-sidebar__hint-dismiss:hover {
+  color: var(--tertiary-hover);
+  text-decoration: underline;
+}
+
 .workspace-team-sidebar__workspace-link {
   background: transparent;
   border: 0;
