@@ -1545,6 +1545,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @action
   focusSidebarSectionTitleInput(element) {
+    if (this.site.mobileView) {
+      return;
+    }
+
     element.focus();
     element.select();
   }
