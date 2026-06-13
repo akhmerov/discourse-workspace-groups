@@ -166,7 +166,7 @@ module(
         </template>
       );
 
-      assert.dom(".workspace-team-sidebar__drag-handle").exists();
+      assert.dom(".workspace-team-sidebar__drag-handle").doesNotExist();
       assert.dom(".workspace-team-sidebar__row--editing").exists();
       assert.dom(".workspace-team-sidebar__main-link--editing").exists();
       assert.dom(".workspace-team-sidebar__modes button").doesNotExist();

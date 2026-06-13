@@ -423,12 +423,18 @@
 
 .workspace-team-sidebar__row--editing {
   background: var(--secondary-very-low);
-  cursor: default;
+  cursor: grab;
   padding-right: 0.25rem;
+  touch-action: none;
+  user-select: none;
 }
 
 .workspace-team-sidebar__row--dragging {
   opacity: 0.38;
+}
+
+.workspace-team-sidebar__row--editing:active {
+  cursor: grabbing;
 }
 
 .workspace-team-sidebar__row--drop-before::before,
@@ -573,22 +579,6 @@ body.workspace-team-sidebar-scroll-lock {
   position: absolute;
   right: -0.12rem;
   top: -0.1rem;
-}
-
-.workspace-team-sidebar__drag-handle {
-  align-items: center;
-  color: var(--primary-medium);
-  cursor: grab;
-  display: inline-flex;
-  flex: 0 0 auto;
-  justify-content: center;
-  touch-action: none;
-  user-select: none;
-  width: 1.25rem;
-}
-
-.workspace-team-sidebar__drag-handle:active {
-  cursor: grabbing;
 }
 
 .workspace-groups-actions__button {
