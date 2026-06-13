@@ -441,6 +441,20 @@
   user-select: none;
 }
 
+.workspace-team-sidebar-scroll-lock {
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+body.workspace-team-sidebar-scroll-lock {
+  overflow: hidden;
+}
+
+.workspace-groups-chat-channel-panel.workspace-team-sidebar-scroll-lock,
+.sidebar-sections.workspace-team-sidebar-scroll-lock {
+  overflow: hidden;
+}
+
 .workspace-team-sidebar__drag-preview {
   background: var(--secondary);
   border-radius: 0.5rem;

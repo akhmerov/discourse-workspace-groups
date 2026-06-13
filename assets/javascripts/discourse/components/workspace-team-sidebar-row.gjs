@@ -176,7 +176,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
             role="button"
             draggable="false"
             {{! eslint-disable-next-line ember/template-no-pointer-down-event-binding }}
-            {{on "mousedown" this.startPointerDrag}}
+            {{on "pointerdown" this.startPointerDrag}}
           >
             {{dIcon "grip-lines"}}
           </div>

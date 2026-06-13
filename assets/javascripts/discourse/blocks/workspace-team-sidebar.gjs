@@ -43,6 +43,7 @@ import {
   pairedCategoryChannelFor,
   sidebarChannelCategories,
   sidebarWorkspaceCategory,
+  WORKSPACE_FOCUS_CHANGED_EVENT,
   WORKSPACE_FOCUS_KEY,
   workspaceCategoryModeEnabled,
   workspaceChatModeEnabled,
@@ -52,6 +53,8 @@ import {
 } from "../lib/workspace-team-sidebar-state";
 
 const WORKSPACE_NAV_HINT_KEY = "workspace-groups:navigation-hint-seen";
+const SIDEBAR_DRAG_AUTOSCROLL_EDGE_PX = 72;
+const SIDEBAR_DRAG_AUTOSCROLL_MAX_SPEED_PX = 18;
 
 @block("discourse-workspace-groups:workspace-team-sidebar")
 export default class WorkspaceTeamSidebarBlock extends Component {
@@ -116,7 +119,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       }
     };
     this.routeDidChangeCallback = () => this.updateSidebarFocus();
+    this.workspaceFocusChangedCallback = (event) => {
+      this.applyWorkspaceSidebarFocusId(event.detail?.workspaceId ?? null);
+      this.updateSidebarFocus({ syncRouteFocus: false });
+    };
     this.router.on("routeDidChange", this.routeDidChangeCallback);
+    window.addEventListener(
+      WORKSPACE_FOCUS_CHANGED_EVENT,
+      this.workspaceFocusChangedCallback
+    );
     this.topicTrackingCallbackId = this.topicTrackingState.onStateChange(() => {
       this.topicCountsVersion++;
       this.rows.forEach((row) => row.categoryLink.refreshCounts());
@@ -130,6 +141,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarSectionsElement?.classList.remove(this.unreadOnlySidebarClass);
     this.cancelSidebarPointerDrag();
     this.router.off("routeDidChange", this.routeDidChangeCallback);
+    window.removeEventListener(
+      WORKSPACE_FOCUS_CHANGED_EVENT,
+      this.workspaceFocusChangedCallback
+    );
 
     if (this.topicTrackingCallbackId) {
       this.topicTrackingState.offStateChange(this.topicTrackingCallbackId);
@@ -482,10 +497,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     actions.push({
       id: "leave-workspace",
-      title: i18n("discourse_workspace_groups.back_to_forum"),
+      title: this.routeIsChatContext
+        ? i18n("discourse_workspace_groups.back_to_chat_channels")
+        : i18n("discourse_workspace_groups.back_to_forum"),
       action: () => {
         this.exitWorkspaceSidebar();
-        DiscourseURL.routeTo("/latest");
+
+        if (!this.routeIsChatContext) {
+          DiscourseURL.routeTo("/latest");
+        }
       },
     });
 
@@ -565,6 +585,20 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
   }
 
+  applyWorkspaceSidebarFocusId(workspaceId) {
+    this.workspaceSidebarFocusId = workspaceId ? String(workspaceId) : null;
+
+    if (this.workspaceSidebarFocusId) {
+      return;
+    }
+
+    this.showUnreadOnly = false;
+    this.editingSidebar = false;
+    this.orderedChannelIds = null;
+    this.sidebarSectionsOverride = null;
+    this.cancelSidebarSectionTitleEdit();
+  }
+
   enterWorkspaceSidebar(workspace = this.workspaceCategory) {
     if (!workspace?.id) {
       return;
@@ -573,28 +607,31 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.markWorkspaceNavigationHintSeen();
 
     const workspaceId = String(workspace.id);
-    this.workspaceSidebarFocusId = workspaceId;
+    this.applyWorkspaceSidebarFocusId(workspaceId);
 
     try {
       sessionStorage.setItem(WORKSPACE_FOCUS_KEY, workspaceId);
     } catch {
       // Ignore storage failures; tracked state still controls this tab.
     }
+
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_FOCUS_CHANGED_EVENT, {
+        detail: { workspaceId },
+      })
+    );
   }
 
   exitWorkspaceSidebar() {
-    this.workspaceSidebarFocusId = null;
-    this.showUnreadOnly = false;
-    this.editingSidebar = false;
-    this.orderedChannelIds = null;
-    this.sidebarSectionsOverride = null;
-    this.cancelSidebarSectionTitleEdit();
+    this.applyWorkspaceSidebarFocusId(null);
 
     try {
       sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
     } catch {
       // Nothing to clean up if storage is unavailable.
     }
+
+    window.dispatchEvent(new CustomEvent(WORKSPACE_FOCUS_CHANGED_EVENT));
   }
 
   get canEditSidebar() {
@@ -990,8 +1027,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
   }
 
-  updateSidebarFocus() {
-    if (this.routeIsWorkspaceContext) {
+  updateSidebarFocus({ syncRouteFocus = true } = {}) {
+    if (syncRouteFocus && this.routeIsWorkspaceContext) {
       this.enterWorkspaceSidebar(this.workspaceCategory);
     }
 
@@ -1110,6 +1147,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return;
     }
 
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
     const rowElement = event.currentTarget.closest(
       ".workspace-team-sidebar__row"
     );
@@ -1119,22 +1160,30 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    this.lockSidebarDragScrolling(rowElement);
 
     const rowRect = rowElement.getBoundingClientRect();
     this.sidebarPointerDrag = {
       categoryId: Number(row.category.id),
       offsetX: event.clientX - rowRect.left,
       offsetY: event.clientY - rowRect.top,
+      clientX: event.clientX,
+      clientY: event.clientY,
     };
     this.draggedCategoryId = Number(row.category.id);
     this.sidebarDropTarget = null;
     this.createSidebarDragPreview(rowElement, rowRect);
     this.updateSidebarPointerDrag(event);
 
-    document.addEventListener("mousemove", this.sidebarPointerMoveCallback, {
+    document.addEventListener("pointermove", this.sidebarPointerMoveCallback, {
       passive: false,
     });
-    document.addEventListener("mouseup", this.sidebarPointerUpCallback);
+    document.addEventListener("pointerup", this.sidebarPointerUpCallback);
+    document.addEventListener(
+      "pointercancel",
+      this.sidebarPointerCancelCallback
+    );
     document.addEventListener("keydown", this.sidebarPointerKeydownCallback);
     window.addEventListener("blur", this.sidebarPointerCancelCallback);
   }
@@ -1148,14 +1197,120 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarDragPreviewElement = preview;
   }
 
+  lockSidebarDragScrolling(rowElement) {
+    this.sidebarDragScrollElement =
+      rowElement.closest(".workspace-groups-chat-channel-panel") ??
+      rowElement.closest(".sidebar-sections");
+    this.sidebarDragScrollLockElements = [
+      document.body,
+      this.sidebarDragScrollElement,
+    ].filter(Boolean);
+
+    this.sidebarDragScrollLockElements.forEach((element) =>
+      element.classList.add("workspace-team-sidebar-scroll-lock")
+    );
+  }
+
+  unlockSidebarDragScrolling() {
+    this.sidebarDragScrollLockElements?.forEach((element) =>
+      element.classList.remove("workspace-team-sidebar-scroll-lock")
+    );
+    this.sidebarDragScrollLockElements = null;
+  }
+
   updateSidebarPointerDrag(event) {
     if (!this.sidebarPointerDrag) {
       return;
     }
 
     event.preventDefault();
+    this.sidebarPointerDrag.clientX = event.clientX;
+    this.sidebarPointerDrag.clientY = event.clientY;
     this.moveSidebarDragPreview(event);
     this.sidebarDropTarget = this.dropTargetForPointer(event);
+    this.updateSidebarDragAutoScroll();
+  }
+
+  updateSidebarDragAfterScroll() {
+    if (!this.sidebarPointerDrag) {
+      return;
+    }
+
+    this.moveSidebarDragPreview(this.sidebarPointerDrag);
+    this.sidebarDropTarget = this.dropTargetForPointer(this.sidebarPointerDrag);
+  }
+
+  updateSidebarDragAutoScroll() {
+    const speed = this.sidebarDragAutoScrollSpeed();
+
+    if (speed === 0) {
+      this.stopSidebarDragAutoScroll();
+      return;
+    }
+
+    this.sidebarDragAutoScrollSpeedPx = speed;
+
+    if (!this.sidebarDragAutoScrollFrame) {
+      this.sidebarDragAutoScrollFrame = requestAnimationFrame(() =>
+        this.runSidebarDragAutoScroll()
+      );
+    }
+  }
+
+  sidebarDragAutoScrollSpeed() {
+    const element = this.sidebarDragScrollElement;
+    const drag = this.sidebarPointerDrag;
+
+    if (!element || !drag) {
+      return 0;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const edgeSize = Math.min(
+      SIDEBAR_DRAG_AUTOSCROLL_EDGE_PX,
+      rect.height / 3
+    );
+
+    if (drag.clientY < rect.top + edgeSize) {
+      const intensity = (rect.top + edgeSize - drag.clientY) / edgeSize;
+      return -SIDEBAR_DRAG_AUTOSCROLL_MAX_SPEED_PX * intensity;
+    }
+
+    if (drag.clientY > rect.bottom - edgeSize) {
+      const intensity = (drag.clientY - (rect.bottom - edgeSize)) / edgeSize;
+      return SIDEBAR_DRAG_AUTOSCROLL_MAX_SPEED_PX * intensity;
+    }
+
+    return 0;
+  }
+
+  runSidebarDragAutoScroll() {
+    this.sidebarDragAutoScrollFrame = null;
+
+    const element = this.sidebarDragScrollElement;
+    const speed = this.sidebarDragAutoScrollSpeedPx;
+
+    if (!this.sidebarPointerDrag || !element || !speed) {
+      return;
+    }
+
+    const previousScrollTop = element.scrollTop;
+    element.scrollTop += speed;
+
+    if (element.scrollTop !== previousScrollTop) {
+      this.updateSidebarDragAfterScroll();
+    }
+
+    this.updateSidebarDragAutoScroll();
+  }
+
+  stopSidebarDragAutoScroll() {
+    if (this.sidebarDragAutoScrollFrame) {
+      cancelAnimationFrame(this.sidebarDragAutoScrollFrame);
+      this.sidebarDragAutoScrollFrame = null;
+    }
+
+    this.sidebarDragAutoScrollSpeedPx = 0;
   }
 
   dropTargetForPointer(event) {
@@ -1265,13 +1420,20 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   cancelSidebarPointerDrag() {
-    document.removeEventListener("mousemove", this.sidebarPointerMoveCallback);
-    document.removeEventListener("mouseup", this.sidebarPointerUpCallback);
+    document.removeEventListener("pointermove", this.sidebarPointerMoveCallback);
+    document.removeEventListener("pointerup", this.sidebarPointerUpCallback);
+    document.removeEventListener(
+      "pointercancel",
+      this.sidebarPointerCancelCallback
+    );
     document.removeEventListener("keydown", this.sidebarPointerKeydownCallback);
     window.removeEventListener("blur", this.sidebarPointerCancelCallback);
+    this.stopSidebarDragAutoScroll();
+    this.unlockSidebarDragScrolling();
     this.sidebarDragPreviewElement?.remove();
     this.sidebarDragPreviewElement = null;
     this.sidebarPointerDrag = null;
+    this.sidebarDragScrollElement = null;
     this.draggedCategoryId = null;
     this.sidebarDropTarget = null;
   }

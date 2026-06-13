@@ -3,6 +3,8 @@ import Category from "discourse/models/category";
 
 export const LAST_WORKSPACE_KEY = "workspace-groups:last-workspace-id";
 export const WORKSPACE_FOCUS_KEY = "workspace-groups:focused-workspace-id";
+export const WORKSPACE_FOCUS_CHANGED_EVENT =
+  "workspace-groups:focus-changed";
 
 export function workspaceScopedCategory(category) {
   if (!category) {
