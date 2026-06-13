@@ -4,13 +4,13 @@ import { hash } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
-import ColorPicker from "discourse/components/color-picker";
-import DButton from "discourse/components/d-button";
-import DToggleSwitch from "discourse/components/d-toggle-switch";
 import EmojiPicker from "discourse/components/emoji-picker";
 import { uniqueItemsFromArray } from "discourse/lib/array-tools";
 import ComboBox from "discourse/select-kit/components/combo-box";
 import { not } from "discourse/truth-helpers";
+import DButton from "discourse/ui-kit/d-button";
+import DColorPicker from "discourse/ui-kit/d-color-picker";
+import DToggleSwitch from "discourse/ui-kit/d-toggle-switch";
 import { i18n } from "discourse-i18n";
 
 export default class WorkspaceChannelForm extends Component {
@@ -153,7 +153,7 @@ export default class WorkspaceChannelForm extends Component {
         <span class="workspace-groups-create-channel-modal__label">
           {{i18n "category.background_color"}}
         </span>
-        <ColorPicker
+        <DColorPicker
           @value={{@color}}
           @colors={{this.backgroundColors}}
           @usedColors={{this.usedBackgroundColors}}

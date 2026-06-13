@@ -16,7 +16,10 @@ module ::DiscourseWorkspaceGroups
       chat_channel = channel.category_channel
       chat_channel&.remove(target_user)
       Chat::Publisher.publish_kick_users(chat_channel.id, [target_user.id]) if chat_channel.present?
-      channel.workspace_group.remove(target_user)
+      DiscourseWorkspaceGroups::RemoveChannelGroupMember.new(
+        group: channel.workspace_group,
+        user: target_user,
+      ).call
       channel
     end
 

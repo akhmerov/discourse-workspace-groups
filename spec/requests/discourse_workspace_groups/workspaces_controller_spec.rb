@@ -631,6 +631,82 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
   end
 
+  describe "#leave_channel" do
+    it "removes a joined public channel membership and paired chat membership" do
+      public_channel.workspace_group.add(workspace_member)
+      chat_channel = category_chat_channel(public_channel)
+      expect(chat_channel.membership_for(workspace_member)).to be_present
+
+      sign_in(workspace_member)
+
+      expect {
+        delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+      }.to change { public_channel.workspace_group.users.exists?(id: workspace_member.id) }.from(true).to(false)
+
+      expect(response).to have_http_status(:ok)
+      expect(chat_channel.membership_for(workspace_member)).to be_nil
+      expect(response.parsed_body.dig("channel", "joined")).to eq(false)
+      expect(response.parsed_body.dig("channel", "can_join")).to eq(true)
+      expect(response.parsed_body.dig("channel", "can_leave")).to eq(false)
+    end
+
+    it "removes membership from channels whose group grants trust" do
+      public_channel.workspace_group.add(workspace_member)
+      public_channel.workspace_group.update!(grant_trust_level: TrustLevel[3])
+      workspace_member.update!(trust_level: TrustLevel[3])
+
+      sign_in(workspace_member)
+
+      expect {
+        delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+      }.to change { public_channel.workspace_group.users.exists?(id: workspace_member.id) }.from(true).to(false)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "joined")).to eq(false)
+    end
+
+    it "leaves public chat-only channels without serializing a revoked category permission update" do
+      chat_only_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Chat #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+          channel_mode: "chat_only",
+        ).call
+      chat_only_channel.workspace_group.add(workspace_member)
+      chat_channel = category_chat_channel(chat_only_channel)
+      expect(chat_channel.membership_for(workspace_member)).to be_present
+
+      sign_in(workspace_member)
+
+      expect {
+        delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{chat_only_channel.id}/membership.json"
+      }.to change { chat_only_channel.workspace_group.users.exists?(id: workspace_member.id) }.from(true).to(false)
+
+      expect(response).to have_http_status(:ok)
+      expect(chat_channel.membership_for(workspace_member)).to be_nil
+      expect(response.parsed_body.dig("channel", "joined")).to eq(false)
+      expect(response.parsed_body.dig("channel", "can_join")).to eq(true)
+      expect(response.parsed_body.dig("channel", "can_leave")).to eq(false)
+    end
+
+    it "allows an admin channel owner to leave when another owner remains" do
+      public_channel.workspace_group.add(workspace_member)
+      public_channel.workspace_group.group_users.find_by!(user: workspace_member).update!(owner: true)
+
+      sign_in(admin)
+
+      expect {
+        delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+      }.to change { public_channel.workspace_group.users.exists?(id: admin.id) }.from(true).to(false)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "joined")).to eq(false)
+    end
+  end
+
   describe "#update_sidebar_channels" do
     it "stores a per-user sidebar order for visible workspace channels" do
       first_public_channel = public_channel
@@ -1097,6 +1173,30 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
         chat_channel.id,
         [guest_user.id],
       )
+    end
+
+    it "removes members from chat-only channels without serializing revoked category updates" do
+      chat_only_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Access Chat #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+          channel_mode: "chat_only",
+        ).call
+      chat_only_channel.workspace_group.add(workspace_member)
+      chat_channel = category_chat_channel(chat_only_channel)
+      expect(chat_channel.membership_for(workspace_member)).to be_present
+
+      sign_in(admin)
+
+      expect {
+        delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{chat_only_channel.id}/access/#{workspace_member.id}.json"
+      }.to change { chat_only_channel.workspace_group.users.exists?(id: workspace_member.id) }.from(true).to(false)
+
+      expect(response).to have_http_status(:ok)
+      expect(chat_channel.membership_for(workspace_member)).to be_nil
     end
   end
 end

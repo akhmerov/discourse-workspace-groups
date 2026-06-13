@@ -1,10 +1,10 @@
 import { on } from "@ember/modifier";
 import { trustHTML } from "@ember/template";
-import DButton from "discourse/components/d-button";
-import DecoratedHtml from "discourse/components/decorated-html";
 import Layout from "discourse/components/discovery/layout";
 import Navigation from "discourse/components/discovery/navigation";
-import icon from "discourse/helpers/d-icon";
+import DButton from "discourse/ui-kit/d-button";
+import DDecoratedHtml from "discourse/ui-kit/d-decorated-html";
+import dIcon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
 import WorkspaceOverviewChannelCard from "../../components/workspace-overview-channel-card";
 
@@ -36,7 +36,7 @@ export default <template>
                   title={{@controller.teamVisibilityLabel}}
                   aria-label={{@controller.teamVisibilityLabel}}
                 >
-                  {{icon @controller.teamVisibilityIcon}}
+                  {{dIcon @controller.teamVisibilityIcon}}
                 </span>
                 <span>{{@controller.teamName}}</span>
               </h1>
@@ -46,7 +46,7 @@ export default <template>
                   href={{@controller.teamMembersUrl}}
                   class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
                 >
-                  {{icon "user"}}
+                  {{dIcon "user"}}
                   <span>
                     {{i18n
                       "discourse_workspace_groups.member_count"
@@ -71,7 +71,7 @@ export default <template>
           </div>
 
           {{#if @controller.teamAboutCooked}}
-            <DecoratedHtml
+            <DDecoratedHtml
               @html={{trustHTML @controller.teamAboutCooked}}
               @className="cooked workspace-groups-overview__team-about"
             />
