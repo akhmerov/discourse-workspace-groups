@@ -19,6 +19,7 @@ import DiscourseURL from "discourse/lib/url";
 import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
+import ChatModalNewMessage from "discourse/plugins/chat/discourse/components/chat/modal/new-message";
 import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import {
   appendSidebarSection,
@@ -63,6 +64,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @service currentUser;
   @service dialog;
   @service keyValueStore;
+  @service modal;
   @service router;
   @service site;
   @service sidebarState;
@@ -553,6 +555,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       : i18n("discourse_workspace_groups.show_unread_channels");
   }
 
+  get canOpenChannelFinder() {
+    return !!(
+      this.chat?.userCanChat &&
+      (this.siteSettings.enable_public_channels ||
+        this.chat.userCanDirectMessage)
+    );
+  }
+
   workspaceTitle(workspace) {
     return i18n("discourse_workspace_groups.open_workspace", {
       name: workspace.displayName,
@@ -668,6 +678,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   get unreadLabel() {
     return i18n("discourse_workspace_groups.unread_button");
+  }
+
+  get channelFinderTitle() {
+    return i18n("discourse_workspace_groups.find_channel");
+  }
+
+  get channelFinderLabel() {
+    return i18n("discourse_workspace_groups.find_channel_button");
   }
 
   get sidebarEditLabel() {
@@ -1069,6 +1087,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   openWorkspace(workspace) {
     this.enterWorkspaceSidebar(workspace);
     DiscourseURL.routeTo(workspaceOverviewPath(workspace));
+  }
+
+  @action
+  openChannelFinder() {
+    this.modal.show(ChatModalNewMessage);
   }
 
   @action
@@ -1710,6 +1733,20 @@ export default class WorkspaceTeamSidebarBlock extends Component {
             {{dIcon "filter"}}
             <span>{{this.unreadLabel}}</span>
           </button>
+
+          {{#if this.canOpenChannelFinder}}
+            <button
+              type="button"
+              title={{this.channelFinderTitle}}
+              aria-label={{this.channelFinderTitle}}
+              class="workspace-team-sidebar__control"
+              disabled={{this.editingSidebar}}
+              {{on "click" this.openChannelFinder}}
+            >
+              {{dIcon "magnifying-glass"}}
+              <span>{{this.channelFinderLabel}}</span>
+            </button>
+          {{/if}}
 
           {{#if this.canEditSidebar}}
             {{#if this.editingSidebar}}

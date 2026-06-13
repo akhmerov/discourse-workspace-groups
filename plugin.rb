@@ -15,6 +15,7 @@ register_svg_icon "layer-group"
 register_svg_icon "lock"
 register_svg_icon "table-cells-large"
 register_svg_icon "clock"
+register_svg_icon "magnifying-glass"
 
 require "digest/sha1"
 require "set"
