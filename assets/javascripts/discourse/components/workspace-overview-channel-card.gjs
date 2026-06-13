@@ -1,9 +1,10 @@
-import { trustHTML } from "@ember/template";
 import Component from "@glimmer/component";
-import DecoratedHtml from "discourse/components/decorated-html";
 import { fn } from "@ember/helper";
-import DButton from "discourse/components/d-button";
-import icon from "discourse/helpers/d-icon";
+import { trustHTML } from "@ember/template";
+import DButton from "discourse/ui-kit/d-button";
+import DDecoratedHtml from "discourse/ui-kit/d-decorated-html";
+import dFormatDate from "discourse/ui-kit/helpers/d-format-date";
+import dIcon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
 
 export default class WorkspaceOverviewChannelCard extends Component {
@@ -72,6 +73,16 @@ export default class WorkspaceOverviewChannelCard extends Component {
     return this.channel?.can_archive || this.channel?.can_unarchive;
   }
 
+  get lastActivityDate() {
+    if (!this.channel?.last_activity_at) {
+      return null;
+    }
+
+    return dFormatDate(this.channel.last_activity_at, {
+      leaveAgo: true,
+    });
+  }
+
   get showsTopicsIcon() {
     return this.channel?.mode !== "chat_only";
   }
@@ -107,7 +118,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                 title={{this.visibilityLabel}}
                 aria-label={{this.visibilityLabel}}
               >
-                {{icon this.visibilityIcon}}
+                {{dIcon this.visibilityIcon}}
               </span>
 
               {{#if this.titleHref}}
@@ -133,7 +144,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                     title={{i18n "discourse_workspace_groups.channel_topics"}}
                     aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
                   >
-                    {{icon "list"}}
+                    {{dIcon "list"}}
                   </a>
                 {{else}}
                   <span
@@ -141,7 +152,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                     title={{i18n "discourse_workspace_groups.channel_topics"}}
                     aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
                   >
-                    {{icon "list"}}
+                    {{dIcon "list"}}
                   </span>
                 {{/if}}
               {{/if}}
@@ -154,7 +165,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                     title={{i18n "discourse_workspace_groups.channel_chat"}}
                     aria-label={{i18n "discourse_workspace_groups.channel_chat"}}
                   >
-                    {{icon "d-chat"}}
+                    {{dIcon "d-chat"}}
                   </a>
                 {{else}}
                   <span
@@ -162,7 +173,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                     title={{i18n "discourse_workspace_groups.channel_chat"}}
                     aria-label={{i18n "discourse_workspace_groups.channel_chat"}}
                   >
-                    {{icon "d-chat"}}
+                    {{dIcon "d-chat"}}
                   </span>
                 {{/if}}
               {{/if}}
@@ -173,7 +184,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                 href={{this.channel.members_url}}
                 class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
               >
-                {{icon "user"}}
+                {{dIcon "user"}}
                 <span>
                   {{i18n
                     "discourse_workspace_groups.member_count"
@@ -185,7 +196,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
           </div>
 
           {{#if this.descriptionCooked}}
-            <DecoratedHtml
+            <DDecoratedHtml
               @html={{trustHTML this.descriptionCooked}}
               @className="cooked workspace-groups-overview__channel-description"
             />
@@ -198,6 +209,16 @@ export default class WorkspaceOverviewChannelCard extends Component {
 
         <div class="workspace-groups-overview__card-meta">
           <div class="workspace-groups-overview__badges">
+            {{#if this.lastActivityDate}}
+              <span
+                class="workspace-groups-overview__activity"
+                title={{i18n "discourse_workspace_groups.last_activity"}}
+              >
+                {{dIcon "clock"}}
+                <span>{{this.lastActivityDate}}</span>
+              </span>
+            {{/if}}
+
             {{#if this.channel.archived}}
               <span class="workspace-groups-overview__state">
                 {{i18n "discourse_workspace_groups.archived_channel"}}

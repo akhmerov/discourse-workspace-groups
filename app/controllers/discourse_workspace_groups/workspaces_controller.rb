@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-require "set"
-
 module ::DiscourseWorkspaceGroups
   class WorkspacesController < ::ApplicationController
+    requires_plugin ::DiscourseWorkspaceGroups::PLUGIN_NAME
     requires_login
 
     before_action :ensure_plugin_enabled
@@ -365,7 +364,50 @@ module ::DiscourseWorkspaceGroups
           Set.new
         end
 
-      { groups_by_id: groups_by_id, joined_group_ids: joined_group_ids, workspace_member: workspace_member }
+      {
+        groups_by_id: groups_by_id,
+        joined_group_ids: joined_group_ids,
+        workspace_member: workspace_member,
+        last_activity_at_by_category_id: last_activity_at_by_category_id(channels),
+      }
+    end
+
+    def last_activity_at_by_category_id(channels)
+      category_topic_activity = category_topic_activity_by_category_id(channels)
+      chat_activity = chat_activity_by_category_id(channels)
+
+      channels.each_with_object({}) do |channel, activity_by_category_id|
+        candidates = []
+        candidates << category_topic_activity[channel.id] if channel.workspace_category_enabled?
+        candidates << chat_activity[channel.id] if channel.workspace_chat_enabled?
+
+        activity_by_category_id[channel.id] = candidates.compact.max
+      end
+    end
+
+    def category_topic_activity_by_category_id(channels)
+      category_ids = channels.select(&:workspace_category_enabled?).map(&:id)
+      return {} if category_ids.blank?
+
+      query = Topic.where(category_id: category_ids, archetype: Archetype.default, deleted_at: nil)
+      about_topic_ids = channels.filter_map(&:topic_id)
+      query = query.where.not(id: about_topic_ids) if about_topic_ids.present?
+
+      query.group(:category_id).maximum(:bumped_at)
+    end
+
+    def chat_activity_by_category_id(channels)
+      return {} if !defined?(::Chat::Channel)
+
+      category_ids = channels.select(&:workspace_chat_enabled?).map(&:id)
+      return {} if category_ids.blank?
+
+      ::Chat::Channel
+        .where(chatable_type: "Category", chatable_id: category_ids)
+        .joins("INNER JOIN chat_messages last_messages ON last_messages.id = chat_channels.last_message_id")
+        .where("last_messages.deleted_at IS NULL")
+        .pluck("chat_channels.chatable_id", "last_messages.created_at")
+        .to_h
     end
 
     def visible_channels(channels, **context)
@@ -462,7 +504,7 @@ module ::DiscourseWorkspaceGroups
              }
     end
 
-    def serialize_channel(category, groups_by_id:, joined_group_ids:, workspace_member:)
+    def serialize_channel(category, groups_by_id:, joined_group_ids:, workspace_member:, last_activity_at_by_category_id:)
       group = groups_by_id[category.workspace_group_id]
       joined = group.present? && joined_group_ids.include?(group.id)
       visible = visible_channel?(category, joined_group_ids: joined_group_ids, workspace_member: workspace_member)
@@ -501,6 +543,7 @@ module ::DiscourseWorkspaceGroups
         can_view_members: can_view_members,
         member_count: can_view_members && group.present? ? group.group_users.count : nil,
         members_url: can_view_members ? group_members_url(group) : nil,
+        last_activity_at: last_activity_at_by_category_id[category.id],
         topics_url: category.url,
         chat_channel_id: category.workspace_chat_enabled? ? category.category_channel&.id : nil,
         chat_channel: serialize_chat_channel(category),

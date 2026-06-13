@@ -17,6 +17,7 @@ en:
       visibility_public: "Public"
       visibility_private: "Private"
       archived_channel: "Archived"
+      last_activity: "Last activity"
       join_channel: "Join"
       leave_channel: "Leave"
       channel_settings: "Channel settings"

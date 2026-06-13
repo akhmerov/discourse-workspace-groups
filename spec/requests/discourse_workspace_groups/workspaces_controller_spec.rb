@@ -175,6 +175,73 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body["channels"].map { |channel| channel["id"] }).to eq([public_channel.id])
     end
 
+    it "returns last activity from the newest enabled category or chat activity and excludes category about topics" do
+      public_channel.reload.topic.update!(bumped_at: 1.hour.ago)
+      topic_time = 3.days.ago
+      chat_time = 2.days.ago
+      Fabricate(:topic, category: public_channel, user: admin, bumped_at: topic_time)
+      chat_channel = category_chat_channel(public_channel)
+      chat_message = Fabricate(:chat_message, chat_channel: chat_channel, user: admin, use_service: true)
+      chat_message.update!(created_at: chat_time)
+      chat_channel.update!(last_message: chat_message)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+
+      payload = response.parsed_body["channels"].find { |channel| channel["id"] == public_channel.id }
+      expect(Time.zone.parse(payload["last_activity_at"]).to_i).to eq(chat_time.to_i)
+    end
+
+    it "returns last activity only from surfaces enabled for the channel mode" do
+      category_only_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Docs #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+        ).call
+      chat_only_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Chat #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+        ).call
+      category_only_channel.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE] = "category_only"
+      category_only_channel.save_custom_fields(true)
+      chat_only_channel.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE] = "chat_only"
+      chat_only_channel.save_custom_fields(true)
+
+      category_topic_time = 4.days.ago
+      ignored_chat_time = 1.hour.ago
+      ignored_topic_time = 30.minutes.ago
+      chat_time = 2.days.ago
+      Fabricate(:topic, category: category_only_channel, user: admin, bumped_at: category_topic_time)
+      Fabricate(:topic, category: chat_only_channel, user: admin, bumped_at: ignored_topic_time)
+
+      category_only_chat_channel = category_chat_channel(category_only_channel)
+      ignored_chat_message =
+        Fabricate(:chat_message, chat_channel: category_only_chat_channel, user: admin, use_service: true)
+      ignored_chat_message.update!(created_at: ignored_chat_time)
+      category_only_chat_channel.update!(last_message: ignored_chat_message)
+
+      chat_only_chat_channel = category_chat_channel(chat_only_channel)
+      chat_message = Fabricate(:chat_message, chat_channel: chat_only_chat_channel, user: admin, use_service: true)
+      chat_message.update!(created_at: chat_time)
+      chat_only_chat_channel.update!(last_message: chat_message)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+
+      category_payload =
+        response.parsed_body["channels"].find { |channel| channel["id"] == category_only_channel.id }
+      chat_payload = response.parsed_body["channels"].find { |channel| channel["id"] == chat_only_channel.id }
+      expect(Time.zone.parse(category_payload["last_activity_at"]).to_i).to eq(category_topic_time.to_i)
+      expect(Time.zone.parse(chat_payload["last_activity_at"]).to_i).to eq(chat_time.to_i)
+    end
+
     it "returns workspace settings metadata for managers" do
       workspace.update_column(:description, "Shared [docs](https://example.com/workspace).")
       workspace.create_category_definition if workspace.topic.blank?
@@ -245,16 +312,16 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       public_channel
 
       sign_in(workspace_member)
-
-      expect(Chat::Publisher).to receive(:publish_new_channel).with(
-        a_kind_of(Chat::Channel),
-        [workspace_member.id],
-      ).once
+      allow(Chat::Publisher).to receive(:publish_new_channel)
 
       post "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body.dig("channel", "joined")).to eq(true)
+      expect(Chat::Publisher).to have_received(:publish_new_channel).with(
+        a_kind_of(Chat::Channel),
+        [workspace_member.id],
+      ).once
     end
   end
 
@@ -303,7 +370,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
         },
       }
 
-      expect(::Chat::TrackingStateReportQuery).to receive(:call).with(
+      allow(::Chat::TrackingStateReportQuery).to receive(:call).with(
         guardian: an_instance_of(Guardian),
         channel_ids: [chat_channel.id],
         include_missing_memberships: false,
@@ -315,6 +382,13 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       get "/workspace-groups/workspaces/#{workspace.id}/chat-tracking.json"
 
       expect(response).to have_http_status(:ok)
+      expect(::Chat::TrackingStateReportQuery).to have_received(:call).with(
+        guardian: an_instance_of(Guardian),
+        channel_ids: [chat_channel.id],
+        include_missing_memberships: false,
+        include_threads: false,
+        include_read: false,
+      )
       expect(response.parsed_body.dig("channel_tracking", chat_channel.id.to_s)).to eq(
         "unread_count" => 2,
         "mention_count" => 1,
@@ -988,10 +1062,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
       sign_in(admin)
 
-      expect(Chat::Publisher).to receive(:publish_kick_users).with(
-        chat_channel.id,
-        [guest_user.id],
-      ).and_call_original
+      allow(Chat::Publisher).to receive(:publish_kick_users).and_call_original
 
       expect {
         delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{private_channel.id}/access/#{guest_user.id}.json"
@@ -999,6 +1070,10 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
       expect(response).to have_http_status(:ok)
       expect(chat_channel.membership_for(guest_user)).to be_nil
+      expect(Chat::Publisher).to have_received(:publish_kick_users).with(
+        chat_channel.id,
+        [guest_user.id],
+      )
     end
   end
 end
