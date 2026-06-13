@@ -53,7 +53,6 @@ en:
       show_all_channels: "Show all channels"
       show_unread_channels: "Show unread channels"
       overview_button: "Overview"
-      find_channel_button: "Find"
       unread_button: "Unread"
       workspace_navigation_hint: "Open a team to focus this sidebar on its channels and DMs."
       dismiss_workspace_navigation_hint: "Got it"

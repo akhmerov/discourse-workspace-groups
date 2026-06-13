@@ -684,10 +684,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     return i18n("discourse_workspace_groups.find_channel");
   }
 
-  get channelFinderLabel() {
-    return i18n("discourse_workspace_groups.find_channel_button");
-  }
-
   get sidebarEditLabel() {
     return this.editingSidebar
       ? i18n("discourse_workspace_groups.done_editing_sidebar_label")
@@ -1739,12 +1735,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
               type="button"
               title={{this.channelFinderTitle}}
               aria-label={{this.channelFinderTitle}}
-              class="workspace-team-sidebar__control"
+              class="workspace-team-sidebar__control workspace-team-sidebar__control--icon-only"
               disabled={{this.editingSidebar}}
               {{on "click" this.openChannelFinder}}
             >
               {{dIcon "magnifying-glass"}}
-              <span>{{this.channelFinderLabel}}</span>
             </button>
           {{/if}}
 
