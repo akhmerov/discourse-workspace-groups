@@ -2,6 +2,7 @@ import { module, test } from "qunit";
 import {
   chatChannelHasUnread,
   currentScopedMode,
+  focusedWorkspaceCategory,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
   rememberedOrDefaultWorkspaceCategory,
@@ -9,6 +10,7 @@ import {
   sidebarChannelCategories,
   sidebarScopedCategories,
   userSelectedScopedCategories,
+  WORKSPACE_FOCUS_KEY,
   workspaceScopedCategory,
   workspaceSidebarChannelOrder,
   workspaceSidebarSectionChannelOrder,
@@ -19,10 +21,12 @@ module(
   function (hooks) {
     hooks.beforeEach(function () {
       localStorage.removeItem("workspace-groups:last-workspace-id");
+      sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
     });
 
     hooks.afterEach(function () {
       localStorage.removeItem("workspace-groups:last-workspace-id");
+      sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
     });
 
     test("only treats workspace categories as scoped sidebar categories", function (assert) {
@@ -603,6 +607,35 @@ module(
         memberWorkspace
       );
       assert.deepEqual(sidebarScopedCategories(services), [memberWorkspace, memberChannel]);
+    });
+
+    test("only reports a focused workspace when the workspace focus key is set", function (assert) {
+      const workspace = {
+        id: 20,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+        workspace_group_id: 220,
+      };
+
+      const services = {
+        currentUser: { groups: [{ id: 220 }] },
+        site: { categoriesList: [workspace] },
+        siteSettings: {},
+      };
+
+      assert.strictEqual(
+        rememberedOrDefaultWorkspaceCategory(services),
+        workspace
+      );
+      assert.strictEqual(focusedWorkspaceCategory(services), null);
+
+      sessionStorage.setItem(WORKSPACE_FOCUS_KEY, "20");
+
+      assert.strictEqual(focusedWorkspaceCategory(services), workspace);
+
+      sessionStorage.setItem(WORKSPACE_FOCUS_KEY, "999");
+
+      assert.strictEqual(focusedWorkspaceCategory(services), null);
     });
 
     test("does not auto-pick a workspace for users without workspace memberships", function (assert) {

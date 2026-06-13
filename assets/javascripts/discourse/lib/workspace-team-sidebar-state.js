@@ -2,6 +2,7 @@ import { canDisplayCategory } from "discourse/lib/sidebar/helpers";
 import Category from "discourse/models/category";
 
 export const LAST_WORKSPACE_KEY = "workspace-groups:last-workspace-id";
+export const WORKSPACE_FOCUS_KEY = "workspace-groups:focused-workspace-id";
 
 export function workspaceScopedCategory(category) {
   if (!category) {
@@ -388,6 +389,28 @@ export function memberWorkspaceCategories(services) {
 
   return visibleWorkspaceCategories(services).filter((category) =>
     workspaceGroupIds.has(Number(category.workspace_group_id))
+  );
+}
+
+export function focusedWorkspaceCategory(services, focusedIdOverride = null) {
+  let focusedId = Number(focusedIdOverride);
+
+  if (!focusedId) {
+    try {
+      focusedId = Number(sessionStorage.getItem(WORKSPACE_FOCUS_KEY));
+    } catch {
+      return null;
+    }
+  }
+
+  if (!focusedId) {
+    return null;
+  }
+
+  return (
+    memberWorkspaceCategories(services).find(
+      (category) => Number(category.id) === focusedId
+    ) ?? null
   );
 }
 

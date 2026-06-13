@@ -1,7 +1,7 @@
 import Component from "@glimmer/component";
 import { service } from "@ember/service";
 import BlockOutlet from "discourse/blocks/block-outlet";
-import { sidebarWorkspaceCategory } from "../../lib/workspace-team-sidebar-state";
+import { focusedWorkspaceCategory } from "../../lib/workspace-team-sidebar-state";
 
 function lookupServices(owner) {
   return {
@@ -26,7 +26,7 @@ export default class WorkspaceChatChannelPanel extends Component {
       return false;
     }
 
-    return !!sidebarWorkspaceCategory(services);
+    return !!focusedWorkspaceCategory(services);
   }
 
   @service router;

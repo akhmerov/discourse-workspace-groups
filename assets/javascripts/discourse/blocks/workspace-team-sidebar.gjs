@@ -38,10 +38,12 @@ import {
   currentScopedCategory,
   currentScopedMode,
   currentWorkspaceCategory,
+  focusedWorkspaceCategory as focusedSidebarWorkspaceCategory,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
   sidebarChannelCategories,
   sidebarWorkspaceCategory,
+  WORKSPACE_FOCUS_KEY,
   workspaceCategoryModeEnabled,
   workspaceChatModeEnabled,
   workspaceOverviewPath,
@@ -49,7 +51,6 @@ import {
   workspaceSidebarLayout,
 } from "../lib/workspace-team-sidebar-state";
 
-const WORKSPACE_FOCUS_KEY = "workspace-groups:focused-workspace-id";
 const WORKSPACE_NAV_HINT_KEY = "workspace-groups:navigation-hint-seen";
 
 @block("discourse-workspace-groups:workspace-team-sidebar")
@@ -173,16 +174,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get focusedWorkspaceCategory() {
-    const focusedWorkspaceId = Number(this.workspaceSidebarFocusId);
-
-    if (!focusedWorkspaceId) {
-      return null;
-    }
-
-    return (
-      this.memberWorkspaces.find(
-        (workspace) => Number(workspace.id) === focusedWorkspaceId
-      ) ?? null
+    return focusedSidebarWorkspaceCategory(
+      this.services,
+      this.workspaceSidebarFocusId
     );
   }
 
