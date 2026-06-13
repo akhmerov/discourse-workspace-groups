@@ -87,6 +87,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked headerActionsMenuOpen = false;
   @tracked orderedChannelIds = null;
   @tracked sidebarSectionsOverride = null;
+  @tracked sidebarSectionsOverrideWorkspaceId = null;
   @tracked savingSidebarOrder = false;
   @tracked showUnreadOnly = false;
   @tracked workspaceNavigationHintSeen = false;
@@ -291,7 +292,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get currentSidebarLayout() {
-    if (this.sidebarSectionsOverride) {
+    if (
+      this.sidebarSectionsOverride &&
+      Number(this.sidebarSectionsOverrideWorkspaceId) ===
+        Number(this.workspaceCategory?.id)
+    ) {
       return normalizeSidebarLayout(
         this.sidebarSectionsOverride,
         this.sidebarLayoutOptions
@@ -678,6 +683,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.editingSidebar = true;
     this.showUnreadOnly = false;
     this.sidebarSectionsOverride = editableLayout;
+    this.sidebarSectionsOverrideWorkspaceId = this.workspaceCategory?.id ?? null;
     this.sidebarDropTarget = null;
     this.orderedChannelIds = channelIdsForLayout(
       editableLayout,
@@ -706,6 +712,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.editingSidebar = false;
     this.orderedChannelIds = null;
     this.sidebarSectionsOverride = null;
+    this.sidebarSectionsOverrideWorkspaceId = null;
     this.clearWorkspaceSidebarEditingState();
     this.cancelSidebarSectionTitleEdit();
   }
@@ -922,12 +929,16 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.currentUser.workspaceSidebarOrders = currentOrders;
   }
 
-  applySidebarSectionsLocally(nextLayout) {
+  applySidebarSectionsLocally(
+    nextLayout,
+    workspaceId = this.workspaceCategory?.id
+  ) {
     const normalizedLayout = normalizeSidebarLayout(
       nextLayout,
       this.sidebarLayoutOptions
     );
     this.sidebarSectionsOverride = normalizedLayout;
+    this.sidebarSectionsOverrideWorkspaceId = workspaceId ?? null;
     this.orderedChannelIds = channelIdsForLayout(
       normalizedLayout,
       this.sidebarLayoutOptions
@@ -1005,6 +1016,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           Number(this.workspaceCategory?.id) === Number(activeSave.workspaceId)
         ) {
           this.sidebarSectionsOverride = savedLayout;
+          this.sidebarSectionsOverrideWorkspaceId = activeSave.workspaceId;
           this.orderedChannelIds = channelIdsForLayout(
             savedLayout,
             this.sidebarLayoutOptions
@@ -1029,6 +1041,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         Number(this.workspaceCategory?.id) === Number(activeSave.workspaceId)
       ) {
         this.sidebarSectionsOverride = fallbackLayout;
+        this.sidebarSectionsOverrideWorkspaceId = fallbackLayout
+          ? activeSave?.workspaceId
+          : null;
         this.orderedChannelIds = fallbackLayout
           ? channelIdsForLayout(fallbackLayout, this.sidebarLayoutOptions)
           : null;
@@ -1258,6 +1273,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       this.pendingNewSidebarSectionId = null;
       this.orderedChannelIds = null;
       this.sidebarSectionsOverride = null;
+      this.sidebarSectionsOverrideWorkspaceId = null;
       this.sidebarDropTarget = null;
       this.clearWorkspaceSidebarEditingState();
       return;
@@ -1271,6 +1287,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       this.sidebarLayoutOptions
     );
     this.sidebarSectionsOverride = editableLayout;
+    this.sidebarSectionsOverrideWorkspaceId = this.workspaceCategory?.id ?? null;
     this.cancelSidebarSectionTitleEdit();
     this.sidebarDropTarget = null;
     this.orderedChannelIds = channelIdsForLayout(
