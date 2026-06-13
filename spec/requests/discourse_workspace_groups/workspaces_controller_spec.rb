@@ -825,7 +825,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       ).not_to have_key(workspace.id.to_s)
     end
 
-    it "prunes sidebar sections containing channels the user cannot see" do
+    it "preserves sidebar sections while pruning channels the user cannot see" do
       private_channel
 
       sign_in(workspace_member)
@@ -842,10 +842,12 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
           }
 
       expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["sections"]["sections"]).to eq([])
+      expect(response.parsed_body["sections"]["sections"]).to contain_exactly(
+        include("id" => "private", "title" => "Private", "channel_ids" => []),
+      )
     end
 
-    it "prunes sidebar sections containing archived channels" do
+    it "preserves sidebar sections while pruning archived channels" do
       public_channel.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED] = true
       public_channel.save_custom_fields(true)
 
@@ -864,7 +866,28 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
           }
 
       expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["sections"]["sections"]).to eq([])
+      expect(response.parsed_body["sections"]["sections"]).to contain_exactly(
+        include("id" => "archived", "title" => "Archived", "channel_ids" => []),
+      )
+    end
+
+    it "stores empty sidebar sections" do
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/sidebar-channels.json",
+          params: {
+            sections: [{ id: "new-group", title: "New group", channel_ids: [] }],
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["sections"]["sections"]).to contain_exactly(
+        include("id" => "new-group", "title" => "New group", "channel_ids" => []),
+      )
+      expect(
+        DiscourseWorkspaceGroups.workspace_sidebar_sections_for(workspace_member.reload)[workspace.id.to_s][
+          :sections
+        ],
+      ).to contain_exactly(include(id: "new-group", title: "New group", channel_ids: []))
     end
   end
 

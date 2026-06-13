@@ -352,9 +352,8 @@ module ::DiscourseWorkspaceGroups
       {
         **layout,
         sections:
-          layout[:sections].filter_map do |section|
+          layout[:sections].map do |section|
             channel_ids = section[:channel_ids].select { |id| visible_channel_ids.include?(id) }
-            next if channel_ids.blank?
 
             {
               **section,

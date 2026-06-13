@@ -19,7 +19,6 @@ import DiscourseURL from "discourse/lib/url";
 import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
-import ChatModalNewMessage from "discourse/plugins/chat/discourse/components/chat/modal/new-message";
 import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import {
   channelIdsForLayout,
@@ -59,6 +58,7 @@ const WORKSPACE_SIDEBAR_EDIT_KEY_PREFIX = "workspace-groups:sidebar-edit:";
 const SIDEBAR_DRAG_AUTOSCROLL_EDGE_PX = 72;
 const SIDEBAR_DRAG_AUTOSCROLL_MAX_SPEED_PX = 18;
 const SIDEBAR_DRAG_ACTIVATION_PX = 8;
+const SIDEBAR_TOUCH_LONG_PRESS_MS = 350;
 const SIDEBAR_TOUCH_SCROLL_SLOP_RATIO = 1.25;
 
 @block("discourse-workspace-groups:workspace-team-sidebar")
@@ -120,6 +120,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarPointerUpCallback = (event) =>
       this.finishSidebarPointerDrag(event);
     this.sidebarPointerCancelCallback = () => this.cancelSidebarPointerDrag();
+    this.sidebarTouchEndCallback = (event) => this.finishSidebarTouchDrag(event);
+    this.sidebarTouchCancelCallback = () => this.cancelSidebarPointerDrag();
     this.sidebarPointerKeydownCallback = (event) => {
       if (event.key === "Escape") {
         this.cancelSidebarPointerDrag();
@@ -1204,7 +1206,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
-  openChannelFinder() {
+  async openChannelFinder() {
+    const { default: ChatModalNewMessage } = await import(
+      "discourse/plugins/chat/discourse/components/chat/modal/new-message"
+    );
     this.modal.show(ChatModalNewMessage);
   }
 
@@ -1356,6 +1361,17 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   beginPendingSidebarPointerDrag(drag) {
     this.cancelSidebarPointerDrag();
     this.sidebarPendingPointerDrag = drag;
+    if (drag.pointerType === "touch") {
+      this.sidebarPendingPointerDragTimer = setTimeout(() => {
+        if (this.sidebarPendingPointerDrag === drag) {
+          this.activatePendingSidebarPointerDrag({
+            clientX: drag.startX,
+            clientY: drag.startY,
+            preventDefault() {},
+          });
+        }
+      }, SIDEBAR_TOUCH_LONG_PRESS_MS);
+    }
     document.addEventListener("pointermove", this.sidebarPointerMoveCallback, {
       passive: false,
     });
@@ -1364,6 +1380,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       "pointercancel",
       this.sidebarPointerCancelCallback
     );
+    document.addEventListener("touchend", this.sidebarTouchEndCallback);
+    document.addEventListener("touchcancel", this.sidebarTouchCancelCallback);
+    window.addEventListener("pointerup", this.sidebarPointerUpCallback);
+    window.addEventListener("pointercancel", this.sidebarPointerCancelCallback);
+    window.addEventListener("touchend", this.sidebarTouchEndCallback);
+    window.addEventListener("touchcancel", this.sidebarTouchCancelCallback);
     document.addEventListener("keydown", this.sidebarPointerKeydownCallback);
     window.addEventListener("blur", this.sidebarPointerCancelCallback);
   }
@@ -1376,7 +1398,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     event.preventDefault();
-    drag.sourceElement.setPointerCapture?.(drag.pointerId);
+    this.clearPendingSidebarPointerDragTimer();
+    try {
+      drag.sourceElement.setPointerCapture?.(drag.pointerId);
+    } catch {
+      // Timer-activated long press can run outside the browser's pointer dispatch.
+    }
     this.lockSidebarDragScrolling(drag.element);
     this.sidebarPointerDrag = {
       type: drag.type,
@@ -1465,6 +1492,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     this.activatePendingSidebarPointerDrag(event);
+  }
+
+  clearPendingSidebarPointerDragTimer() {
+    if (this.sidebarPendingPointerDragTimer) {
+      clearTimeout(this.sidebarPendingPointerDragTimer);
+      this.sidebarPendingPointerDragTimer = null;
+    }
   }
 
   updateSidebarDragAfterScroll() {
@@ -1709,6 +1743,23 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.cancelSidebarPointerDrag();
   }
 
+  finishSidebarTouchDrag(event) {
+    if (!this.sidebarPointerDrag) {
+      this.cancelSidebarPointerDrag();
+      return;
+    }
+
+    const touch = event?.changedTouches?.[0];
+    const drag = this.sidebarPointerDrag;
+    this.finishSidebarPointerDrag({
+      clientX: touch?.clientX ?? drag.clientX,
+      clientY: touch?.clientY ?? drag.clientY,
+      preventDefault() {
+        event?.preventDefault?.();
+      },
+    });
+  }
+
   cancelSidebarPointerDrag() {
     document.removeEventListener("pointermove", this.sidebarPointerMoveCallback);
     document.removeEventListener("pointerup", this.sidebarPointerUpCallback);
@@ -1716,12 +1767,22 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       "pointercancel",
       this.sidebarPointerCancelCallback
     );
+    document.removeEventListener("touchend", this.sidebarTouchEndCallback);
+    document.removeEventListener("touchcancel", this.sidebarTouchCancelCallback);
+    window.removeEventListener("pointerup", this.sidebarPointerUpCallback);
+    window.removeEventListener(
+      "pointercancel",
+      this.sidebarPointerCancelCallback
+    );
+    window.removeEventListener("touchend", this.sidebarTouchEndCallback);
+    window.removeEventListener("touchcancel", this.sidebarTouchCancelCallback);
     document.removeEventListener("keydown", this.sidebarPointerKeydownCallback);
     window.removeEventListener("blur", this.sidebarPointerCancelCallback);
     this.stopSidebarDragAutoScroll();
     this.unlockSidebarDragScrolling();
     this.sidebarDragPreviewElement?.remove();
     this.sidebarDragPreviewElement = null;
+    this.clearPendingSidebarPointerDragTimer();
     this.sidebarPendingPointerDrag = null;
     this.sidebarPointerDrag = null;
     this.sidebarDragScrollElement = null;
