@@ -1668,83 +1668,56 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         </SectionHeader>
 
         {{#if this.inWorkspaceContext}}
-          <div class="workspace-team-sidebar__header-switcher">
-            <button
-              type="button"
-              title={{this.switchWorkspaceTitle}}
-              aria-label={{this.switchWorkspaceTitle}}
-              aria-haspopup="menu"
-              aria-expanded={{if this.headerActionsMenuOpen "true" "false"}}
-              class="workspace-team-sidebar__header-switcher-button"
-              {{on "click" this.toggleHeaderActionsMenu}}
-            >
-              {{dIcon this.headerActionsIcon}}
-            </button>
-            {{#if this.headerActionsMenuOpen}}
-              <ul class="workspace-team-sidebar__header-switcher-menu">
-                {{#each this.headerActions as |headerAction|}}
-                  <li>
-                    <button
-                      type="button"
-                      {{on "click" (fn this.runHeaderAction headerAction)}}
-                    >
-                      {{headerAction.title}}
-                    </button>
-                  </li>
-                {{/each}}
-              </ul>
+          <div class="workspace-team-sidebar__header-actions">
+            {{#if this.canEditSidebar}}
+              {{#unless this.editingSidebar}}
+                <button
+                  type="button"
+                  title={{this.sidebarEditTitle}}
+                  aria-label={{this.sidebarEditTitle}}
+                  class="workspace-team-sidebar__header-action-button"
+                  {{on "click" this.toggleSidebarEditing}}
+                >
+                  {{dIcon "pencil"}}
+                </button>
+              {{/unless}}
             {{/if}}
+
+            <div class="workspace-team-sidebar__header-switcher">
+              <button
+                type="button"
+                title={{this.switchWorkspaceTitle}}
+                aria-label={{this.switchWorkspaceTitle}}
+                aria-haspopup="menu"
+                aria-expanded={{if this.headerActionsMenuOpen "true" "false"}}
+                class="workspace-team-sidebar__header-action-button"
+                {{on "click" this.toggleHeaderActionsMenu}}
+              >
+                {{dIcon this.headerActionsIcon}}
+              </button>
+              {{#if this.headerActionsMenuOpen}}
+                <ul class="workspace-team-sidebar__header-switcher-menu">
+                  {{#each this.headerActions as |headerAction|}}
+                    <li>
+                      <button
+                        type="button"
+                        {{on "click" (fn this.runHeaderAction headerAction)}}
+                      >
+                        {{headerAction.title}}
+                      </button>
+                    </li>
+                  {{/each}}
+                </ul>
+              {{/if}}
+            </div>
           </div>
         {{/if}}
       </div>
 
       {{#if this.inWorkspaceContext}}
         <div class="workspace-team-sidebar__controls">
-          <button
-            type="button"
-            title={{this.overviewTitle}}
-            aria-label={{this.overviewTitle}}
-            class="workspace-team-sidebar__control"
-            {{on "click" this.openOverview}}
-          >
-            {{dIcon "layer-group"}}
-            <span>{{this.overviewLabel}}</span>
-          </button>
-
-          <button
-            type="button"
-            title={{this.unreadFilterTitle}}
-            aria-label={{this.unreadFilterTitle}}
-            aria-pressed={{if this.showUnreadOnly "true" "false"}}
-            class={{dConcatClass
-              "workspace-team-sidebar__control"
-              (if
-                this.showUnreadOnly
-                "workspace-team-sidebar__control--active"
-              )
-            }}
-            disabled={{this.editingSidebar}}
-            {{on "click" this.toggleUnreadFilter}}
-          >
-            {{dIcon "filter"}}
-            <span>{{this.unreadLabel}}</span>
-          </button>
-
-          {{#if this.canOpenChannelFinder}}
-            <button
-              type="button"
-              title={{this.channelFinderTitle}}
-              aria-label={{this.channelFinderTitle}}
-              class="workspace-team-sidebar__control workspace-team-sidebar__control--icon-only"
-              disabled={{this.editingSidebar}}
-              {{on "click" this.openChannelFinder}}
-            >
-              {{dIcon "magnifying-glass"}}
-            </button>
-          {{/if}}
-
-          {{#if this.canEditSidebar}}
-            {{#if this.editingSidebar}}
+          {{#if this.editingSidebar}}
+            {{#if this.canEditSidebar}}
               <button
                 type="button"
                 title={{this.addChannelGroupTitle}}
@@ -1755,18 +1728,59 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                 {{dIcon "plus"}}
                 <span>{{this.addChannelGroupLabel}}</span>
               </button>
+
+              <button
+                type="button"
+                title={{this.sidebarEditTitle}}
+                aria-label={{this.sidebarEditTitle}}
+                class="workspace-team-sidebar__control workspace-team-sidebar__control--primary"
+                {{on "click" this.toggleSidebarEditing}}
+              >
+                {{dIcon "check"}}
+                <span>{{this.sidebarEditLabel}}</span>
+              </button>
             {{/if}}
+          {{else}}
+            <button
+              type="button"
+              title={{this.overviewTitle}}
+              aria-label={{this.overviewTitle}}
+              class="workspace-team-sidebar__control"
+              {{on "click" this.openOverview}}
+            >
+              {{dIcon "layer-group"}}
+              <span>{{this.overviewLabel}}</span>
+            </button>
 
             <button
               type="button"
-              title={{this.sidebarEditTitle}}
-              aria-label={{this.sidebarEditTitle}}
-              class="workspace-team-sidebar__control"
-              {{on "click" this.toggleSidebarEditing}}
+              title={{this.unreadFilterTitle}}
+              aria-label={{this.unreadFilterTitle}}
+              aria-pressed={{if this.showUnreadOnly "true" "false"}}
+              class={{dConcatClass
+                "workspace-team-sidebar__control"
+                (if
+                  this.showUnreadOnly
+                  "workspace-team-sidebar__control--active"
+                )
+              }}
+              {{on "click" this.toggleUnreadFilter}}
             >
-              {{dIcon (if this.editingSidebar "check" "pencil")}}
-              <span>{{this.sidebarEditLabel}}</span>
+              {{dIcon "filter"}}
+              <span>{{this.unreadLabel}}</span>
             </button>
+
+            {{#if this.canOpenChannelFinder}}
+              <button
+                type="button"
+                title={{this.channelFinderTitle}}
+                aria-label={{this.channelFinderTitle}}
+                class="workspace-team-sidebar__control workspace-team-sidebar__control--icon-only"
+                {{on "click" this.openChannelFinder}}
+              >
+                {{dIcon "magnifying-glass"}}
+              </button>
+            {{/if}}
           {{/if}}
         </div>
       {{/if}}
