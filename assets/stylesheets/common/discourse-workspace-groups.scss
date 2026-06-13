@@ -63,7 +63,24 @@
   display: none;
 }
 
+.c-routes.--channels:has(.workspace-groups-chat-channel-panel)
+  > .c-navbar-container {
+  display: none;
+}
+
+.chat-drawer-content:has(.workspace-groups-chat-channel-panel) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .workspace-groups-chat-channel-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.35rem 0.5rem 0.75rem;
 }
 
