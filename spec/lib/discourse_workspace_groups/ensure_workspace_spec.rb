@@ -70,6 +70,21 @@ RSpec.describe DiscourseWorkspaceGroups::EnsureWorkspace do
     expect(user.reload.trust_level).to be < TrustLevel[3]
   end
 
+  it "recalculates trust level when a team owner is removed" do
+    user =
+      Fabricate(
+        :trust_level_1,
+        active: true,
+        username: "removed#{SecureRandom.hex(4)}",
+        email: "workspace-removed-#{SecureRandom.hex(4)}@example.com",
+      )
+    workspace = described_class.new(category: category, user: user).call
+
+    workspace.workspace_group.remove(user)
+
+    expect(user.reload.trust_level).to be < TrustLevel[3]
+  end
+
   it "keeps trust level 3 when demoted from one team while still owning another" do
     user =
       Fabricate(
@@ -84,6 +99,23 @@ RSpec.describe DiscourseWorkspaceGroups::EnsureWorkspace do
 
     first_workspace.workspace_group.group_users.find_by!(user: user).update!(owner: false)
     DiscourseWorkspaceGroups.recalculate_workspace_owner_trust_level!(first_workspace.workspace_group, user)
+
+    expect(user.reload.trust_level).to eq(TrustLevel[3])
+  end
+
+  it "keeps trust level 3 when removed from one owned team while still owning another" do
+    user =
+      Fabricate(
+        :trust_level_1,
+        active: true,
+        username: "mrem#{SecureRandom.hex(4)}",
+        email: "workspace-multi-removed-owner-#{SecureRandom.hex(4)}@example.com",
+      )
+    first_workspace = described_class.new(category: category, user: user).call
+    second_category = Fabricate(:category, name: "Second Workspace #{SecureRandom.hex(4)}", user: admin)
+    described_class.new(category: second_category, user: user).call
+
+    first_workspace.workspace_group.remove(user)
 
     expect(user.reload.trust_level).to eq(TrustLevel[3])
   end

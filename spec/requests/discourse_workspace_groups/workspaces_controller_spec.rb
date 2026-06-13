@@ -663,6 +663,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body.dig("channel", "joined")).to eq(false)
+      expect(workspace_member.reload.trust_level).to be < TrustLevel[3]
     end
 
     it "leaves public chat-only channels without serializing a revoked category permission update" do

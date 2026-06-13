@@ -623,6 +623,35 @@ after_initialize do
     )
   end
 
+  module ::DiscourseWorkspaceGroups::GroupManagerWorkspaceOwnerRemoval
+    def remove(user_ids)
+      workspace_owner_ids = workspace_owner_ids_to_recalculate(user_ids)
+      removed_user_ids = super
+      removed_workspace_owner_ids = workspace_owner_ids & removed_user_ids
+
+      if removed_workspace_owner_ids.present?
+        User
+          .where(id: removed_workspace_owner_ids)
+          .find_each do |user|
+            DiscourseWorkspaceGroups.recalculate_workspace_owner_trust_level!(@group, user)
+          end
+      end
+
+      removed_user_ids
+    end
+
+    private
+
+    def workspace_owner_ids_to_recalculate(user_ids)
+      return [] if !SiteSetting.discourse_workspace_groups_enabled
+      return [] if !DiscourseWorkspaceGroups.workspace_root_group?(@group)
+
+      @group.group_users.where(user_id: user_ids, owner: true).pluck(:user_id)
+    end
+  end
+
+  GroupManager.prepend(::DiscourseWorkspaceGroups::GroupManagerWorkspaceOwnerRemoval)
+
   Discourse::Application.routes.prepend do
     get "c/*category_slug_path/:category_id/overview" =>
           "discourse_workspace_groups/workspaces#overview_page",
