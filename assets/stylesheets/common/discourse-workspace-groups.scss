@@ -815,6 +815,21 @@ body.workspace-team-sidebar-scroll-lock {
   color: var(--primary);
 }
 
+.workspace-groups-overview__channel-link-button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: inherit;
+}
+
+.workspace-groups-overview__channel-link-button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
 .workspace-groups-overview__channel-name {
   color: var(--primary);
 }

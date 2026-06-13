@@ -1,5 +1,6 @@
 import Component from "@glimmer/component";
 import { fn } from "@ember/helper";
+import { on } from "@ember/modifier";
 import { trustHTML } from "@ember/template";
 import DButton from "discourse/ui-kit/d-button";
 import DDecoratedHtml from "discourse/ui-kit/d-decorated-html";
@@ -21,6 +22,10 @@ export default class WorkspaceOverviewChannelCard extends Component {
   }
 
   get titleHref() {
+    if (!this.canOpenChannel) {
+      return null;
+    }
+
     if (this.channel?.mode === "chat_only" && this.chatPath) {
       return this.chatPath;
     }
@@ -30,6 +35,10 @@ export default class WorkspaceOverviewChannelCard extends Component {
     }
 
     return null;
+  }
+
+  get canOpenChannel() {
+    return Boolean(this.channel?.joined || this.channel?.can_open_topics);
   }
 
   get descriptionCooked() {
@@ -100,7 +109,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
   }
 
   get chatHref() {
-    if (!this.showsChatIcon) {
+    if (!this.showsChatIcon || !this.canOpenChannel) {
       return null;
     }
 
@@ -128,6 +137,16 @@ export default class WorkspaceOverviewChannelCard extends Component {
                 >
                   {{this.channel.name}}
                 </a>
+              {{else if this.channel.can_join}}
+                <button
+                  type="button"
+                  class="workspace-groups-overview__channel-link workspace-groups-overview__channel-link-button"
+                  title={{i18n "discourse_workspace_groups.join_channel"}}
+                  {{on "click" (fn @onJoin this.channel)}}
+                  disabled={{this.channel.is_pending}}
+                >
+                  {{this.channel.name}}
+                </button>
               {{else}}
                 <span class="workspace-groups-overview__channel-name">
                   {{this.channel.name}}
@@ -180,18 +199,30 @@ export default class WorkspaceOverviewChannelCard extends Component {
             </span>
 
             {{#if this.channel.can_view_members}}
-              <a
-                href={{this.channel.members_url}}
-                class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
-              >
-                {{dIcon "user"}}
-                <span>
-                  {{i18n
-                    "discourse_workspace_groups.member_count"
-                    count=this.channel.member_count
-                  }}
+              {{#if this.channel.joined}}
+                <a
+                  href={{this.channel.members_url}}
+                  class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
+                >
+                  {{dIcon "user"}}
+                  <span>
+                    {{i18n
+                      "discourse_workspace_groups.member_count"
+                      count=this.channel.member_count
+                    }}
+                  </span>
+                </a>
+              {{else}}
+                <span class="workspace-groups-overview__membership">
+                  {{dIcon "user"}}
+                  <span>
+                    {{i18n
+                      "discourse_workspace_groups.member_count"
+                      count=this.channel.member_count
+                    }}
+                  </span>
                 </span>
-              </a>
+              {{/if}}
             {{/if}}
           </div>
 

@@ -1,4 +1,4 @@
-import { render } from "@ember/test-helpers";
+import { click, render } from "@ember/test-helpers";
 import { module, test } from "qunit";
 import { setupRenderingTest } from "discourse/tests/helpers/component-test";
 import WorkspaceOverviewChannelCard from "discourse/plugins/discourse-workspace-groups/discourse/components/workspace-overview-channel-card";
@@ -23,6 +23,7 @@ module(
         },
         can_open_topics: true,
         can_view_members: true,
+        joined: true,
         can_join: false,
         can_leave: true,
         can_archive: true,
@@ -85,6 +86,7 @@ module(
         mode: "both",
         can_open_topics: true,
         can_view_members: true,
+        joined: true,
         can_join: false,
         can_leave: false,
         can_archive: false,
@@ -129,6 +131,7 @@ module(
         mode: "both",
         can_open_topics: true,
         can_view_members: true,
+        joined: true,
         can_join: false,
         can_leave: false,
         can_archive: false,
@@ -168,6 +171,7 @@ module(
         mode: "both",
         can_open_topics: true,
         can_view_members: true,
+        joined: true,
         can_join: false,
         can_leave: false,
         can_archive: false,
@@ -216,6 +220,7 @@ module(
         },
         can_open_topics: false,
         can_view_members: true,
+        joined: true,
         can_join: false,
         can_leave: false,
         can_archive: false,
@@ -246,6 +251,59 @@ module(
       assert
         .dom(".workspace-groups-overview__channel-modes .d-icon-list")
         .doesNotExist();
+    });
+
+    test("offers join instead of linking unjoined public channels", async function (assert) {
+      this.channel = {
+        name: "Public Bench",
+        description: "Visible before joining.",
+        visibility: "public",
+        member_count: 4,
+        members_url: "/g/public-bench",
+        topics_url: "/c/quantum-tinkerer/public-bench/29",
+        mode: "both",
+        chat_channel_id: 88,
+        chat_channel: {
+          slug: "quantumtinkerer-public-bench-88",
+        },
+        can_open_topics: false,
+        can_view_members: true,
+        joined: false,
+        can_join: true,
+        can_leave: false,
+        can_archive: false,
+        can_unarchive: false,
+        archived: false,
+        is_pending: false,
+      };
+
+      this.join = (channel) => {
+        assert.strictEqual(channel, this.channel, "passes the channel to join");
+      };
+      this.noop = () => {};
+
+      await render(
+        <template>
+          <WorkspaceOverviewChannelCard
+            @channel={{this.channel}}
+            @onJoin={{this.join}}
+            @onLeave={{this.noop}}
+            @onOpenSettings={{this.noop}}
+          />
+        </template>
+      );
+
+      assert
+        .dom(".workspace-groups-overview__channel-link-button")
+        .hasText("Public Bench");
+      assert.dom(".workspace-groups-overview__channel-link[href]").doesNotExist();
+      assert.dom(".workspace-groups-overview__channel-modes a").doesNotExist();
+      assert.dom(".workspace-groups-overview__membership-link").doesNotExist();
+      assert.dom(".workspace-groups-overview__membership").hasText("4 members");
+
+      await click(".workspace-groups-overview__channel-link-button");
+
+      assert.dom(".workspace-groups-overview__membership-button--icon").hasAttribute("title", "Join");
     });
   }
 );
