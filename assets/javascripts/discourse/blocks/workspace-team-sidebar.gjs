@@ -1546,6 +1546,17 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @action
   focusSidebarSectionTitleInput(element) {
     if (this.site.mobileView) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!element.isConnected) {
+            return;
+          }
+
+          element.scrollIntoView({ block: "nearest" });
+          element.focus({ preventScroll: true });
+          element.select();
+        });
+      });
       return;
     }
 
