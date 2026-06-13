@@ -122,6 +122,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarPointerCancelCallback = () => this.cancelSidebarPointerDrag();
     this.sidebarTouchEndCallback = (event) => this.finishSidebarTouchDrag(event);
     this.sidebarTouchCancelCallback = () => this.cancelSidebarPointerDrag();
+    this.sidebarTouchMoveCallback = (event) => this.handleSidebarTouchMove(event);
     this.sidebarPointerKeydownCallback = (event) => {
       if (event.key === "Escape") {
         this.cancelSidebarPointerDrag();
@@ -1310,6 +1311,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.beginPendingSidebarPointerDrag({
       type: "channel",
       element: rowElement,
+      rect: rowRect,
+      scrollElement: this.scrollableSidebarDragElement(rowElement),
       sourceElement: event.currentTarget,
       pointerId: event.pointerId,
       pointerType: event.pointerType,
@@ -1347,6 +1350,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.beginPendingSidebarPointerDrag({
       type: "section",
       element: sectionElement,
+      rect: sectionRect,
+      scrollElement: this.scrollableSidebarDragElement(sectionElement),
       sourceElement: event.currentTarget,
       pointerId: event.pointerId,
       pointerType: event.pointerType,
@@ -1382,10 +1387,16 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     );
     document.addEventListener("touchend", this.sidebarTouchEndCallback);
     document.addEventListener("touchcancel", this.sidebarTouchCancelCallback);
+    document.addEventListener("touchmove", this.sidebarTouchMoveCallback, {
+      passive: false,
+    });
     window.addEventListener("pointerup", this.sidebarPointerUpCallback);
     window.addEventListener("pointercancel", this.sidebarPointerCancelCallback);
     window.addEventListener("touchend", this.sidebarTouchEndCallback);
     window.addEventListener("touchcancel", this.sidebarTouchCancelCallback);
+    window.addEventListener("touchmove", this.sidebarTouchMoveCallback, {
+      passive: false,
+    });
     document.addEventListener("keydown", this.sidebarPointerKeydownCallback);
     window.addEventListener("blur", this.sidebarPointerCancelCallback);
   }
@@ -1404,7 +1415,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     } catch {
       // Timer-activated long press can run outside the browser's pointer dispatch.
     }
-    this.lockSidebarDragScrolling(drag.element);
+    this.createSidebarDragPreview(drag.element, drag.rect);
+    this.lockSidebarDragScrolling(drag.element, drag.scrollElement);
     this.sidebarPointerDrag = {
       type: drag.type,
       categoryId: drag.categoryId,
@@ -1421,7 +1433,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       this.draggedCategoryId = Number(drag.categoryId);
     }
     this.sidebarDropTarget = null;
-    this.createSidebarDragPreview(drag.element, drag.element.getBoundingClientRect());
     this.updateSidebarPointerDrag(event);
   }
 
@@ -1434,10 +1445,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarDragPreviewElement = preview;
   }
 
-  lockSidebarDragScrolling(rowElement) {
+  lockSidebarDragScrolling(rowElement, scrollElement = null) {
     this.sidebarDragScrollElement =
-      rowElement.closest(".workspace-groups-chat-channel-panel") ??
-      rowElement.closest(".sidebar-sections");
+      scrollElement ??
+      this.scrollableSidebarDragElement(rowElement) ??
+      this.scrollableSidebarDragAncestor(rowElement);
     this.sidebarDragScrollLockElements = [
       document.body,
       this.sidebarDragScrollElement,
@@ -1446,6 +1458,33 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarDragScrollLockElements.forEach((element) =>
       element.classList.add("workspace-team-sidebar-scroll-lock")
     );
+  }
+
+  scrollableSidebarDragElement(element) {
+    return (
+      element?.closest(".workspace-groups-chat-channel-panel") ??
+      element?.closest(".sidebar-sections") ??
+      null
+    );
+  }
+
+  scrollableSidebarDragAncestor(element) {
+    let current = element?.parentElement;
+
+    while (current && current !== document.body) {
+      const style = getComputedStyle(current);
+      const canScroll =
+        current.scrollHeight > current.clientHeight &&
+        ["auto", "scroll", "overlay"].includes(style.overflowY);
+
+      if (canScroll) {
+        return current;
+      }
+
+      current = current.parentElement;
+    }
+
+    return null;
   }
 
   unlockSidebarDragScrolling() {
@@ -1471,6 +1510,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.moveSidebarDragPreview(event);
     this.sidebarDropTarget = this.dropTargetForPointer(event);
     this.updateSidebarDragAutoScroll();
+  }
+
+  handleSidebarTouchMove(event) {
+    if (this.sidebarPointerDrag) {
+      event.preventDefault();
+    }
   }
 
   updatePendingSidebarPointerDrag(event) {
@@ -1769,6 +1814,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     );
     document.removeEventListener("touchend", this.sidebarTouchEndCallback);
     document.removeEventListener("touchcancel", this.sidebarTouchCancelCallback);
+    document.removeEventListener("touchmove", this.sidebarTouchMoveCallback);
     window.removeEventListener("pointerup", this.sidebarPointerUpCallback);
     window.removeEventListener(
       "pointercancel",
@@ -1776,6 +1822,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     );
     window.removeEventListener("touchend", this.sidebarTouchEndCallback);
     window.removeEventListener("touchcancel", this.sidebarTouchCancelCallback);
+    window.removeEventListener("touchmove", this.sidebarTouchMoveCallback);
     document.removeEventListener("keydown", this.sidebarPointerKeydownCallback);
     window.removeEventListener("blur", this.sidebarPointerCancelCallback);
     this.stopSidebarDragAutoScroll();

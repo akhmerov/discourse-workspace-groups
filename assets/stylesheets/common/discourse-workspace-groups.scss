@@ -495,6 +495,7 @@ body.workspace-team-sidebar-scroll-lock {
 .workspace-team-sidebar__drag-preview {
   background: var(--secondary);
   border-radius: 0.5rem;
+  box-sizing: border-box;
   box-shadow: var(--shadow-dropdown);
   left: 0;
   opacity: 0.96;
@@ -502,6 +503,20 @@ body.workspace-team-sidebar-scroll-lock {
   position: fixed;
   top: 0;
   z-index: 10000;
+}
+
+.workspace-team-sidebar__drag-preview .workspace-team-sidebar__main-link {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.workspace-team-sidebar__drag-preview .sidebar-section-link-content-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-team-sidebar__main-link {
