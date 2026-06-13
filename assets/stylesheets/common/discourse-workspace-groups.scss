@@ -267,6 +267,30 @@
   list-style: none;
   margin: 0.25rem 0 0.05rem;
   padding: 0 0.25rem;
+  position: relative;
+}
+
+.workspace-team-sidebar__section--dragging {
+  opacity: 0.38;
+}
+
+.workspace-team-sidebar__section--drop-before::before,
+.workspace-team-sidebar__section--drop-after::after {
+  background: var(--tertiary);
+  border-radius: 999px;
+  content: "";
+  height: 3px;
+  inset-inline: 0.4rem;
+  position: absolute;
+  z-index: 2;
+}
+
+.workspace-team-sidebar__section--drop-before::before {
+  top: -2px;
+}
+
+.workspace-team-sidebar__section--drop-after::after {
+  bottom: -2px;
 }
 
 .workspace-team-sidebar__section-heading {
@@ -423,18 +447,12 @@
 
 .workspace-team-sidebar__row--editing {
   background: var(--secondary-very-low);
-  cursor: grab;
+  cursor: default;
   padding-right: 0.25rem;
-  touch-action: none;
-  user-select: none;
 }
 
 .workspace-team-sidebar__row--dragging {
   opacity: 0.38;
-}
-
-.workspace-team-sidebar__row--editing:active {
-  cursor: grabbing;
 }
 
 .workspace-team-sidebar__row--drop-before::before,

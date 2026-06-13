@@ -335,6 +335,71 @@ export function appendSidebarSection(layout, section, options = {}) {
   };
 }
 
+export function insertSidebarSection(layout, section, index = 0, options = {}) {
+  const normalizedLayout = normalizeSidebarLayout(layout, options);
+  const insertIndex = Math.max(
+    0,
+    Math.min(Number(index) || 0, normalizedLayout.sections.length)
+  );
+  const nextSections = [...normalizedLayout.sections];
+
+  nextSections.splice(insertIndex, 0, {
+    id: section.id,
+    title: section.title,
+    channel_ids: [],
+    collapsed: false,
+  });
+
+  return {
+    ...normalizedLayout,
+    sections: nextSections,
+  };
+}
+
+export function moveSidebarSectionInLayout(
+  layout,
+  sectionId,
+  targetSectionId,
+  position = "before",
+  options = {}
+) {
+  const normalizedLayout = normalizeSidebarLayout(layout, options);
+
+  if (sectionId === targetSectionId) {
+    return normalizedLayout;
+  }
+
+  const draggedSection = normalizedLayout.sections.find(
+    (section) => section.id === sectionId
+  );
+
+  if (!draggedSection) {
+    return null;
+  }
+
+  const nextSections = normalizedLayout.sections.filter(
+    (section) => section.id !== sectionId
+  );
+  const targetIndex = nextSections.findIndex(
+    (section) => section.id === targetSectionId
+  );
+
+  if (targetIndex < 0) {
+    return null;
+  }
+
+  nextSections.splice(
+    targetIndex + (position === "after" ? 1 : 0),
+    0,
+    draggedSection
+  );
+
+  return {
+    ...normalizedLayout,
+    sections: nextSections,
+  };
+}
+
 export function renameSidebarSection(layout, sectionId, title, options = {}) {
   const normalizedLayout = normalizeSidebarLayout(layout, options);
   const trimmedTitle = title.trim();

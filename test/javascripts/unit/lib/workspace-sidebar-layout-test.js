@@ -5,7 +5,9 @@ import {
   DEFAULT_SIDEBAR_SECTION_ID,
   deleteSidebarSection,
   editableSidebarLayout,
+  insertSidebarSection,
   moveCategoryInSidebarLayout,
+  moveSidebarSectionInLayout,
   normalizeSidebarLayout,
   OTHER_SECTION_ID,
   renameSidebarSection,
@@ -164,7 +166,10 @@ module(
           other_channel_ids: [42],
           other_collapsed: true,
         },
-        { id: uniqueSidebarSectionId({ sections: [{ id: "section-100" }] }, 100), title: "Students" }
+        {
+          id: uniqueSidebarSectionId({ sections: [{ id: "section-100" }] }, 100),
+          title: "Students",
+        }
       );
 
       assert.deepEqual(layout.sections.map((section) => section.id), [
@@ -190,8 +195,80 @@ module(
       });
 
       assert.deepEqual(channelIdsForLayout(deleted), [42, 41]);
-      assert.strictEqual(renameSidebarSection(deleted, "section-100-1", " "), null);
+      assert.strictEqual(
+        renameSidebarSection(deleted, "section-100-1", " "),
+        null
+      );
       assert.strictEqual(deleteSidebarSection(deleted, "missing"), null);
+    });
+
+    test("inserts and reorders sections", function (assert) {
+      const layout = {
+        sections: [
+          {
+            id: "papers",
+            title: "Papers",
+            channel_ids: [41],
+            collapsed: false,
+          },
+          {
+            id: "students",
+            title: "Students",
+            channel_ids: [42],
+            collapsed: true,
+          },
+        ],
+        other_channel_ids: [43],
+        other_collapsed: false,
+      };
+
+      const inserted = insertSidebarSection(
+        layout,
+        { id: "announcements", title: "Announcements" },
+        0
+      );
+
+      assert.deepEqual(
+        inserted.sections.map((section) => section.id),
+        ["announcements", "papers", "students"]
+      );
+
+      assert.deepEqual(
+        moveSidebarSectionInLayout(inserted, "students", "announcements"),
+        {
+          sections: [
+            {
+              id: "students",
+              title: "Students",
+              channel_ids: [42],
+              collapsed: true,
+            },
+            {
+              id: "announcements",
+              title: "Announcements",
+              channel_ids: [],
+              collapsed: false,
+            },
+            {
+              id: "papers",
+              title: "Papers",
+              channel_ids: [41],
+              collapsed: false,
+            },
+          ],
+          other_channel_ids: [43],
+          other_collapsed: false,
+        }
+      );
+
+      assert.strictEqual(
+        moveSidebarSectionInLayout(inserted, "missing", "papers"),
+        null
+      );
+      assert.strictEqual(
+        moveSidebarSectionInLayout(inserted, "papers", "missing"),
+        null
+      );
     });
   }
 );
