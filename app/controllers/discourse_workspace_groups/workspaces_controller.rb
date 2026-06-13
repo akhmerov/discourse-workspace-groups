@@ -129,12 +129,7 @@ module ::DiscourseWorkspaceGroups
 
       if params.key?(:sections) || params.key?("sections")
         layout = DiscourseWorkspaceGroups.normalize_workspace_sidebar_layout(sidebar_layout_params)
-        layout_channel_ids =
-          layout[:sections].flat_map { |section| section[:channel_ids] } + layout[:other_channel_ids]
-
-        if layout_channel_ids.any? { |id| !visible_channel_ids.include?(id) }
-          raise Discourse::InvalidParameters.new(:sections)
-        end
+        layout = filter_sidebar_layout_channels(layout, visible_channel_ids)
 
         sidebar_sections = DiscourseWorkspaceGroups.workspace_sidebar_sections_for(current_user)
         if layout[:sections].present? || layout[:other_channel_ids].present?
@@ -350,6 +345,20 @@ module ::DiscourseWorkspaceGroups
           end,
         other_channel_ids: params[:other_channel_ids],
         other_collapsed: params[:other_collapsed],
+      }
+    end
+
+    def filter_sidebar_layout_channels(layout, visible_channel_ids)
+      {
+        **layout,
+        sections:
+          layout[:sections].map do |section|
+            {
+              **section,
+              channel_ids: section[:channel_ids].select { |id| visible_channel_ids.include?(id) },
+            }
+          end,
+        other_channel_ids: layout[:other_channel_ids].select { |id| visible_channel_ids.include?(id) },
       }
     end
 

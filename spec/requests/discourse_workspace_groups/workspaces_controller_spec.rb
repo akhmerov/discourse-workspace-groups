@@ -748,7 +748,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       ).not_to have_key(workspace.id.to_s)
     end
 
-    it "rejects sidebar sections containing channels the user cannot see" do
+    it "prunes sidebar sections containing channels the user cannot see" do
       private_channel
 
       sign_in(workspace_member)
@@ -764,7 +764,30 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
             ],
           }
 
-      expect(response).to have_http_status(:bad_request)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["sections"]["sections"]).to eq([])
+    end
+
+    it "prunes sidebar sections containing archived channels" do
+      public_channel.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_ARCHIVED] = true
+      public_channel.save_custom_fields(true)
+
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/sidebar-channels.json",
+          params: {
+            sections: [
+              {
+                id: "archived",
+                title: "Archived",
+                channel_ids: [public_channel.id],
+                collapsed: true,
+              },
+            ],
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["sections"]["sections"]).to eq([])
     end
   end
 
