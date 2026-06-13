@@ -83,6 +83,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @tracked editingSidebar = false;
   @tracked editingSidebarSectionId = null;
   @tracked editingSidebarSectionTitle = "";
+  @tracked pendingNewSidebarSectionId = null;
   @tracked headerActionsMenuOpen = false;
   @tracked orderedChannelIds = null;
   @tracked sidebarSectionsOverride = null;
@@ -690,6 +691,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     if (section) {
       this.editingSidebarSectionId = section.id;
       this.editingSidebarSectionTitle = state.title ?? section.title;
+      this.pendingNewSidebarSectionId = state.pendingNewSectionId ?? null;
     }
   }
 
@@ -1253,6 +1255,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
       this.editingSidebar = false;
       this.cancelSidebarSectionTitleEdit();
+      this.pendingNewSidebarSectionId = null;
       this.orderedChannelIds = null;
       this.sidebarSectionsOverride = null;
       this.sidebarDropTarget = null;
@@ -1261,6 +1264,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     this.editingSidebar = true;
+    this.pendingNewSidebarSectionId = null;
     const editableLayout = buildEditableSidebarLayout(
       this.currentSidebarLayout,
       this.rows,
@@ -1916,6 +1920,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     this.applySidebarSectionsLocally(nextLayout);
+    if (this.editingSidebarSectionId === this.pendingNewSidebarSectionId) {
+      this.pendingNewSidebarSectionId = null;
+    }
     this.cancelSidebarSectionTitleEdit();
     if (persist) {
       void this.persistSidebarSections(nextLayout, currentLayout);
@@ -1947,13 +1954,14 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.applySidebarSectionsLocally(nextLayout);
     this.editingSidebarSectionId = sectionId;
     this.editingSidebarSectionTitle = title;
+    this.pendingNewSidebarSectionId = sectionId;
     this.rememberWorkspaceSidebarEditingState({
       editing: true,
       sectionId,
+      pendingNewSectionId: sectionId,
       title,
       layout: nextLayout,
     });
-    void this.persistSidebarSections(nextLayout, currentLayout);
   }
 
   @action
@@ -1964,9 +1972,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     this.editingSidebarSectionId = section.id;
     this.editingSidebarSectionTitle = section.title;
+    this.pendingNewSidebarSectionId = null;
     this.rememberWorkspaceSidebarEditingState({
       editing: true,
       sectionId: section.id,
+      pendingNewSectionId: null,
       title: section.title,
     });
   }
@@ -2027,13 +2037,45 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @action
   cancelSidebarSectionTitleEdit() {
+    const pendingSectionId = this.pendingNewSidebarSectionId;
+    const editingSectionId = this.editingSidebarSectionId;
+
+    if (
+      pendingSectionId &&
+      editingSectionId === pendingSectionId &&
+      this.sidebarSectionsOverride
+    ) {
+      const currentLayout = normalizeSidebarLayout(
+        this.sidebarSectionsOverride,
+        this.sidebarLayoutOptions
+      );
+      const pendingSection = currentLayout.sections.find(
+        (section) => section.id === pendingSectionId
+      );
+
+      if ((pendingSection?.channel_ids ?? []).length === 0) {
+        const nextLayout = deleteSidebarSectionFromLayout(
+          currentLayout,
+          pendingSectionId,
+          this.sidebarLayoutOptions
+        );
+
+        if (nextLayout) {
+          this.applySidebarSectionsLocally(nextLayout);
+        }
+      }
+    }
+
     this.editingSidebarSectionId = null;
     this.editingSidebarSectionTitle = "";
+    this.pendingNewSidebarSectionId = null;
     if (this.editingSidebar) {
       this.rememberWorkspaceSidebarEditingState({
         editing: true,
         sectionId: null,
+        pendingNewSectionId: null,
         title: "",
+        layout: this.sidebarSectionsOverride,
       });
     }
   }
