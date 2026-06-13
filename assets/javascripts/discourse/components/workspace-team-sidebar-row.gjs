@@ -162,6 +162,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
           this.rowClass
         }}
         data-workspace-category-id={{@categoryLink.category.id}}
+        data-workspace-sidebar-section-id={{@sidebarSectionId}}
         {{! eslint-disable-next-line ember/template-no-pointer-down-event-binding }}
         {{on "pointerdown" this.startPointerDrag}}
       >

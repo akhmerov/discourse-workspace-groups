@@ -1508,14 +1508,81 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarPointerDrag.clientX = event.clientX;
     this.sidebarPointerDrag.clientY = event.clientY;
     this.moveSidebarDragPreview(event);
-    this.sidebarDropTarget = this.dropTargetForPointer(event);
-    this.updateSidebarDragAutoScroll();
+    this.pendingSidebarPointerDragEvent = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    };
+
+    if (!this.sidebarPointerDragFrame) {
+      this.sidebarPointerDragFrame = requestAnimationFrame(() =>
+        this.runSidebarPointerDragFrame()
+      );
+    }
   }
 
   handleSidebarTouchMove(event) {
     if (this.sidebarPointerDrag) {
       event.preventDefault();
     }
+  }
+
+  runSidebarPointerDragFrame() {
+    this.sidebarPointerDragFrame = null;
+
+    const event = this.pendingSidebarPointerDragEvent;
+    this.pendingSidebarPointerDragEvent = null;
+
+    if (!this.sidebarPointerDrag || !event) {
+      return;
+    }
+
+    this.setSidebarDropTarget(this.dropTargetForPointer(event));
+    this.updateSidebarDragAutoScroll();
+  }
+
+  flushSidebarPointerDragFrame() {
+    if (this.sidebarPointerDragFrame) {
+      cancelAnimationFrame(this.sidebarPointerDragFrame);
+      this.sidebarPointerDragFrame = null;
+    }
+
+    if (this.pendingSidebarPointerDragEvent) {
+      this.runSidebarPointerDragFrame();
+    }
+  }
+
+  cancelSidebarPointerDragFrame() {
+    if (this.sidebarPointerDragFrame) {
+      cancelAnimationFrame(this.sidebarPointerDragFrame);
+      this.sidebarPointerDragFrame = null;
+    }
+
+    this.pendingSidebarPointerDragEvent = null;
+  }
+
+  setSidebarDropTarget(dropTarget) {
+    if (this.sameSidebarDropTarget(this.sidebarDropTarget, dropTarget)) {
+      return;
+    }
+
+    this.sidebarDropTarget = dropTarget;
+  }
+
+  sameSidebarDropTarget(first, second) {
+    if (first === second) {
+      return true;
+    }
+
+    if (!first || !second) {
+      return false;
+    }
+
+    return (
+      first.type === second.type &&
+      first.sectionId === second.sectionId &&
+      Number(first.categoryId || 0) === Number(second.categoryId || 0) &&
+      first.position === second.position
+    );
   }
 
   updatePendingSidebarPointerDrag(event) {
@@ -1552,7 +1619,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     this.moveSidebarDragPreview(this.sidebarPointerDrag);
-    this.sidebarDropTarget = this.dropTargetForPointer(this.sidebarPointerDrag);
+    this.setSidebarDropTarget(this.dropTargetForPointer(this.sidebarPointerDrag));
   }
 
   updateSidebarDragAutoScroll() {
@@ -1697,41 +1764,23 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   dropTargetForRowElement(rowElement, pointerY) {
     const targetCategoryId = Number(rowElement.dataset.workspaceCategoryId);
+    const sectionId = rowElement.dataset.workspaceSidebarSectionId;
 
     if (
       !targetCategoryId ||
-      targetCategoryId === Number(this.sidebarPointerDrag?.categoryId)
+      targetCategoryId === Number(this.sidebarPointerDrag?.categoryId) ||
+      !sectionId
     ) {
-      return null;
-    }
-
-    const targetRow = this.rowForCategoryId(targetCategoryId);
-
-    if (!targetRow?.sidebarSectionId) {
       return null;
     }
 
     const rect = rowElement.getBoundingClientRect();
     return {
       type: "channel",
-      sectionId: targetRow.sidebarSectionId,
+      sectionId,
       categoryId: targetCategoryId,
       position: pointerY < rect.top + rect.height / 2 ? "before" : "after",
     };
-  }
-
-  rowForCategoryId(categoryId) {
-    for (const group of this.groupedRows) {
-      const row = group.rows.find(
-        (candidate) => Number(candidate.category.id) === Number(categoryId)
-      );
-
-      if (row) {
-        return row;
-      }
-    }
-
-    return null;
   }
 
   finishSidebarPointerDrag(event) {
@@ -1745,6 +1794,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     event.preventDefault();
+    this.flushSidebarPointerDragFrame();
 
     const draggedCategoryId = Number(this.sidebarPointerDrag.categoryId);
     const dropTarget = this.dropTargetForPointer(event) ?? this.sidebarDropTarget;
@@ -1826,6 +1876,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     document.removeEventListener("keydown", this.sidebarPointerKeydownCallback);
     window.removeEventListener("blur", this.sidebarPointerCancelCallback);
     this.stopSidebarDragAutoScroll();
+    this.cancelSidebarPointerDragFrame();
     this.unlockSidebarDragScrolling();
     this.sidebarDragPreviewElement?.remove();
     this.sidebarDragPreviewElement = null;
@@ -2368,6 +2419,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                       @dragging={{row.dragging}}
                       @dropBefore={{row.dropBefore}}
                       @dropAfter={{row.dropAfter}}
+                      @sidebarSectionId={{row.sidebarSectionId}}
                       @startPointerDrag={{fn this.startSidebarPointerDrag row}}
                     />
                   {{/each}}
