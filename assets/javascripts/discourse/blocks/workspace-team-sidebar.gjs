@@ -1225,6 +1225,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @action
   async openChannelFinder() {
+    if (this.site.mobileView) {
+      this.router.transitionTo("chat.new-message");
+      return;
+    }
+
     const { default: ChatModalNewMessage } = await import(
       "discourse/plugins/chat/discourse/components/chat/modal/new-message"
     );
