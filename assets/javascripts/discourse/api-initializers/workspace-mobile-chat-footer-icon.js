@@ -8,6 +8,7 @@ import {
 } from "../lib/workspace-team-sidebar-state";
 
 const FOOTER_CHANNELS_SELECTOR = "#c-footer-channels";
+const FOOTER_SEARCH_SELECTOR = "#c-footer-search";
 const NATIVE_CHANNELS_ICON = "comments";
 const WORKSPACE_CHANNELS_ICON = "list";
 const NATIVE_LABEL = "chat.channel_list.aria_label";
@@ -139,6 +140,21 @@ export default apiInitializer((api) => {
       }
 
       scheduleFooterIconUpdate();
+    },
+    true
+  );
+  document.addEventListener(
+    "click",
+    (event) => {
+      const button = event.target.closest?.(FOOTER_SEARCH_SELECTOR);
+
+      if (!button || !workspaceFooterAvailable()) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      router.transitionTo("chat.new-message");
     },
     true
   );
