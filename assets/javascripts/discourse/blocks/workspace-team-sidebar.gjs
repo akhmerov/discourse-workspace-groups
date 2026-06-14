@@ -513,13 +513,13 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     actions.push({
       id: "leave-workspace",
-      title: this.routeIsChatContext
+      title: this.site.mobileView && this.routeIsChatContext
         ? i18n("discourse_workspace_groups.back_to_chat_channels")
         : i18n("discourse_workspace_groups.back_to_forum"),
       action: () => {
         this.exitWorkspaceSidebar();
 
-        if (!this.routeIsChatContext) {
+        if (!(this.site.mobileView && this.routeIsChatContext)) {
           DiscourseURL.routeTo("/latest");
         }
       },
