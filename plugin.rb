@@ -285,6 +285,53 @@ module ::DiscourseWorkspaceGroups
     ids.filter_map { |id| channels_by_id[id] }
   end
 
+  def self.workspace_channels(workspace)
+    return [] if workspace.blank? || !workspace.workspace_root?
+
+    channels = Category.where(parent_category_id: workspace.id).to_a
+    Category.preload_custom_fields(channels, Site.preloaded_category_custom_fields)
+    channels.select(&:workspace_channel?)
+  end
+
+  def self.sync_channel_group_owner_from_workspace!(user, group)
+    return if user.blank? || group.blank?
+
+    channel = workspace_channel_category_for_group(group)
+    return if channel.blank?
+
+    workspace = channel.workspace_parent_category
+    return if !group_owner?(workspace&.workspace_group, user)
+
+    group_user = group.group_users.find_by(user_id: user.id)
+    return if group_user.blank? || group_user.owner?
+
+    group_user.update!(owner: true)
+  end
+
+  def self.remove_workspace_channel_memberships!(workspace, users:)
+    return if workspace.blank? || !workspace.workspace_root?
+
+    users = Array.wrap(users).compact.uniq { |user| user.id }
+    return if users.blank?
+
+    workspace_channels(workspace).each do |channel|
+      users.each { |user| remove_workspace_channel_membership!(channel, user) }
+    end
+  end
+
+  def self.remove_workspace_channel_membership!(channel, user)
+    return false if user.blank? || channel.blank? || !channel.workspace_channel?
+
+    chat_channel = channel.category_channel
+    chat_channel&.remove(user)
+    Chat::Publisher.publish_kick_users(chat_channel.id, [user.id]) if chat_channel.present?
+
+    DiscourseWorkspaceGroups::RemoveChannelGroupMember.new(
+      group: channel.workspace_group,
+      user: user,
+    ).call
+  end
+
   def self.sync_workspace_auto_join_memberships!(workspace, users:, channel_ids: nil)
     return if workspace.blank? || !workspace.workspace_root?
 
@@ -623,11 +670,19 @@ after_initialize do
     )
   end
 
-  module ::DiscourseWorkspaceGroups::GroupManagerWorkspaceOwnerRemoval
+  module ::DiscourseWorkspaceGroups::GroupManagerWorkspaceMemberRemoval
     def remove(user_ids)
+      workspace = DiscourseWorkspaceGroups.workspace_root_category_for_group(@group)
       workspace_owner_ids = workspace_owner_ids_to_recalculate(user_ids)
       removed_user_ids = super
       removed_workspace_owner_ids = workspace_owner_ids & removed_user_ids
+
+      if workspace.present? && removed_user_ids.present?
+        DiscourseWorkspaceGroups.remove_workspace_channel_memberships!(
+          workspace,
+          users: User.where(id: removed_user_ids).to_a,
+        )
+      end
 
       if removed_workspace_owner_ids.present?
         User
@@ -650,7 +705,7 @@ after_initialize do
     end
   end
 
-  GroupManager.prepend(::DiscourseWorkspaceGroups::GroupManagerWorkspaceOwnerRemoval)
+  GroupManager.prepend(::DiscourseWorkspaceGroups::GroupManagerWorkspaceMemberRemoval)
 
   Discourse::Application.routes.prepend do
     get "c/*category_slug_path/:category_id/overview" =>
@@ -894,6 +949,7 @@ after_initialize do
   end
 
   on(:user_added_to_group) do |user, group|
+    DiscourseWorkspaceGroups.sync_channel_group_owner_from_workspace!(user, group)
     DiscourseWorkspaceGroups::SyncChannelGroupChatMembership.new(user: user, group: group).call
 
     workspace = DiscourseWorkspaceGroups.workspace_root_category_for_group(group)
@@ -911,6 +967,15 @@ after_initialize do
     else
       DiscourseWorkspaceGroups.recalculate_workspace_owner_trust_level!(group, user)
     end
+  end
+
+  add_model_callback(GroupUser, :after_commit, on: :destroy) do
+    next if !SiteSetting.discourse_workspace_groups_enabled
+    next if !DiscourseWorkspaceGroups.workspace_root_group?(group)
+
+    workspace = DiscourseWorkspaceGroups.workspace_root_category_for_group(group)
+    DiscourseWorkspaceGroups.remove_workspace_channel_memberships!(workspace, users: [user])
+    DiscourseWorkspaceGroups.recalculate_workspace_owner_trust_level!(group, user) if owner?
   end
 
   register_modifier(:recalculate_trust_level) do |override, user, _promotion|

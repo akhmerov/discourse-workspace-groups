@@ -323,6 +323,37 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
         [workspace_member.id],
       ).once
     end
+
+    it "makes team owners channel owners when they join public channels" do
+      public_channel
+      workspace.workspace_group.group_users.find_by!(user: workspace_member).update!(owner: true)
+
+      sign_in(workspace_member)
+
+      post "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(public_channel.workspace_group.group_users.find_by!(user: workspace_member)).to be_owner
+    end
+  end
+
+  describe "workspace group removal" do
+    it "removes the member from workspace channels and paired chat memberships" do
+      public_channel.workspace_group.add(workspace_member)
+      private_channel.workspace_group.add(workspace_member)
+      public_chat_channel = category_chat_channel(public_channel)
+      private_chat_channel = category_chat_channel(private_channel)
+
+      expect(public_chat_channel.membership_for(workspace_member)).to be_present
+      expect(private_chat_channel.membership_for(workspace_member)).to be_present
+
+      workspace.workspace_group.remove(workspace_member)
+
+      expect(public_channel.workspace_group.users.exists?(id: workspace_member.id)).to eq(false)
+      expect(private_channel.workspace_group.users.exists?(id: workspace_member.id)).to eq(false)
+      expect(public_chat_channel.membership_for(workspace_member)).to be_nil
+      expect(private_chat_channel.membership_for(workspace_member)).to be_nil
+    end
   end
 
   describe "#archived_channels" do

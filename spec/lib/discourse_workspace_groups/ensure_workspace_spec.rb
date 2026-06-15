@@ -85,6 +85,21 @@ RSpec.describe DiscourseWorkspaceGroups::EnsureWorkspace do
     expect(user.reload.trust_level).to be < TrustLevel[3]
   end
 
+  it "recalculates trust level when a team owner membership row is destroyed" do
+    user =
+      Fabricate(
+        :trust_level_1,
+        active: true,
+        username: "destroyed#{SecureRandom.hex(4)}",
+        email: "workspace-destroyed-#{SecureRandom.hex(4)}@example.com",
+      )
+    workspace = described_class.new(category: category, user: user).call
+
+    workspace.workspace_group.group_users.find_by!(user: user).destroy!
+
+    expect(user.reload.trust_level).to be < TrustLevel[3]
+  end
+
   it "keeps trust level 3 when demoted from one team while still owning another" do
     user =
       Fabricate(
