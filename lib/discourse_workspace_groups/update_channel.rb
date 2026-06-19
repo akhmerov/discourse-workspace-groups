@@ -205,7 +205,7 @@ module ::DiscourseWorkspaceGroups
 
     def update_events_enabled!
       desired_enabled = category_enabled? && events_enabled
-      return if desired_enabled == channel.workspace_events_enabled?
+      return if desired_enabled == DiscourseWorkspaceGroups.events_calendar_category_enabled?(channel)
 
       DiscourseWorkspaceGroups.set_workspace_events_enabled!(channel, desired_enabled)
     end

@@ -8,9 +8,11 @@ import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix"
 import DiscourseURL from "discourse/lib/url";
 import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
+import { isEventCategory } from "../lib/workspace-event-categories";
 
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
+  @service siteSettings;
 
   get categoryModels() {
     if (this.args.categoryLink.model) {
@@ -65,9 +67,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get categoryModeIcon() {
-    return this.args.categoryLink.category?.workspace_events_enabled
-      ? "calendar-day"
-      : "list";
+    return isEventCategory(this.siteSettings, this.args.category) ? "calendar-day" : "list";
   }
 
   get chatDisabled() {

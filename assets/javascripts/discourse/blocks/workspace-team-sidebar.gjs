@@ -2459,6 +2459,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
                   {{#each group.rows as |row|}}
                     <WorkspaceTeamSidebarRow
+                      @category={{row.category}}
                       @categoryLink={{row.categoryLink}}
                       @categoryUnread={{row.categoryUnread}}
                       @categoryTitle={{row.categoryTitle}}
@@ -2528,6 +2529,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                 {{#unless group.collapsed}}
                   {{#each group.rows as |row|}}
                     <WorkspaceTeamSidebarRow
+                      @category={{row.category}}
                       @categoryLink={{row.categoryLink}}
                       @categoryUnread={{row.categoryUnread}}
                       @categoryTitle={{row.categoryTitle}}

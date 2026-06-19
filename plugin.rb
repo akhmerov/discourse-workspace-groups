@@ -526,28 +526,35 @@ module ::DiscourseWorkspaceGroups
     { channel_group.id => permission }
   end
 
-  def self.events_calendar_category_ids
-    return Set.new if !SiteSetting.respond_to?(:events_calendar_categories)
-
-    SiteSetting
-      .events_calendar_categories
-      .to_s
-      .split("|")
-      .filter_map { |id| positive_custom_field_id(id) }
-      .to_set
-  end
-
   def self.workspace_events_enabled?(category)
-    category&.workspace_channel? && events_calendar_category_ids.include?(category.id)
+    return false if !category&.workspace_channel? || !category.workspace_category_enabled?
+
+    events_calendar_category_enabled?(category)
   end
 
   def self.set_workspace_events_enabled!(category, enabled)
-    return if !SiteSetting.respond_to?(:events_calendar_categories)
     raise Discourse::InvalidAccess if enabled && !category.workspace_category_enabled?
 
-    ids = events_calendar_category_ids
-    enabled ? ids.add(category.id) : ids.delete(category.id)
-    SiteSetting.events_calendar_categories = ids.to_a.sort.join("|")
+    category_ids = events_calendar_category_ids
+
+    if enabled
+      category_ids << category.id
+    else
+      category_ids.delete(category.id)
+    end
+
+    SiteSetting.events_calendar_categories = category_ids.uniq.join("|")
+  end
+
+  def self.events_calendar_category_ids
+    SiteSetting.events_calendar_categories.to_s.split("|").filter_map do |category_id|
+      integer = category_id.to_i
+      integer if integer.positive?
+    end
+  end
+
+  def self.events_calendar_category_enabled?(category)
+    category.present? && events_calendar_category_ids.include?(category.id)
   end
 
   def self.archived_workspace_category?(category)
@@ -955,9 +962,6 @@ after_initialize do
   add_to_serializer(:basic_category, :workspace_visibility) { object.workspace_visibility }
   add_to_serializer(:basic_category, :workspace_archived) { object.workspace_archived? }
   add_to_serializer(:basic_category, :workspace_channel_mode) { object.workspace_channel_mode }
-  add_to_serializer(:basic_category, :workspace_events_enabled) do
-    object.workspace_events_enabled?
-  end
   add_to_serializer(:basic_category, :workspace_root_public_read) do
     object.workspace_root_public_read?
   end

@@ -105,8 +105,9 @@ module(
     });
 
     test("uses a calendar icon for event-enabled topic channels", async function (assert) {
+      this.siteSettings.events_calendar_categories = "29";
+      this.category = { id: 29 };
       this.categoryLink = {
-        category: { id: 29, workspace_events_enabled: true },
         name: "lab-events",
         route: "discovery.category",
         model: "quantum-tinkerer/lab-events/29",
@@ -120,6 +121,7 @@ module(
       await render(
         <template>
           <WorkspaceTeamSidebarRow
+            @category={{this.category}}
             @categoryLink={{this.categoryLink}}
             @categoryTitle="Open Lab Events topics"
             @chatPath="/chat/c/lab-events/15"

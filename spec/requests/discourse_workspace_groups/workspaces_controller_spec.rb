@@ -556,9 +556,8 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body.dig("channel", "allow_channel_wide_mentions")).to eq(false)
     end
 
-    it "marks a topics-enabled channel as an events calendar category" do
+    it "marks a topics-enabled channel as an events channel" do
       sign_in(admin)
-      SiteSetting.events_calendar_categories = ""
 
       put "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}.json",
           params: {
@@ -570,11 +569,12 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
           }
 
       expect(response).to have_http_status(:ok)
+      expect(public_channel.reload.workspace_events_enabled?).to eq(true)
       expect(SiteSetting.events_calendar_categories.split("|")).to include(public_channel.id.to_s)
       expect(response.parsed_body.dig("channel", "events_enabled")).to eq(true)
     end
 
-    it "removes a channel from event categories when events are disabled" do
+    it "removes event status when events are disabled" do
       sign_in(admin)
       SiteSetting.events_calendar_categories = public_channel.id.to_s
 
@@ -588,11 +588,12 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
           }
 
       expect(response).to have_http_status(:ok)
+      expect(public_channel.reload.workspace_events_enabled?).to eq(false)
       expect(SiteSetting.events_calendar_categories.split("|")).not_to include(public_channel.id.to_s)
       expect(response.parsed_body.dig("channel", "events_enabled")).to eq(false)
     end
 
-    it "removes a channel from event categories when switching to chat-only mode" do
+    it "removes event status when switching to chat-only mode" do
       sign_in(admin)
       SiteSetting.events_calendar_categories = public_channel.id.to_s
 
@@ -609,6 +610,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(public_channel.reload.workspace_channel_mode).to eq(
         DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY,
       )
+      expect(public_channel.workspace_events_enabled?).to eq(false)
       expect(SiteSetting.events_calendar_categories.split("|")).not_to include(public_channel.id.to_s)
       expect(response.parsed_body.dig("channel", "events_enabled")).to eq(false)
     end
