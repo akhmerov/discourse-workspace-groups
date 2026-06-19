@@ -77,6 +77,10 @@ function navigateTo(target) {
   }
 }
 
+function routeToNativeTarget(target) {
+  DiscourseURL.routeTo(target);
+}
+
 function confirmJoinChannel(channel) {
   return new Promise((resolve) => {
     const container = document.createElement("div");
@@ -98,9 +102,12 @@ function confirmJoinChannel(channel) {
     const confirmButton = container.querySelector(".btn-primary");
     const cancelButton = container.querySelector(".btn-default");
 
-    message.textContent = i18n("discourse_workspace_groups.join_channel_message", {
-      channel_name: channel.name,
-    });
+    message.textContent = i18n(
+      "discourse_workspace_groups.join_channel_message",
+      {
+        channel_name: channel.name,
+      }
+    );
     confirmButton.textContent = i18n(
       "discourse_workspace_groups.join_channel_confirm"
     );
@@ -202,7 +209,7 @@ export default apiInitializer((api) => {
       });
     } catch {
       if (fallbackToTarget) {
-        navigateTo(candidate.target);
+        routeToNativeTarget(candidate.target);
       }
       resolvingCandidate = false;
       return;
@@ -211,14 +218,19 @@ export default apiInitializer((api) => {
     const channel = result?.channel;
 
     if (channel?.joined) {
-      navigateTo(targetAfterJoin(candidate, channel));
+      const target = targetAfterJoin(candidate, channel);
+      if (target === candidate.target) {
+        routeToNativeTarget(target);
+      } else {
+        navigateTo(target);
+      }
       resolvingCandidate = false;
       return;
     }
 
     if (!channel?.can_join || !channel.workspace_id) {
       if (fallbackToTarget) {
-        navigateTo(candidate.target);
+        routeToNativeTarget(candidate.target);
       }
       resolvingCandidate = false;
       return;
