@@ -170,7 +170,11 @@ export function currentScopedMode(services) {
   return currentScopedCategory(services) ? "category" : null;
 }
 
-export function sidebarScopedCategories(services) {
+export function sidebarScopedCategories(services, workspaceOverride = null) {
+  if (workspaceOverride) {
+    return scopedCategoriesFor(workspaceOverride, services);
+  }
+
   const currentCategories = scopedCategoriesFor(currentScopedCategory(services), services);
 
   if (currentCategories) {
@@ -287,8 +291,12 @@ export function pairedCategoryChannelFor(category, chatChannelsManager) {
   );
 }
 
-export function sidebarChannelCategories(services, orderedIdsOverride = null) {
-  const scopedCategories = sidebarScopedCategories(services);
+export function sidebarChannelCategories(
+  services,
+  orderedIdsOverride = null,
+  workspaceOverride = null
+) {
+  const scopedCategories = sidebarScopedCategories(services, workspaceOverride);
 
   if (!scopedCategories?.length) {
     return null;
@@ -359,8 +367,8 @@ export function sidebarChannelCategories(services, orderedIdsOverride = null) {
     .map(({ category }) => category);
 }
 
-export function sidebarWorkspaceCategory(services) {
-  return sidebarScopedCategories(services)?.[0] ?? null;
+export function sidebarWorkspaceCategory(services, workspaceOverride = null) {
+  return sidebarScopedCategories(services, workspaceOverride)?.[0] ?? null;
 }
 
 export function workspaceOverviewPath(category) {

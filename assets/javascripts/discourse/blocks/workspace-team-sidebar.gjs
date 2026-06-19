@@ -207,7 +207,17 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     );
   }
 
+  get mobileWorkspaceCategoryOverride() {
+    return this.site.mobileView ? this.focusedWorkspaceCategory : null;
+  }
+
   get workspaceCategory() {
+    const workspaceOverride = this.mobileWorkspaceCategoryOverride;
+
+    if (workspaceOverride) {
+      return sidebarWorkspaceCategory(this.services, workspaceOverride);
+    }
+
     if (this.routeIsChatContext && !currentWorkspaceCategory(this.services)) {
       return (
         this.focusedWorkspaceCategory ?? sidebarWorkspaceCategory(this.services)
@@ -322,7 +332,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     const categories =
       sidebarChannelCategories(
         this.services,
-        this.orderedChannelIds ?? this.sidebarOrderedChannelIds
+        this.orderedChannelIds ?? this.sidebarOrderedChannelIds,
+        this.mobileWorkspaceCategoryOverride
       ) ?? [];
     const categoryIds = new Set(categories.map((category) => category.id));
 
@@ -505,8 +516,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           id: `open-workspace-${workspace.id}`,
           title: workspace.displayName,
           action: () => {
-            this.enterWorkspaceSidebar(workspace);
-            DiscourseURL.routeTo(workspaceOverviewPath(workspace));
+            this.switchWorkspace(workspace);
           },
         })
       );
@@ -1219,8 +1229,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   @action
   openWorkspace(workspace) {
+    this.switchWorkspace(workspace);
+  }
+
+  switchWorkspace(workspace) {
     this.enterWorkspaceSidebar(workspace);
-    DiscourseURL.routeTo(workspaceOverviewPath(workspace));
+
+    if (!this.site.mobileView) {
+      DiscourseURL.routeTo(workspaceOverviewPath(workspace));
+    }
   }
 
   @action
