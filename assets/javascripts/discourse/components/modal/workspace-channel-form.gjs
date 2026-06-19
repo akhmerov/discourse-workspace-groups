@@ -83,6 +83,11 @@ export default class WorkspaceChannelForm extends Component {
   }
 
   @action
+  toggleEventsEnabled() {
+    this.args.onEventsEnabledToggle?.();
+  }
+
+  @action
   updateChannelMode(channelMode) {
     this.args.onChannelModeChange?.(channelMode);
   }
@@ -144,6 +149,19 @@ export default class WorkspaceChannelForm extends Component {
         />
         <p class="workspace-groups-create-channel-modal__help">
           {{i18n "discourse_workspace_groups.channel_mode_help"}}
+        </p>
+      </div>
+    {{/if}}
+
+    {{#if @showEventsEnabled}}
+      <div class="workspace-groups-create-channel-modal__field">
+        <DToggleSwitch
+          @state={{@eventsEnabled}}
+          @label="discourse_workspace_groups.channel_events"
+          {{on "click" this.toggleEventsEnabled}}
+        />
+        <p class="workspace-groups-create-channel-modal__help">
+          {{i18n "discourse_workspace_groups.channel_events_help"}}
         </p>
       </div>
     {{/if}}

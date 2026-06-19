@@ -14,6 +14,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
   @tracked description;
   @tracked isPrivate;
   @tracked channelMode;
+  @tracked eventsEnabled;
   @tracked allowChannelWideMentions;
   @tracked color;
   @tracked styleType;
@@ -28,6 +29,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
     this.description = this.channel?.description_raw || this.channel?.description || "";
     this.isPrivate = this.channel?.visibility === "private";
     this.channelMode = this.channel?.mode || "both";
+    this.eventsEnabled = this.channel?.events_enabled === true;
     this.allowChannelWideMentions =
       this.channel?.allow_channel_wide_mentions !== false;
     this.color = this.channel?.color || "0088CC";
@@ -69,6 +71,10 @@ export default class WorkspaceChannelSettingsModal extends Component {
     return this.channelMode !== "category_only";
   }
 
+  get showEventsEnabled() {
+    return this.channelMode !== "chat_only";
+  }
+
   @action
   updateName(name) {
     this.name = name;
@@ -87,6 +93,14 @@ export default class WorkspaceChannelSettingsModal extends Component {
   @action
   updateChannelMode(channelMode) {
     this.channelMode = channelMode;
+    if (channelMode === "chat_only") {
+      this.eventsEnabled = false;
+    }
+  }
+
+  @action
+  toggleEventsEnabled() {
+    this.eventsEnabled = !this.eventsEnabled;
   }
 
   @action
@@ -127,6 +141,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
                 }
               : {}),
             channel_mode: this.channelMode,
+            events_enabled: this.showEventsEnabled && this.eventsEnabled,
             color: this.color,
             style_type: this.styleType,
             emoji: this.emoji,
@@ -191,6 +206,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
           @description={{this.description}}
           @isPrivate={{this.isPrivate}}
           @channelMode={{this.channelMode}}
+          @eventsEnabled={{this.eventsEnabled}}
           @allowChannelWideMentions={{this.allowChannelWideMentions}}
           @color={{this.color}}
           @styleType={{this.styleType}}
@@ -199,12 +215,14 @@ export default class WorkspaceChannelSettingsModal extends Component {
           @autofocus={{true}}
           @showVisibility={{this.canEditVisibility}}
           @showChannelMode={{true}}
+          @showEventsEnabled={{this.showEventsEnabled}}
           @showChannelWideMentions={{this.showChannelWideMentions}}
           @showCategoryStyle={{true}}
           @onNameChange={{this.updateName}}
           @onDescriptionChange={{this.updateDescription}}
           @onPrivateToggle={{this.togglePrivate}}
           @onChannelModeChange={{this.updateChannelMode}}
+          @onEventsEnabledToggle={{this.toggleEventsEnabled}}
           @onChannelWideMentionsToggle={{this.toggleChannelWideMentions}}
           @onColorChange={{this.updateColor}}
           @onEmojiChange={{this.updateEmoji}}

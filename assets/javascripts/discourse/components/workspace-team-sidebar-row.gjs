@@ -64,6 +64,12 @@ export default class WorkspaceTeamSidebarRow extends Component {
     );
   }
 
+  get categoryModeIcon() {
+    return this.args.categoryLink.category?.workspace_events_enabled
+      ? "calendar-day"
+      : "list";
+  }
+
   get chatDisabled() {
     return !this.args.chatPath;
   }
@@ -264,7 +270,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
             {{#if @editable}}
               <span class={{this.categoryButtonClass}}>
                 <span class="workspace-team-sidebar__mode-icon">
-                  {{dIcon "list"}}
+                  {{dIcon this.categoryModeIcon}}
 
                   {{#if @categoryUnread}}
                     <span class={{this.categoryUnreadIndicatorClass}}></span>
@@ -281,7 +287,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
                 class={{this.categoryButtonClass}}
               >
                 <span class="workspace-team-sidebar__mode-icon">
-                  {{dIcon "list"}}
+                  {{dIcon this.categoryModeIcon}}
 
                   {{#if @categoryUnread}}
                     <span class={{this.categoryUnreadIndicatorClass}}></span>

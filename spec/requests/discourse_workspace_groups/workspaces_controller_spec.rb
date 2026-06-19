@@ -556,6 +556,63 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body.dig("channel", "allow_channel_wide_mentions")).to eq(false)
     end
 
+    it "marks a topics-enabled channel as an events calendar category" do
+      sign_in(admin)
+      SiteSetting.events_calendar_categories = ""
+
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}.json",
+          params: {
+            name: public_channel.name,
+            description: public_channel.topic.first_post.raw,
+            visibility: "public",
+            channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_BOTH,
+            events_enabled: true,
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(SiteSetting.events_calendar_categories.split("|")).to include(public_channel.id.to_s)
+      expect(response.parsed_body.dig("channel", "events_enabled")).to eq(true)
+    end
+
+    it "removes a channel from event categories when events are disabled" do
+      sign_in(admin)
+      SiteSetting.events_calendar_categories = public_channel.id.to_s
+
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}.json",
+          params: {
+            name: public_channel.name,
+            description: public_channel.topic.first_post.raw,
+            visibility: "public",
+            channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_BOTH,
+            events_enabled: false,
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(SiteSetting.events_calendar_categories.split("|")).not_to include(public_channel.id.to_s)
+      expect(response.parsed_body.dig("channel", "events_enabled")).to eq(false)
+    end
+
+    it "removes a channel from event categories when switching to chat-only mode" do
+      sign_in(admin)
+      SiteSetting.events_calendar_categories = public_channel.id.to_s
+
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}.json",
+          params: {
+            name: public_channel.name,
+            description: public_channel.topic.first_post.raw,
+            visibility: "public",
+            channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY,
+            events_enabled: true,
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(public_channel.reload.workspace_channel_mode).to eq(
+        DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY,
+      )
+      expect(SiteSetting.events_calendar_categories.split("|")).not_to include(public_channel.id.to_s)
+      expect(response.parsed_body.dig("channel", "events_enabled")).to eq(false)
+    end
+
     it "updates category color and emoji style" do
       sign_in(admin)
 

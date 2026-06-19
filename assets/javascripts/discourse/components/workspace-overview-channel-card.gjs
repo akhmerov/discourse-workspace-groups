@@ -96,6 +96,10 @@ export default class WorkspaceOverviewChannelCard extends Component {
     return this.channel?.mode !== "chat_only";
   }
 
+  get topicsIcon() {
+    return this.channel?.events_enabled ? "calendar-day" : "list";
+  }
+
   get showsChatIcon() {
     return this.channel?.mode !== "category_only";
   }
@@ -163,7 +167,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                     title={{i18n "discourse_workspace_groups.channel_topics"}}
                     aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
                   >
-                    {{dIcon "list"}}
+                    {{dIcon this.topicsIcon}}
                   </a>
                 {{else}}
                   <span
@@ -171,7 +175,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                     title={{i18n "discourse_workspace_groups.channel_topics"}}
                     aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
                   >
-                    {{dIcon "list"}}
+                    {{dIcon this.topicsIcon}}
                   </span>
                 {{/if}}
               {{/if}}

@@ -253,6 +253,48 @@ module(
         .doesNotExist();
     });
 
+    test("uses a calendar icon for event-enabled topic channels", async function (assert) {
+      this.channel = {
+        name: "Events",
+        description: "Scheduled discussions.",
+        visibility: "public",
+        member_count: 4,
+        members_url: "/g/events",
+        topics_url: "/c/quantum-tinkerer/events/29",
+        mode: "both",
+        events_enabled: true,
+        chat_channel_id: 15,
+        chat_channel: {
+          slug: "quantumtinkerer-events-29",
+        },
+        can_open_topics: true,
+        can_view_members: true,
+        joined: true,
+        can_join: false,
+        can_leave: false,
+        can_archive: false,
+        can_unarchive: false,
+        archived: false,
+        is_pending: false,
+      };
+
+      this.noop = () => {};
+
+      await render(
+        <template>
+          <WorkspaceOverviewChannelCard
+            @channel={{this.channel}}
+            @onJoin={{this.noop}}
+            @onLeave={{this.noop}}
+            @onOpenSettings={{this.noop}}
+          />
+        </template>
+      );
+
+      assert.dom(".workspace-groups-overview__channel-modes .d-icon-calendar-day").exists();
+      assert.dom(".workspace-groups-overview__channel-modes .d-icon-list").doesNotExist();
+    });
+
     test("offers join instead of linking unjoined public channels", async function (assert) {
       this.channel = {
         name: "Public Bench",

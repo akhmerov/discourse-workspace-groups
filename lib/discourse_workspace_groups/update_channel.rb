@@ -11,6 +11,7 @@ module ::DiscourseWorkspaceGroups
                 :description,
                 :visibility,
                 :channel_mode,
+                :events_enabled,
                 :allow_channel_wide_mentions,
                 :color,
                 :style_type,
@@ -24,6 +25,7 @@ module ::DiscourseWorkspaceGroups
       description:,
       visibility:,
       channel_mode: nil,
+      events_enabled: nil,
       allow_channel_wide_mentions: nil,
       color: UNSET,
       style_type: UNSET,
@@ -36,6 +38,12 @@ module ::DiscourseWorkspaceGroups
       @description = description.to_s.strip
       @visibility = visibility.presence || channel.workspace_visibility
       @channel_mode = channel_mode.presence || channel.workspace_channel_mode
+      @events_enabled =
+        if events_enabled.nil?
+          channel.workspace_events_enabled?
+        else
+          ActiveModel::Type::Boolean.new.cast(events_enabled)
+        end
       @allow_channel_wide_mentions =
         if allow_channel_wide_mentions.nil?
           current_allow_channel_wide_mentions
@@ -59,6 +67,7 @@ module ::DiscourseWorkspaceGroups
         update_description!
         update_visibility!
         update_channel_mode!
+        update_events_enabled!
         sync_chat_channel!
       end
 
@@ -136,6 +145,10 @@ module ::DiscourseWorkspaceGroups
       channel.category_channel&.allow_channel_wide_mentions != false
     end
 
+    def category_enabled?
+      channel_mode != CHANNEL_MODE_CHAT_ONLY
+    end
+
     def rename_channel_group!
       group = channel.workspace_group
       return if group.blank?
@@ -188,6 +201,13 @@ module ::DiscourseWorkspaceGroups
       channel.custom_fields[WORKSPACE_CHANNEL_MODE] = channel_mode
       channel.set_permissions(DiscourseWorkspaceGroups.channel_permissions(channel.workspace_group, channel_mode))
       channel.save!
+    end
+
+    def update_events_enabled!
+      desired_enabled = category_enabled? && events_enabled
+      return if desired_enabled == channel.workspace_events_enabled?
+
+      DiscourseWorkspaceGroups.set_workspace_events_enabled!(channel, desired_enabled)
     end
 
     def sync_chat_channel!

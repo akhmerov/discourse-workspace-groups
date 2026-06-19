@@ -202,6 +202,7 @@ module ::DiscourseWorkspaceGroups
           description: params[:description],
           visibility: params[:visibility],
           channel_mode: params[:channel_mode],
+          events_enabled: params[:events_enabled],
           allow_channel_wide_mentions: params[:allow_channel_wide_mentions],
           color: params.key?(:color) ? params[:color] : DiscourseWorkspaceGroups::UpdateChannel::UNSET,
           style_type:
@@ -542,6 +543,7 @@ module ::DiscourseWorkspaceGroups
         icon: category.icon,
         visibility: category.workspace_visibility,
         mode: category.workspace_channel_mode,
+        events_enabled: category.workspace_events_enabled?,
         allow_channel_wide_mentions: category.category_channel&.allow_channel_wide_mentions,
         archived: archived,
         visible: visible,

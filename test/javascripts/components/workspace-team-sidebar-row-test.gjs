@@ -104,6 +104,34 @@ module(
         .hasClass("workspace-team-sidebar__mode-button--active");
     });
 
+    test("uses a calendar icon for event-enabled topic channels", async function (assert) {
+      this.categoryLink = {
+        category: { id: 29, workspace_events_enabled: true },
+        name: "lab-events",
+        route: "discovery.category",
+        model: "quantum-tinkerer/lab-events/29",
+        currentWhen: "discovery.category",
+        title: "Lab Events",
+        text: "Lab Events",
+        prefixType: "icon",
+        prefixValue: "folder",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Lab Events topics"
+            @chatPath="/chat/c/lab-events/15"
+            @chatTitle="Open Lab Events chat"
+          />
+        </template>
+      );
+
+      assert.dom(".workspace-team-sidebar__modes .d-icon-calendar-day").exists();
+      assert.dom(".workspace-team-sidebar__modes .d-icon-list").doesNotExist();
+    });
+
     test("renders muted rows with muted styling", async function (assert) {
       this.categoryLink = {
         name: "lab-notes",
