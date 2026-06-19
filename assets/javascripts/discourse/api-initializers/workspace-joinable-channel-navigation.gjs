@@ -77,6 +77,10 @@ function navigateTo(target) {
   }
 }
 
+function chatCandidate(candidate) {
+  return candidate?.target?.startsWith("/chat/c/");
+}
+
 export default apiInitializer((api) => {
   const currentUser = api.getCurrentUser();
   const siteSettings = api.container.lookup("service:site-settings");
@@ -90,40 +94,7 @@ export default apiInitializer((api) => {
   let pendingCandidate = null;
   let resolvingCandidate = false;
 
-  document.addEventListener(
-    "click",
-    (event) => {
-      if (modifiedClick(event)) {
-        pendingCandidate = null;
-        return;
-      }
-
-      const candidate = internalWorkspaceCandidatePath(
-        event.target?.closest?.("a[href]")
-      );
-
-      pendingCandidate = candidate && {
-        ...candidate,
-        previousURL: `${window.location.pathname}${window.location.search}${
-          window.location.hash
-        }`,
-      };
-    },
-    true
-  );
-
-  router.on("routeDidChange", async (transition) => {
-    if (!pendingCandidate || resolvingCandidate) {
-      return;
-    }
-
-    if (!failedRoute(transition, router)) {
-      pendingCandidate = null;
-      return;
-    }
-
-    const candidate = pendingCandidate;
-    pendingCandidate = null;
+  async function resolveCandidate(candidate, { fallbackToTarget } = {}) {
     resolvingCandidate = true;
 
     let result;
@@ -133,6 +104,9 @@ export default apiInitializer((api) => {
         data: { path: candidate.resolverPath },
       });
     } catch {
+      if (fallbackToTarget) {
+        navigateTo(candidate.target);
+      }
       resolvingCandidate = false;
       return;
     }
@@ -140,15 +114,15 @@ export default apiInitializer((api) => {
     const channel = result?.channel;
 
     if (channel?.joined) {
-      const target = targetAfterJoin(candidate, channel);
-      if (target !== candidate.target) {
-        navigateTo(target);
-      }
+      navigateTo(targetAfterJoin(candidate, channel));
       resolvingCandidate = false;
       return;
     }
 
     if (!channel?.can_join || !channel.workspace_id) {
+      if (fallbackToTarget) {
+        navigateTo(candidate.target);
+      }
       resolvingCandidate = false;
       return;
     }
@@ -175,5 +149,50 @@ export default apiInitializer((api) => {
     } finally {
       resolvingCandidate = false;
     }
+  }
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (modifiedClick(event)) {
+        pendingCandidate = null;
+        return;
+      }
+
+      const candidate = internalWorkspaceCandidatePath(
+        event.target?.closest?.("a[href]")
+      );
+
+      pendingCandidate = candidate && {
+        ...candidate,
+        previousURL: `${window.location.pathname}${window.location.search}${
+          window.location.hash
+        }`,
+      };
+
+      if (chatCandidate(pendingCandidate)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const candidate = pendingCandidate;
+        pendingCandidate = null;
+        resolveCandidate(candidate, { fallbackToTarget: true });
+      }
+    },
+    true
+  );
+
+  router.on("routeDidChange", async (transition) => {
+    if (!pendingCandidate || resolvingCandidate) {
+      return;
+    }
+
+    if (!failedRoute(transition, router)) {
+      pendingCandidate = null;
+      return;
+    }
+
+    const candidate = pendingCandidate;
+    pendingCandidate = null;
+    resolveCandidate(candidate);
   });
 });
