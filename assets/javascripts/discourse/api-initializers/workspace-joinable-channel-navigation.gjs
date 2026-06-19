@@ -62,6 +62,10 @@ async function joinChannel(channel) {
 }
 
 export function targetAfterJoin(candidate, channel) {
+  if (chatCandidate(candidate)) {
+    return candidate.target;
+  }
+
   if (channel?.mode === "chat_only" && channel.chat_channel_id) {
     return `/chat/c/${channel.chat_channel?.slug || "-"}/${channel.chat_channel_id}`;
   }
@@ -250,7 +254,12 @@ export default apiInitializer((api) => {
 
     try {
       const result = await joinChannel(channel);
-      navigateTo(targetAfterJoin(candidate, result?.channel || channel));
+      const target = targetAfterJoin(candidate, result?.channel || channel);
+      if (target === candidate.target) {
+        routeToNativeTarget(target);
+      } else {
+        navigateTo(target);
+      }
     } catch (error) {
       popupAjaxError(error);
     } finally {

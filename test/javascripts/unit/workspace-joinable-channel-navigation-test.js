@@ -79,6 +79,18 @@ module(
         ),
         "/c/team/channel/42"
       );
+
+      assert.strictEqual(
+        targetAfterJoin(
+          { target: "/chat/c/team-channel-42/7/thread/9?near=12#reply" },
+          {
+            mode: "chat_only",
+            chat_channel_id: 7,
+            chat_channel: { slug: "team-channel-42" },
+          }
+        ),
+        "/chat/c/team-channel-42/7/thread/9?near=12#reply"
+      );
     });
   }
 );
