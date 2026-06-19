@@ -61,13 +61,18 @@ module ::DiscourseWorkspaceGroups
 
       DiscourseWorkspaceGroups.sync_workspace_root_permissions!(@workspace)
       raise Discourse::NotFound if !guardian.can_see?(@workspace)
-      raise Discourse::NotFound if !guardian.can_join_workspace_channel?(channel)
 
       context = build_channels_context([channel])
+      serialized_channel = serialize_channel(channel, **context)
+      chat_only_joined =
+        serialized_channel[:joined] &&
+          serialized_channel[:mode] == DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY &&
+          serialized_channel[:chat_channel_id].present?
+      raise Discourse::NotFound if !serialized_channel[:can_join] && !chat_only_joined
 
       render json: {
                channel:
-                 serialize_channel(channel, **context).merge(
+                 serialized_channel.merge(
                    workspace_id: @workspace.id,
                    workspace_name: @workspace.name,
                  ),
@@ -373,6 +378,12 @@ module ::DiscourseWorkspaceGroups
         category_path =
           request_path.delete_prefix("/c/").sub(%r{/l/.*\z}, "").sub(%r{/none\z}, "")
         return Category.find_by_slug_path_with_id(category_path)
+      end
+
+      chat_channel_id = request_path[%r{\A/chat/c/(?:[^/]+/)?(\d+)}, 1]
+      if chat_channel_id.present?
+        chat_channel = Chat::Channel.find_by(id: chat_channel_id.to_i)
+        return chat_channel.chatable if chat_channel&.chatable_type == "Category"
       end
 
       topic_id = request_path[%r{\A/t/(?:[^/]+/)?(\d+)}, 1]

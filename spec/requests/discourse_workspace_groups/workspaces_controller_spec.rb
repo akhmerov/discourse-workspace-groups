@@ -331,6 +331,35 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body.dig("channel", "can_join")).to eq(true)
     end
 
+    it "resolves a chat URL inside a public channel for workspace members who can join it" do
+      chat_channel = category_chat_channel(public_channel)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channel.json", params: { path: chat_channel.url }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "id")).to eq(public_channel.id)
+      expect(response.parsed_body.dig("channel", "can_join")).to eq(true)
+    end
+
+    it "resolves an already joined chat-only channel URL for redirecting to chat" do
+      public_channel.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE] =
+        DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY
+      public_channel.save_custom_fields(true)
+      public_channel.workspace_group.add(workspace_member)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channel.json", params: { path: public_channel.url }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "id")).to eq(public_channel.id)
+      expect(response.parsed_body.dig("channel", "joined")).to eq(true)
+      expect(response.parsed_body.dig("channel", "can_join")).to eq(false)
+      expect(response.parsed_body.dig("channel", "chat_channel_id")).to eq(
+        category_chat_channel(public_channel).id,
+      )
+    end
+
     it "does not resolve private channels" do
       private_channel
 

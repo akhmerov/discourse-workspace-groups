@@ -19,7 +19,11 @@ export function internalWorkspaceCandidatePath(anchor) {
     return null;
   }
 
-  if (!url.pathname.startsWith("/c/") && !url.pathname.startsWith("/t/")) {
+  if (
+    !url.pathname.startsWith("/c/") &&
+    !url.pathname.startsWith("/t/") &&
+    !url.pathname.startsWith("/chat/c/")
+  ) {
     return null;
   }
 
@@ -39,11 +43,38 @@ function modifiedClick(event) {
   );
 }
 
+function failedRoute(transition, router) {
+  const routeName = transition?.to?.name;
+
+  return (
+    routeName === "exception" ||
+    routeName === "exception-unknown" ||
+    routeName === "unknown" ||
+    router.currentURL === "/404"
+  );
+}
+
 async function joinChannel(channel) {
   return await ajax(
     `/workspace-groups/workspaces/${channel.workspace_id}/channels/${channel.id}/membership`,
     { type: "POST" }
   );
+}
+
+export function targetAfterJoin(candidate, channel) {
+  if (channel?.mode === "chat_only" && channel.chat_channel_id) {
+    return `/chat/c/${channel.chat_channel?.slug || "-"}/${channel.chat_channel_id}`;
+  }
+
+  return candidate.target;
+}
+
+function navigateTo(target) {
+  if (target?.startsWith("/chat/c/")) {
+    window.location.assign(target);
+  } else {
+    DiscourseURL.routeTo(target);
+  }
 }
 
 export default apiInitializer((api) => {
@@ -55,11 +86,15 @@ export default apiInitializer((api) => {
   }
 
   const dialog = api.container.lookup("service:dialog");
+  const router = api.container.lookup("service:router");
+  let pendingCandidate = null;
+  let resolvingCandidate = false;
 
   document.addEventListener(
     "click",
-    async (event) => {
-      if (event.defaultPrevented || modifiedClick(event)) {
+    (event) => {
+      if (modifiedClick(event)) {
+        pendingCandidate = null;
         return;
       }
 
@@ -67,50 +102,78 @@ export default apiInitializer((api) => {
         event.target?.closest?.("a[href]")
       );
 
-      if (!candidate) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopImmediatePropagation();
-
-      let result;
-
-      try {
-        result = await ajax("/workspace-groups/joinable-channel.json", {
-          data: { path: candidate.resolverPath },
-        });
-      } catch {
-        DiscourseURL.routeTo(candidate.target);
-        return;
-      }
-
-      const channel = result?.channel;
-
-      if (!channel?.can_join || !channel.workspace_id) {
-        DiscourseURL.routeTo(candidate.target);
-        return;
-      }
-
-      const confirmed = await dialog.confirm({
-        message: i18n("discourse_workspace_groups.join_channel_message", {
-          channel_name: channel.name,
-        }),
-        confirmButtonLabel: "discourse_workspace_groups.join_channel_confirm",
-        cancelButtonLabel: "cancel",
-      });
-
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        await joinChannel(channel);
-        DiscourseURL.routeTo(candidate.target);
-      } catch (error) {
-        popupAjaxError(error);
-      }
+      pendingCandidate = candidate && {
+        ...candidate,
+        previousURL: `${window.location.pathname}${window.location.search}${
+          window.location.hash
+        }`,
+      };
     },
     true
   );
+
+  router.on("routeDidChange", async (transition) => {
+    if (!pendingCandidate || resolvingCandidate) {
+      return;
+    }
+
+    if (!failedRoute(transition, router)) {
+      pendingCandidate = null;
+      return;
+    }
+
+    const candidate = pendingCandidate;
+    pendingCandidate = null;
+    resolvingCandidate = true;
+
+    let result;
+
+    try {
+      result = await ajax("/workspace-groups/joinable-channel.json", {
+        data: { path: candidate.resolverPath },
+      });
+    } catch {
+      resolvingCandidate = false;
+      return;
+    }
+
+    const channel = result?.channel;
+
+    if (channel?.joined) {
+      const target = targetAfterJoin(candidate, channel);
+      if (target !== candidate.target) {
+        navigateTo(target);
+      }
+      resolvingCandidate = false;
+      return;
+    }
+
+    if (!channel?.can_join || !channel.workspace_id) {
+      resolvingCandidate = false;
+      return;
+    }
+
+    const confirmed = await dialog.confirm({
+      message: i18n("discourse_workspace_groups.join_channel_message", {
+        channel_name: channel.name,
+      }),
+      confirmButtonLabel: "discourse_workspace_groups.join_channel_confirm",
+      cancelButtonLabel: "cancel",
+    });
+
+    if (!confirmed) {
+      navigateTo(candidate.previousURL);
+      resolvingCandidate = false;
+      return;
+    }
+
+    try {
+      const result = await joinChannel(channel);
+      navigateTo(targetAfterJoin(candidate, result?.channel || channel));
+    } catch (error) {
+      popupAjaxError(error);
+    } finally {
+      resolvingCandidate = false;
+    }
+  });
 });
