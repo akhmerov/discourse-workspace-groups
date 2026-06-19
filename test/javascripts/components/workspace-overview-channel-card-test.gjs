@@ -254,7 +254,9 @@ module(
     });
 
     test("uses a calendar icon for event-enabled topic channels", async function (assert) {
+      this.siteSettings.events_calendar_categories = "29";
       this.channel = {
+        id: 29,
         name: "Events",
         description: "Scheduled discussions.",
         visibility: "public",
@@ -262,7 +264,7 @@ module(
         members_url: "/g/events",
         topics_url: "/c/quantum-tinkerer/events/29",
         mode: "both",
-        events_enabled: true,
+        events_enabled: false,
         chat_channel_id: 15,
         chat_channel: {
           slug: "quantumtinkerer-events-29",

@@ -1,14 +1,18 @@
 import Component from "@glimmer/component";
 import { fn } from "@ember/helper";
 import { on } from "@ember/modifier";
+import { service } from "@ember/service";
 import { trustHTML } from "@ember/template";
 import DButton from "discourse/ui-kit/d-button";
 import DDecoratedHtml from "discourse/ui-kit/d-decorated-html";
 import dFormatDate from "discourse/ui-kit/helpers/d-format-date";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
+import { isEventCategory } from "../lib/workspace-event-categories";
 
 export default class WorkspaceOverviewChannelCard extends Component {
+  @service siteSettings;
+
   get channel() {
     return this.args.channel;
   }
@@ -97,7 +101,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
   }
 
   get topicsIcon() {
-    return this.channel?.events_enabled ? "calendar-day" : "list";
+    return isEventCategory(this.siteSettings, this.channel) ? "calendar-day" : "list";
   }
 
   get showsChatIcon() {
