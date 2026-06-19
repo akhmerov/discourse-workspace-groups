@@ -77,8 +77,103 @@ function navigateTo(target) {
   }
 }
 
+function confirmJoinChannel(channel) {
+  return new Promise((resolve) => {
+    const container = document.createElement("div");
+    container.className = "dialog-container workspace-join-channel-dialog";
+    container.innerHTML = `
+      <div class="dialog-overlay"></div>
+      <div class="dialog-content" role="document">
+        <div class="dialog-body">
+          <p></p>
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="btn btn-primary"></button>
+          <button type="button" class="btn btn-default"></button>
+        </div>
+      </div>
+    `;
+
+    const message = container.querySelector(".dialog-body p");
+    const confirmButton = container.querySelector(".btn-primary");
+    const cancelButton = container.querySelector(".btn-default");
+
+    message.textContent = i18n("discourse_workspace_groups.join_channel_message", {
+      channel_name: channel.name,
+    });
+    confirmButton.textContent = i18n(
+      "discourse_workspace_groups.join_channel_confirm"
+    );
+    cancelButton.textContent = i18n("cancel");
+
+    const cleanup = (result) => {
+      document.removeEventListener("keydown", handleKeydown);
+      container.remove();
+      resolve(result);
+    };
+
+    const handleKeydown = (event) => {
+      if (event.key === "Escape") {
+        cleanup(false);
+      }
+    };
+
+    confirmButton.addEventListener("click", () => cleanup(true), { once: true });
+    cancelButton.addEventListener("click", () => cleanup(false), { once: true });
+    container
+      .querySelector(".dialog-overlay")
+      .addEventListener("click", () => cleanup(false), { once: true });
+    document.addEventListener("keydown", handleKeydown);
+    document.body.append(container);
+    confirmButton.focus();
+  });
+}
+
 function chatCandidate(candidate) {
   return candidate?.target?.startsWith("/chat/c/");
+}
+
+function currentPath() {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+async function restorePreviousRoute(candidate, router) {
+  if (!candidate.previousURL || currentPath() === candidate.previousURL) {
+    return;
+  }
+
+  await new Promise((resolve) => {
+    let settled = false;
+    let timer;
+
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timer);
+      router.off("routeDidChange", finish);
+      resolve();
+    };
+
+    timer = setTimeout(finish, 1500);
+    router.on("routeDidChange", finish);
+    window.history.back();
+  });
+
+  await nextFrame();
+  await nextFrame();
+}
+
+function shouldResolveBeforeNativeRoute(candidate) {
+  return (
+    candidate && (chatCandidate(candidate) || currentPath().startsWith("/chat/"))
+  );
 }
 
 export default apiInitializer((api) => {
@@ -89,12 +184,14 @@ export default apiInitializer((api) => {
     return;
   }
 
-  const dialog = api.container.lookup("service:dialog");
   const router = api.container.lookup("service:router");
   let pendingCandidate = null;
   let resolvingCandidate = false;
 
-  async function resolveCandidate(candidate, { fallbackToTarget } = {}) {
+  async function resolveCandidate(
+    candidate,
+    { fallbackToTarget, restoreBeforePrompt } = {}
+  ) {
     resolvingCandidate = true;
 
     let result;
@@ -127,13 +224,11 @@ export default apiInitializer((api) => {
       return;
     }
 
-    const confirmed = await dialog.confirm({
-      message: i18n("discourse_workspace_groups.join_channel_message", {
-        channel_name: channel.name,
-      }),
-      confirmButtonLabel: "discourse_workspace_groups.join_channel_confirm",
-      cancelButtonLabel: "cancel",
-    });
+    if (restoreBeforePrompt) {
+      await restorePreviousRoute(candidate, router);
+    }
+
+    const confirmed = await confirmJoinChannel(channel);
 
     if (!confirmed) {
       navigateTo(candidate.previousURL);
@@ -165,17 +260,17 @@ export default apiInitializer((api) => {
 
       pendingCandidate = candidate && {
         ...candidate,
-        previousURL: `${window.location.pathname}${window.location.search}${
-          window.location.hash
-        }`,
+        previousURL: currentPath(),
       };
 
-      if (chatCandidate(pendingCandidate)) {
+      if (shouldResolveBeforeNativeRoute(pendingCandidate)) {
         event.preventDefault();
         event.stopImmediatePropagation();
         const candidate = pendingCandidate;
         pendingCandidate = null;
-        resolveCandidate(candidate, { fallbackToTarget: true });
+        setTimeout(() =>
+          resolveCandidate(candidate, { fallbackToTarget: true })
+        );
       }
     },
     true
@@ -193,6 +288,6 @@ export default apiInitializer((api) => {
 
     const candidate = pendingCandidate;
     pendingCandidate = null;
-    resolveCandidate(candidate);
+    resolveCandidate(candidate, { restoreBeforePrompt: true });
   });
 });
