@@ -74,14 +74,6 @@ export function targetAfterJoin(candidate, channel) {
 }
 
 function navigateTo(target) {
-  if (target?.startsWith("/chat/c/")) {
-    window.location.assign(target);
-  } else {
-    DiscourseURL.routeTo(target);
-  }
-}
-
-function routeToNativeTarget(target) {
   DiscourseURL.routeTo(target);
 }
 
@@ -213,7 +205,7 @@ export default apiInitializer((api) => {
       });
     } catch {
       if (fallbackToTarget) {
-        routeToNativeTarget(candidate.target);
+        navigateTo(candidate.target);
       }
       resolvingCandidate = false;
       return;
@@ -222,19 +214,14 @@ export default apiInitializer((api) => {
     const channel = result?.channel;
 
     if (channel?.joined) {
-      const target = targetAfterJoin(candidate, channel);
-      if (target === candidate.target) {
-        routeToNativeTarget(target);
-      } else {
-        navigateTo(target);
-      }
+      navigateTo(targetAfterJoin(candidate, channel));
       resolvingCandidate = false;
       return;
     }
 
     if (!channel?.can_join || !channel.workspace_id) {
       if (fallbackToTarget) {
-        routeToNativeTarget(candidate.target);
+        navigateTo(candidate.target);
       }
       resolvingCandidate = false;
       return;
@@ -254,12 +241,7 @@ export default apiInitializer((api) => {
 
     try {
       const result = await joinChannel(channel);
-      const target = targetAfterJoin(candidate, result?.channel || channel);
-      if (target === candidate.target) {
-        routeToNativeTarget(target);
-      } else {
-        navigateTo(target);
-      }
+      navigateTo(targetAfterJoin(candidate, result?.channel || channel));
     } catch (error) {
       popupAjaxError(error);
     } finally {
