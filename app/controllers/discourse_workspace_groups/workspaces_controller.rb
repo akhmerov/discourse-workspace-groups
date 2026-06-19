@@ -6,7 +6,7 @@ module ::DiscourseWorkspaceGroups
     requires_login
 
     before_action :ensure_plugin_enabled
-    before_action :find_workspace, except: :overview_page
+    before_action :find_workspace, except: %i[overview_page joinable_channel]
     before_action :find_overview_workspace, only: :overview_page
 
     def overview_page
@@ -49,6 +49,28 @@ module ::DiscourseWorkspaceGroups
                  visible_channels(archived_channels, **context).map do |category|
                    serialize_channel(category, **context)
                  end,
+             }
+    end
+
+    def joinable_channel
+      channel = channel_from_path(params.require(:path))
+      raise Discourse::NotFound if channel.blank? || !channel.workspace_channel? || channel.workspace_archived?
+
+      @workspace = channel.workspace_parent_category
+      raise Discourse::NotFound if !@workspace&.workspace_root?
+
+      DiscourseWorkspaceGroups.sync_workspace_root_permissions!(@workspace)
+      raise Discourse::NotFound if !guardian.can_see?(@workspace)
+      raise Discourse::NotFound if !guardian.can_join_workspace_channel?(channel)
+
+      context = build_channels_context([channel])
+
+      render json: {
+               channel:
+                 serialize_channel(channel, **context).merge(
+                   workspace_id: @workspace.id,
+                   workspace_name: @workspace.name,
+                 ),
              }
     end
 
@@ -336,6 +358,27 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::NotFound if channel.blank? || !channel.workspace_channel?
 
       channel
+    end
+
+    def channel_from_path(path)
+      request_path = path.to_s
+
+      begin
+        request_path = URI.parse(request_path).path if request_path.start_with?("http://", "https://")
+      rescue URI::InvalidURIError
+        return nil
+      end
+
+      if request_path.start_with?("/c/")
+        category_path =
+          request_path.delete_prefix("/c/").sub(%r{/l/.*\z}, "").sub(%r{/none\z}, "")
+        return Category.find_by_slug_path_with_id(category_path)
+      end
+
+      topic_id = request_path[%r{\A/t/(?:[^/]+/)?(\d+)}, 1]
+      return if topic_id.blank?
+
+      Topic.find_by(id: topic_id.to_i)&.category
     end
 
     def sidebar_layout_params

@@ -307,6 +307,58 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "#joinable_channel" do
+    it "resolves a public channel category URL for workspace members who can join it" do
+      public_channel
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channel.json", params: { path: public_channel.url }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "id")).to eq(public_channel.id)
+      expect(response.parsed_body.dig("channel", "workspace_id")).to eq(workspace.id)
+      expect(response.parsed_body.dig("channel", "can_join")).to eq(true)
+    end
+
+    it "resolves a topic URL inside a public channel for workspace members who can join it" do
+      topic = Fabricate(:topic, category: public_channel, user: admin)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channel.json", params: { path: topic.relative_url }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "id")).to eq(public_channel.id)
+      expect(response.parsed_body.dig("channel", "can_join")).to eq(true)
+    end
+
+    it "does not resolve private channels" do
+      private_channel
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channel.json", params: { path: private_channel.url }
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "does not resolve channels for non-workspace members" do
+      public_channel
+
+      sign_in(guest_user)
+      get "/workspace-groups/joinable-channel.json", params: { path: public_channel.url }
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "does not resolve channels the user has already joined" do
+      public_channel.workspace_group.add(workspace_member)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channel.json", params: { path: public_channel.url }
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "#join_channel" do
     it "publishes a newly joined public chat channel only once" do
       public_channel

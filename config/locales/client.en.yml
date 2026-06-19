@@ -20,6 +20,8 @@ en:
       last_activity: "Last activity"
       join_channel: "Join"
       leave_channel: "Leave"
+      join_channel_message: "Join the channel %{channel_name}?"
+      join_channel_confirm: "Join channel"
       channel_settings: "Channel settings"
       channel_settings_title: "Channel settings"
       workspace_settings: "Workspace settings"
