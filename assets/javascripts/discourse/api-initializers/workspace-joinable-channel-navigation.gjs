@@ -30,6 +30,7 @@ export function internalWorkspaceCandidatePath(anchor) {
   return {
     target: `${url.pathname}${url.search}${url.hash}`,
     resolverPath: url.pathname,
+    hashtagType: anchor.dataset?.type,
   };
 }
 
@@ -77,63 +78,15 @@ function navigateTo(target) {
   DiscourseURL.routeTo(target);
 }
 
-function confirmJoinChannel(channel) {
-  return new Promise((resolve) => {
-    const container = document.createElement("div");
-    container.className = "dialog-container workspace-join-channel-dialog";
-    container.innerHTML = `
-      <div class="dialog-overlay"></div>
-      <div class="dialog-content" role="document">
-        <div class="dialog-body">
-          <p></p>
-        </div>
-        <div class="dialog-footer">
-          <button type="button" class="btn btn-primary"></button>
-          <button type="button" class="btn btn-default"></button>
-        </div>
-      </div>
-    `;
-
-    const message = container.querySelector(".dialog-body p");
-    const confirmButton = container.querySelector(".btn-primary");
-    const cancelButton = container.querySelector(".btn-default");
-
-    message.textContent = i18n(
-      "discourse_workspace_groups.join_channel_message",
-      {
-        channel_name: channel.name,
-      }
-    );
-    confirmButton.textContent = i18n(
-      "discourse_workspace_groups.join_channel_confirm"
-    );
-    cancelButton.textContent = i18n("cancel");
-
-    const cleanup = (result) => {
-      document.removeEventListener("keydown", handleKeydown);
-      container.remove();
-      resolve(result);
-    };
-
-    const handleKeydown = (event) => {
-      if (event.key === "Escape") {
-        cleanup(false);
-      }
-    };
-
-    confirmButton.addEventListener("click", () => cleanup(true), { once: true });
-    cancelButton.addEventListener("click", () => cleanup(false), { once: true });
-    container
-      .querySelector(".dialog-overlay")
-      .addEventListener("click", () => cleanup(false), { once: true });
-    document.addEventListener("keydown", handleKeydown);
-    document.body.append(container);
-    confirmButton.focus();
-  });
-}
-
 function chatCandidate(candidate) {
   return candidate?.target?.startsWith("/chat/c/");
+}
+
+export function hashtagCandidate(candidate) {
+  return (
+    candidate?.hashtagType === "channel" ||
+    candidate?.hashtagType === "category"
+  );
 }
 
 function currentPath() {
@@ -175,7 +128,9 @@ async function restorePreviousRoute(candidate, router) {
 
 function shouldResolveBeforeNativeRoute(candidate) {
   return (
-    candidate && (chatCandidate(candidate) || currentPath().startsWith("/chat/"))
+    candidate &&
+    currentPath().startsWith("/chat/") &&
+    hashtagCandidate(candidate)
   );
 }
 
@@ -188,6 +143,7 @@ export default apiInitializer((api) => {
   }
 
   const router = api.container.lookup("service:router");
+  const dialog = api.container.lookup("service:dialog");
   let pendingCandidate = null;
   let resolvingCandidate = false;
 
@@ -231,7 +187,13 @@ export default apiInitializer((api) => {
       await restorePreviousRoute(candidate, router);
     }
 
-    const confirmed = await confirmJoinChannel(channel);
+    const confirmed = await dialog.confirm({
+      message: i18n("discourse_workspace_groups.join_channel_message", {
+        channel_name: channel.name,
+      }),
+      confirmButtonLabel: "discourse_workspace_groups.join_channel_confirm",
+      cancelButtonLabel: "cancel",
+    });
 
     if (!confirmed) {
       navigateTo(candidate.previousURL);

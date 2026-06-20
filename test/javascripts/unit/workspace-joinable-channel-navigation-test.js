@@ -1,5 +1,6 @@
 import { module, test } from "qunit";
 import {
+  hashtagCandidate,
   internalWorkspaceCandidatePath,
   targetAfterJoin,
 } from "discourse/plugins/discourse-workspace-groups/discourse/api-initializers/workspace-joinable-channel-navigation";
@@ -14,6 +15,7 @@ module(
       assert.deepEqual(internalWorkspaceCandidatePath(categoryLink), {
         target: "/c/team/channel/42?ascending=true#latest",
         resolverPath: "/c/team/channel/42",
+        hashtagType: undefined,
       });
 
       const topicLink = document.createElement("a");
@@ -22,15 +24,26 @@ module(
       assert.deepEqual(internalWorkspaceCandidatePath(topicLink), {
         target: "/t/welcome/99/3",
         resolverPath: "/t/welcome/99/3",
+        hashtagType: undefined,
       });
 
       const chatLink = document.createElement("a");
       chatLink.href = "/chat/c/team-channel-42/7";
+      chatLink.dataset.type = "channel";
 
       assert.deepEqual(internalWorkspaceCandidatePath(chatLink), {
         target: "/chat/c/team-channel-42/7",
         resolverPath: "/chat/c/team-channel-42/7",
+        hashtagType: "channel",
       });
+    });
+
+    test("identifies semantic hashtag channel and category links", function (assert) {
+      assert.true(hashtagCandidate({ hashtagType: "channel" }));
+      assert.true(hashtagCandidate({ hashtagType: "category" }));
+      assert.false(hashtagCandidate({ hashtagType: "user" }));
+      assert.false(hashtagCandidate({}));
+      assert.false(hashtagCandidate(null));
     });
 
     test("ignores external, non-forum, and new-window links", function (assert) {
