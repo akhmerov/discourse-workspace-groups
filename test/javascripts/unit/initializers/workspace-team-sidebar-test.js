@@ -557,7 +557,7 @@ module(
 
       assert.strictEqual(
         rememberedWorkspaceCategory({
-          currentUser: {},
+          currentUser: { groups: [{ id: 400 }] },
           site: { categoriesList: [workspace, channel] },
           siteSettings: {},
         }),
@@ -566,7 +566,7 @@ module(
 
       assert.deepEqual(
         sidebarScopedCategories({
-          currentUser: {},
+          currentUser: { groups: [{ id: 400 }] },
           router: { currentRoute: { attributes: {} } },
           site: { categoriesList: [workspace, channel] },
           siteSettings: {},

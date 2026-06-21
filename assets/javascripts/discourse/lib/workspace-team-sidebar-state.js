@@ -42,6 +42,41 @@ function positiveCount(value) {
   return Number(value || 0) > 0;
 }
 
+function siteCategoryById(site, categoryId) {
+  if (!categoryId || !site?.categoriesList?.length) {
+    return null;
+  }
+
+  return (
+    site.categoriesList.find(
+      (category) => Number(category.id) === Number(categoryId)
+    ) ?? null
+  );
+}
+
+function canDisplaySiteCategory(category, siteSettings, site) {
+  if (!category) {
+    return false;
+  }
+
+  if (siteSettings?.allow_uncategorized_topics) {
+    return true;
+  }
+
+  const uncategorizedCategoryId =
+    site?.uncategorized_category_id ?? site?.uncategorizedCategoryId;
+
+  if (uncategorizedCategoryId) {
+    return Number(category.id) !== Number(uncategorizedCategoryId);
+  }
+
+  if (site?.categoriesList?.length) {
+    return true;
+  }
+
+  return canDisplayCategory(category.id, siteSettings);
+}
+
 export function chatChannelHasUnread(channel) {
   if (!channel) {
     return false;
@@ -73,7 +108,7 @@ function visibleChildren(category, siteSettings, site) {
   return site.categoriesList.filter(
     (candidate) =>
       candidate.parent_category_id === category.id &&
-      canDisplayCategory(candidate.id, siteSettings)
+      canDisplaySiteCategory(candidate, siteSettings, site)
   );
 }
 
@@ -105,7 +140,9 @@ function scopedCategoriesFor(category, services) {
   }
 
   if (category.parent_category_id) {
-    const parentCategory = Category.findById(category.parent_category_id);
+    const parentCategory =
+      siteCategoryById(services.site, category.parent_category_id) ??
+      Category.findById(category.parent_category_id);
     const siblingCategories = visibleChildren(
       parentCategory,
       services.siteSettings,
@@ -388,7 +425,7 @@ export function visibleWorkspaceCategories(services) {
     (category) =>
       !category.parent_category_id &&
       category.workspace_kind === "workspace" &&
-      canDisplayCategory(category.id, services.siteSettings)
+      canDisplaySiteCategory(category, services.siteSettings, services.site)
   );
 }
 
