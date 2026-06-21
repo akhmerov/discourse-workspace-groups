@@ -252,7 +252,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     return !!(
       this.routeIsWorkspaceContext ||
-      (this.routeIsChatContext &&
+      ((this.site.mobileView || this.routeIsChatContext) &&
         focusedWorkspace &&
         Number(focusedWorkspace.id) === Number(this.workspaceCategory?.id))
     );
@@ -1228,7 +1228,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   @action
-  openWorkspace(workspace) {
+  openWorkspace(workspace, event) {
+    event?.stopPropagation?.();
     this.switchWorkspace(workspace);
   }
 
