@@ -17,6 +17,7 @@ register_svg_icon "table-cells-large"
 register_svg_icon "clock"
 register_svg_icon "calendar-day"
 register_svg_icon "magnifying-glass"
+register_svg_icon "right-to-bracket"
 
 require "digest/sha1"
 require "set"

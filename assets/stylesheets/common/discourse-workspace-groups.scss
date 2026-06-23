@@ -990,3 +990,33 @@ body.workspace-team-sidebar-scroll-lock {
     justify-content: flex-start;
   }
 }
+.workspace-joinable-channel-chatable {
+  gap: 0.5em;
+
+  &__icon {
+    align-items: center;
+    color: var(--primary-medium);
+    display: inline-flex;
+    flex: 0 0 auto;
+    justify-content: center;
+    width: 1.25em;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__name,
+  &__workspace {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__workspace {
+    color: var(--primary-medium);
+    font-size: var(--font-down-1);
+  }
+}

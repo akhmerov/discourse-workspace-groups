@@ -3,6 +3,7 @@
 DiscourseWorkspaceGroups::Engine.routes.draw do
   get "/workspaces/:id" => "workspaces#show"
   get "/joinable-channel" => "workspaces#joinable_channel"
+  get "/joinable-channels" => "workspaces#joinable_channels"
   put "/workspaces/:id" => "workspaces#update"
   get "/workspaces/:id/archived-channels" => "workspaces#archived_channels"
   get "/workspaces/:id/chat-tracking" => "workspaces#chat_tracking"

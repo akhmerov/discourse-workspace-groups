@@ -510,6 +510,90 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "#joinable_channels" do
+    it "finds public chat-enabled channels the workspace member can join" do
+      chat_channel = category_chat_channel(public_channel)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channels.json", params: { term: public_channel.name[0, 5] }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["channels"]).to contain_exactly(
+        include(
+          "id" => public_channel.id,
+          "workspace_id" => workspace.id,
+          "workspace_name" => workspace.name,
+          "can_join" => true,
+          "chat_channel_id" => chat_channel.id,
+          "chat_channel_slug" => chat_channel.slug,
+        ),
+      )
+    end
+
+    it "does not find private, topic-only, already joined, or non-matching channels" do
+      matching_public = public_channel
+      non_matching_public =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "Notes #{SecureRandom.hex(4)}",
+          description: nil,
+          visibility: "public",
+        ).call
+      topic_only_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "#{matching_public.name} Topics",
+          description: nil,
+          visibility: "public",
+          channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CATEGORY_ONLY,
+        ).call
+      private_channel.update!(name: "#{matching_public.name} Private")
+      joined_channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: workspace,
+          user: admin,
+          name: "#{matching_public.name} Joined",
+          description: nil,
+          visibility: "public",
+        ).call
+      joined_channel.workspace_group.add(workspace_member)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channels.json", params: { term: matching_public.name }
+
+      channel_ids = response.parsed_body["channels"].map { |channel| channel["id"] }
+      expect(channel_ids).to contain_exactly(matching_public.id)
+      expect(channel_ids).not_to include(
+        non_matching_public.id,
+        topic_only_channel.id,
+        private_channel.id,
+        joined_channel.id,
+      )
+    end
+
+    it "does not find channels for non-workspace members" do
+      public_channel
+
+      sign_in(guest_user)
+      get "/workspace-groups/joinable-channels.json", params: { term: public_channel.name }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["channels"]).to eq([])
+    end
+
+    it "returns an empty result for blank terms" do
+      public_channel
+
+      sign_in(workspace_member)
+      get "/workspace-groups/joinable-channels.json", params: { term: " " }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["channels"]).to eq([])
+    end
+  end
+
   describe "#create_channel" do
     it "returns the created channel payload with paired chat data" do
       sign_in(admin)

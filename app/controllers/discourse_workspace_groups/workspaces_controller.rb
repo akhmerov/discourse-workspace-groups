@@ -6,7 +6,9 @@ module ::DiscourseWorkspaceGroups
     requires_login
 
     before_action :ensure_plugin_enabled
-    before_action :find_workspace, except: %i[overview_page joinable_channel]
+    JOINABLE_CHANNEL_SEARCH_LIMIT = 5
+
+    before_action :find_workspace, except: %i[overview_page joinable_channel joinable_channels]
     before_action :find_overview_workspace, only: :overview_page
 
     def overview_page
@@ -76,6 +78,29 @@ module ::DiscourseWorkspaceGroups
                    workspace_id: @workspace.id,
                    workspace_name: @workspace.name,
                  ),
+             }
+    end
+
+    def joinable_channels
+      term = params[:term].to_s.strip
+
+      if term.blank?
+        render json: { channels: [] }
+        return
+      end
+
+      channels =
+        joinable_channel_search_candidates(term)
+          .select { |channel| guardian.can_join_workspace_channel?(channel) }
+          .first(JOINABLE_CHANNEL_SEARCH_LIMIT)
+
+      context = build_joinable_channel_search_context(channels)
+
+      render json: {
+               channels:
+                 channels.map do |channel|
+                   serialize_joinable_channel_search_result(channel, term: term, **context)
+                 end,
              }
     end
 
@@ -422,6 +447,15 @@ module ::DiscourseWorkspaceGroups
     def build_channels_context(channels)
       group_ids = channels.filter_map(&:workspace_group_id)
       workspace_member = guardian.is_admin? || @workspace.workspace_group.users.where(id: current_user.id).exists?
+      build_channel_context_from_groups(channels, group_ids: group_ids, workspace_member: workspace_member)
+    end
+
+    def build_joinable_channel_search_context(channels)
+      group_ids = channels.filter_map(&:workspace_group_id)
+      build_channel_context_from_groups(channels, group_ids: group_ids, workspace_member: true)
+    end
+
+    def build_channel_context_from_groups(channels, group_ids:, workspace_member:)
       groups_by_id = Group.where(id: group_ids).index_by(&:id)
       joined_group_ids =
         if group_ids.present?
@@ -491,6 +525,56 @@ module ::DiscourseWorkspaceGroups
       categories
         .select(&:workspace_channel?)
         .select { |category| category.workspace_archived? == archived }
+    end
+
+    def joinable_channel_search_candidates(term)
+      escaped_term = ActiveRecord::Base.sanitize_sql_like(term)
+      categories =
+        Category
+          .where.not(parent_category_id: nil)
+          .where(
+            "categories.name ILIKE :term OR categories.slug ILIKE :term",
+            term: "%#{escaped_term}%",
+          )
+          .includes(:parent_category, topic: :first_post)
+          .order(Arel.sql("LOWER(categories.name) ASC"))
+          .limit(JOINABLE_CHANNEL_SEARCH_LIMIT * 4)
+          .to_a
+
+      Category.preload_custom_fields(categories, Site.preloaded_category_custom_fields)
+      parents = categories.filter_map(&:parent_category).uniq
+      Category.preload_custom_fields(parents, Site.preloaded_category_custom_fields) if parents.present?
+
+      categories.select do |category|
+        category.workspace_channel? &&
+          !category.workspace_archived? &&
+          category.workspace_chat_enabled? &&
+          category.category_channel.present?
+      end
+    end
+
+    def serialize_joinable_channel_search_result(category, term:, **context)
+      workspace = category.workspace_parent_category
+      chat_channel = category.category_channel
+
+      serialize_channel(category, **context).merge(
+        workspace_id: workspace.id,
+        workspace_name: workspace.name,
+        chat_channel_id: chat_channel.id,
+        chat_channel_slug: chat_channel.slug,
+        match_quality: joinable_channel_search_match_quality(category, term),
+      )
+    end
+
+    def joinable_channel_search_match_quality(category, term)
+      normalized_name = category.name.to_s.downcase
+      normalized_slug = category.slug.to_s.downcase
+      normalized_term = term.to_s.downcase
+
+      return 0 if normalized_name == normalized_term || normalized_slug == normalized_term
+      return 1 if normalized_name.start_with?(normalized_term) || normalized_slug.start_with?(normalized_term)
+
+      3
     end
 
     def visible_channel?(category, joined_group_ids:, workspace_member:, **)
