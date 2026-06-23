@@ -902,7 +902,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
         end
 
       expect(response).to have_http_status(:ok)
-      expect(events).to be_empty
+      expect(events.map { |event| event[:params] }).to include([workspace_member, public_channel.workspace_group])
       expect(chat_channel.membership_for(workspace_member)).to be_nil
       expect(response.parsed_body.dig("channel", "joined")).to eq(false)
       expect(response.parsed_body.dig("channel", "can_join")).to eq(true)
@@ -910,6 +910,8 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
 
     it "removes membership from channels whose group grants trust" do
+      Jobs.run_immediately!
+
       public_channel.workspace_group.add(workspace_member)
       public_channel.workspace_group.update!(grant_trust_level: TrustLevel[3])
       workspace_member.update!(trust_level: TrustLevel[3])
