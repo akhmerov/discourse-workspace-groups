@@ -894,11 +894,15 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
       sign_in(workspace_member)
 
-      expect {
-        delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
-      }.to change { public_channel.workspace_group.users.exists?(id: workspace_member.id) }.from(true).to(false)
+      events =
+        DiscourseEvent.track_events(:user_removed_from_group) do
+          expect {
+            delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+          }.to change { public_channel.workspace_group.users.exists?(id: workspace_member.id) }.from(true).to(false)
+        end
 
       expect(response).to have_http_status(:ok)
+      expect(events).to be_empty
       expect(chat_channel.membership_for(workspace_member)).to be_nil
       expect(response.parsed_body.dig("channel", "joined")).to eq(false)
       expect(response.parsed_body.dig("channel", "can_join")).to eq(true)

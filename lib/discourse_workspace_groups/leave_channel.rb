@@ -13,11 +13,12 @@ module ::DiscourseWorkspaceGroups
       validate!
 
       chat_channel = channel.category_channel
-      chat_channel&.remove(user)
+      chat_channel&.membership_for(user)&.destroy!
       Chat::Publisher.publish_kick_users(chat_channel.id, [user.id]) if chat_channel.present?
       DiscourseWorkspaceGroups::RemoveChannelGroupMember.new(
         group: channel.workspace_group,
         user: user,
+        trigger_user_removed_event: false,
       ).call
 
       channel
