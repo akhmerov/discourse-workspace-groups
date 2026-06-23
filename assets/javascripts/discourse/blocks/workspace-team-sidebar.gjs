@@ -68,7 +68,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @service currentUser;
   @service dialog;
   @service keyValueStore;
-  @service modal;
   @service router;
   @service site;
   @service sidebarState;
@@ -674,6 +673,18 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
   }
 
+  resetActiveWorkspaceSidebarEditingState() {
+    this.editingSidebar = false;
+    this.editingSidebarSectionId = null;
+    this.editingSidebarSectionTitle = "";
+    this.pendingNewSidebarSectionId = null;
+    this.orderedChannelIds = null;
+    this.sidebarSectionsOverride = null;
+    this.sidebarSectionsOverrideWorkspaceId = null;
+    this.sidebarDropTarget = null;
+    this.cancelSidebarPointerDrag();
+  }
+
   restoreWorkspaceSidebarEditingState() {
     if (!this.canEditSidebar || this.editingSidebar) {
       return;
@@ -712,19 +723,26 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   applyWorkspaceSidebarFocusId(workspaceId) {
-    this.workspaceSidebarFocusId = workspaceId ? String(workspaceId) : null;
+    const nextWorkspaceSidebarFocusId = workspaceId ? String(workspaceId) : null;
+
+    if (
+      nextWorkspaceSidebarFocusId &&
+      this.editingSidebar &&
+      Number(this.sidebarSectionsOverrideWorkspaceId) !==
+        Number(nextWorkspaceSidebarFocusId)
+    ) {
+      this.resetActiveWorkspaceSidebarEditingState();
+    }
+
+    this.workspaceSidebarFocusId = nextWorkspaceSidebarFocusId;
 
     if (this.workspaceSidebarFocusId) {
       return;
     }
 
     this.showUnreadOnly = false;
-    this.editingSidebar = false;
-    this.orderedChannelIds = null;
-    this.sidebarSectionsOverride = null;
-    this.sidebarSectionsOverrideWorkspaceId = null;
+    this.resetActiveWorkspaceSidebarEditingState();
     this.clearWorkspaceSidebarEditingState();
-    this.cancelSidebarSectionTitleEdit();
   }
 
   enterWorkspaceSidebar(workspace = this.workspaceCategory) {
