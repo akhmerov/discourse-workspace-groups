@@ -955,7 +955,82 @@ body.workspace-team-sidebar-scroll-lock {
 }
 
 .workspace-groups-overview__membership-link {
+  background: none;
+  border: 0;
   color: var(--primary);
+  cursor: pointer;
+  padding: 0;
+  text-align: inherit;
+}
+
+.workspace-groups-channel-members-modal__add {
+  border-bottom: 1px solid var(--primary-low);
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+}
+
+.workspace-groups-channel-members-modal__add-header {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.workspace-groups-channel-members-modal__add .user-chooser {
+  width: 100%;
+}
+
+.workspace-groups-channel-members-modal__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.workspace-groups-channel-members-modal__member {
+  align-items: center;
+  border-radius: 4px;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+
+.workspace-groups-channel-members-modal__member-main,
+.workspace-groups-channel-members-modal__member-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.workspace-groups-channel-members-modal__member-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.workspace-groups-channel-members-modal__username {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.workspace-groups-channel-members-modal__name {
+  color: var(--primary-medium);
+  font-size: var(--font-down-1);
+}
+
+.workspace-groups-channel-members-modal__badge {
+  background: var(--primary-very-low);
+  border-radius: 4px;
+  color: var(--primary-medium);
+  font-size: var(--font-down-1);
+  font-weight: 600;
+  padding: 0.15rem 0.35rem;
+}
+
+.workspace-groups-channel-members-modal__empty {
+  color: var(--primary-medium);
+  margin: 0;
 }
 
 .workspace-groups-overview__membership-button {
@@ -988,6 +1063,7 @@ body.workspace-team-sidebar-scroll-lock {
     justify-content: flex-start;
   }
 }
+
 .workspace-joinable-channel-chatable {
   gap: 0.5em;
 

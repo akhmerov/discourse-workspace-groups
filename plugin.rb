@@ -126,6 +126,31 @@ module ::DiscourseWorkspaceGroups
     group_owner?(category.workspace_group, user)
   end
 
+  def self.can_view_workspace_channel_members?(category, user)
+    return false if user.blank? || category.blank? || !category.workspace_channel?
+    return true if user.admin?
+
+    group = category.workspace_group
+    return true if group_member?(group, user)
+
+    workspace = category.workspace_parent_category
+    return false if !workspace&.workspace_root?
+    return false if category.workspace_visibility == VISIBILITY_PRIVATE
+
+    group_member?(workspace.workspace_group, user)
+  end
+
+  def self.can_add_workspace_channel_members?(category, user)
+    return false if user.blank? || category.blank? || !category.workspace_channel?
+    return true if can_manage_workspace_channel?(category, user)
+    return false if category.workspace_visibility == VISIBILITY_PRIVATE
+
+    workspace = category.workspace_parent_category
+    return false if !workspace&.workspace_root?
+
+    group_member?(workspace.workspace_group, user) && group_member?(category.workspace_group, user)
+  end
+
   def self.can_manage_workspace?(category, user)
     return false if user.blank? || category.blank? || !category.workspace_root?
     return true if user.admin?
@@ -952,6 +977,14 @@ after_initialize do
 
   add_to_class(Guardian, :can_manage_workspace_channel?) do |category|
     DiscourseWorkspaceGroups.can_manage_workspace_channel?(category, user)
+  end
+
+  add_to_class(Guardian, :can_view_workspace_channel_members?) do |category|
+    DiscourseWorkspaceGroups.can_view_workspace_channel_members?(category, user)
+  end
+
+  add_to_class(Guardian, :can_add_workspace_channel_members?) do |category|
+    DiscourseWorkspaceGroups.can_add_workspace_channel_members?(category, user)
   end
 
   add_to_serializer(:basic_category, :workspace_enabled) { object.workspace_enabled? }

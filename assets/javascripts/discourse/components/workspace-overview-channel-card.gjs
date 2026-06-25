@@ -56,7 +56,8 @@ export default class WorkspaceOverviewChannelCard extends Component {
       this.channel?.can_join ||
       this.channel?.can_leave ||
       this.channel?.can_archive ||
-      this.channel?.can_unarchive
+      this.channel?.can_unarchive ||
+      this.channel?.can_view_members
     );
   }
 
@@ -207,9 +208,10 @@ export default class WorkspaceOverviewChannelCard extends Component {
             </span>
 
             {{#if this.channel.can_view_members}}
-              {{#if this.channel.joined}}
-                <a
-                  href={{this.channel.members_url}}
+              {{#if @onOpenMembers}}
+                <button
+                  type="button"
+                  {{on "click" (fn @onOpenMembers this.channel)}}
                   class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
                 >
                   {{dIcon "user"}}
@@ -219,7 +221,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
                       count=this.channel.member_count
                     }}
                   </span>
-                </a>
+                </button>
               {{else}}
                 <span class="workspace-groups-overview__membership">
                   {{dIcon "user"}}
@@ -293,6 +295,17 @@ export default class WorkspaceOverviewChannelCard extends Component {
                   @icon="wrench"
                   @title="discourse_workspace_groups.channel_settings"
                   @ariaLabel="discourse_workspace_groups.channel_settings"
+                  class="btn-default btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
+                  @disabled={{this.channel.is_pending}}
+                />
+              {{/if}}
+
+              {{#if this.channel.can_view_members}}
+                <DButton
+                  @action={{fn @onOpenMembers this.channel}}
+                  @icon="user"
+                  @title="discourse_workspace_groups.channel_members"
+                  @ariaLabel="discourse_workspace_groups.channel_members"
                   class="btn-default btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
                   @disabled={{this.channel.is_pending}}
                 />

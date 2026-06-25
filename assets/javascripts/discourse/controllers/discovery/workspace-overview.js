@@ -6,6 +6,7 @@ import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import { i18n } from "discourse-i18n";
 import CreateWorkspaceChannelModal from "../../components/modal/create-workspace-channel";
+import WorkspaceChannelMembersModal from "../../components/modal/workspace-channel-members";
 import WorkspaceChannelSettingsModal from "../../components/modal/workspace-channel-settings";
 import WorkspaceSettingsModal from "../../components/modal/workspace-settings";
 
@@ -258,6 +259,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
         category: this.model.category,
         workspace: this.model.workspace,
         channel,
+        onOpenMembers: () => this.openChannelMembersModal(channel),
         onUpdate: async (updatedChannel) => {
           const previousChatChannelId = channel.chat_channel_id;
           this.applyChannelPayload(channel, updatedChannel);
@@ -268,6 +270,21 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
               chat_channel_id: previousChatChannelId,
             });
           }
+        },
+      },
+    });
+  }
+
+  @action
+  openChannelMembersModal(channel) {
+    this.modal.show(WorkspaceChannelMembersModal, {
+      model: {
+        category: this.model.category,
+        workspace: this.model.workspace,
+        channel,
+        onUpdate: async (updatedChannel) => {
+          this.applyChannelPayload(channel, updatedChannel);
+          await this.syncJoinedChatChannel(updatedChannel);
         },
       },
     });

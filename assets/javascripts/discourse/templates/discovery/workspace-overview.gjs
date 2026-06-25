@@ -108,6 +108,7 @@ export default <template>
                 @channel={{channel}}
                 @onJoin={{@controller.joinChannel}}
                 @onLeave={{@controller.leaveChannel}}
+                @onOpenMembers={{@controller.openChannelMembersModal}}
                 @onOpenSettings={{@controller.openChannelSettingsModal}}
               />
             {{/each}}
@@ -145,6 +146,7 @@ export default <template>
                     @channel={{channel}}
                     @onJoin={{@controller.joinChannel}}
                     @onLeave={{@controller.leaveChannel}}
+                    @onOpenMembers={{@controller.openChannelMembersModal}}
                     @onOpenSettings={{@controller.openChannelSettingsModal}}
                   />
                 {{/each}}

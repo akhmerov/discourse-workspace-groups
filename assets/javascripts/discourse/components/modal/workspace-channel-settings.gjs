@@ -198,6 +198,12 @@ export default class WorkspaceChannelSettingsModal extends Component {
   }
 
   @action
+  openMembers() {
+    this.args.closeModal();
+    this.args.model.onOpenMembers?.();
+  }
+
+  @action
   cancel() {
     this.args.closeModal();
   }
@@ -238,6 +244,15 @@ export default class WorkspaceChannelSettingsModal extends Component {
         />
       </:body>
       <:footer>
+        {{#if this.channel.can_view_members}}
+          <DButton
+            @action={{this.openMembers}}
+            @label="discourse_workspace_groups.channel_members"
+            @icon="user"
+            class="btn-default"
+            @disabled={{this.saving}}
+          />
+        {{/if}}
         <DButton
           @action={{this.saveChannel}}
           @label="discourse_workspace_groups.save_channel"

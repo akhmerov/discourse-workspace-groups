@@ -293,7 +293,7 @@ module ::DiscourseWorkspaceGroups
     def channel_access
       guardian.ensure_can_see!(@workspace)
       channel = find_channel
-      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+      raise Discourse::InvalidAccess if !guardian.can_view_workspace_channel_members?(channel)
 
       render_channel_access(channel)
     end
@@ -301,7 +301,7 @@ module ::DiscourseWorkspaceGroups
     def add_channel_members
       guardian.ensure_can_see!(@workspace)
       channel = find_channel
-      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+      raise Discourse::InvalidAccess if !guardian.can_add_workspace_channel_members?(channel)
 
       _usernames, users = users_from_usernames_param
       return if performed?
@@ -614,6 +614,7 @@ module ::DiscourseWorkspaceGroups
         id: workspace.id,
         name: workspace.name,
         path: workspace.url,
+        group_name: group&.name,
         can_create_channel: guardian.can_create_workspace_channel?(workspace),
         can_create_private_channel: guardian.can_create_private_workspace_channel?(workspace),
         can_manage: can_manage,
@@ -661,12 +662,12 @@ module ::DiscourseWorkspaceGroups
       can_join = visible && !joined && category.workspace_visibility != VISIBILITY_PRIVATE && workspace_member
       can_leave = joined && DiscourseWorkspaceGroups.can_leave_channel_group?(group, current_user)
       can_manage = DiscourseWorkspaceGroups.can_manage_workspace_channel?(category, current_user)
+      can_add_members = DiscourseWorkspaceGroups.can_add_workspace_channel_members?(category, current_user)
       can_open_topics = joined || guardian.is_admin?
       archived = category.workspace_archived?
 
       can_view_members =
-        guardian.is_admin? || joined ||
-          (workspace_member && category.workspace_visibility != VISIBILITY_PRIVATE)
+        DiscourseWorkspaceGroups.can_view_workspace_channel_members?(category, current_user)
 
       {
         id: category.id,
@@ -690,6 +691,8 @@ module ::DiscourseWorkspaceGroups
         can_leave: can_leave,
         can_archive: can_manage && !archived,
         can_unarchive: can_manage && archived,
+        can_add_members: can_add_members,
+        can_manage_members: can_manage,
         can_open_topics: can_open_topics,
         can_view_members: can_view_members,
         member_count: can_view_members && group.present? ? group.group_users.count : nil,
@@ -722,6 +725,7 @@ module ::DiscourseWorkspaceGroups
       group = channel.workspace_group
       return [] if group.blank?
 
+      can_manage = DiscourseWorkspaceGroups.can_manage_workspace_channel?(channel, current_user)
       workspace_member_ids =
         @workspace.workspace_group.group_users.where(user_id: group.group_users.select(:user_id)).pluck(:user_id).to_set
 
@@ -742,7 +746,7 @@ module ::DiscourseWorkspaceGroups
             owner: group_user.owner?,
             guest: guest,
             can_remove:
-              user.id != current_user.id &&
+              can_manage && user.id != current_user.id &&
                 DiscourseWorkspaceGroups.can_remove_channel_group_member?(group, user),
           }
         end

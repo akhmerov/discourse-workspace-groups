@@ -25,6 +25,15 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       email: "workspace-guest-#{suffix}@example.com",
     )
   end
+  fab!(:other_workspace_member) do
+    suffix = SecureRandom.hex(4)
+    Fabricate(
+      :user,
+      active: true,
+      username: "wo#{suffix}",
+      email: "workspace-other-#{suffix}@example.com",
+    )
+  end
   fab!(:category) { Fabricate(:category, name: "Workspace #{SecureRandom.hex(4)}", user: admin) }
 
   let(:workspace) do
@@ -58,6 +67,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     SiteSetting.chat_allowed_groups = Group::AUTO_GROUPS[:everyone]
 
     workspace.workspace_group.add(workspace_member)
+    workspace.workspace_group.add(other_workspace_member)
   end
 
   def category_chat_channel(category)
@@ -1402,6 +1412,20 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
         include("username" => guest_user.username, "guest" => true),
       )
     end
+
+    it "allows public channel members to view access without removal controls" do
+      public_channel.workspace_group.add(workspace_member)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/access.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("channel", "can_add_members")).to eq(true)
+      expect(response.parsed_body.dig("channel", "can_manage_members")).to eq(false)
+      expect(response.parsed_body["members"]).to include(
+        include("username" => workspace_member.username, "can_remove" => false),
+      )
+    end
   end
 
   describe "#add_channel_members" do
@@ -1422,6 +1446,55 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body["members"].map { |member| member["username"] }).to include(
         guest_user.username,
       )
+    end
+
+    it "allows public channel members to add other team members" do
+      public_channel.workspace_group.add(workspace_member)
+
+      sign_in(workspace_member)
+
+      expect {
+        post "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/access.json",
+             params: {
+               usernames: other_workspace_member.username,
+             }
+      }.to change { public_channel.workspace_group.users.exists?(id: other_workspace_member.id) }.from(false).to(true)
+
+      expect(response).to have_http_status(:ok)
+      expect(category_chat_channel(public_channel).membership_for(other_workspace_member)).to be_present
+      expect(response.parsed_body["members"].map { |member| member["username"] }).to include(
+        other_workspace_member.username,
+      )
+    end
+
+    it "rejects out-of-team users from public channel members" do
+      public_channel.workspace_group.add(workspace_member)
+
+      sign_in(workspace_member)
+
+      expect {
+        post "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/access.json",
+             params: {
+               usernames: guest_user.username,
+             }
+      }.not_to change { public_channel.workspace_group.users.exists?(id: guest_user.id) }
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "does not allow ordinary private channel members to add users" do
+      private_channel.workspace_group.add(workspace_member)
+
+      sign_in(workspace_member)
+
+      expect {
+        post "/workspace-groups/workspaces/#{workspace.id}/channels/#{private_channel.id}/access.json",
+             params: {
+               usernames: other_workspace_member.username,
+             }
+      }.not_to change { private_channel.workspace_group.users.exists?(id: other_workspace_member.id) }
+
+      expect(response).to have_http_status(:forbidden)
     end
 
     it "returns a useful error for unknown usernames" do
