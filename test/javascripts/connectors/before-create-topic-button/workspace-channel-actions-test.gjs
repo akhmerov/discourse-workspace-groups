@@ -8,20 +8,8 @@ module(
   function (hooks) {
     setupRenderingTest(hooks);
 
-    hooks.beforeEach(function () {
-      this.site = this.owner.lookup("service:site");
-      this.originalCategoriesById = this.site.categoriesById;
-    });
-
-    hooks.afterEach(function () {
-      this.site.categoriesById = this.originalCategoriesById;
-    });
-
-    test("resolves categories from plain object category lookup", async function (assert) {
-      this.site.categoriesById = {
-        42: { id: 42, workspace_can_enable: true },
-      };
-      this.outletArgs = { category: { id: 42 } };
+    test("uses the outlet category when no cached category is available", async function (assert) {
+      this.outletArgs = { category: { id: 42, workspace_can_enable: true } };
 
       await render(
         <template>
