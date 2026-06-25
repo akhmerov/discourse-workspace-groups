@@ -3,6 +3,8 @@ import Category from "discourse/models/category";
 
 export const LAST_WORKSPACE_KEY = "workspace-groups:last-workspace-id";
 export const WORKSPACE_FOCUS_KEY = "workspace-groups:focused-workspace-id";
+export const WORKSPACE_UNREAD_FILTER_KEY =
+  "workspace-groups:show-unread-only";
 export const WORKSPACE_FOCUS_CHANGED_EVENT =
   "workspace-groups:focus-changed";
 
@@ -98,6 +100,22 @@ export function chatChannelHasUnread(channel) {
         channel.unread_threads_count_since_last_viewed
     )
   );
+}
+
+export function readWorkspaceUnreadFilter(storage = localStorage) {
+  try {
+    return storage.getItem(WORKSPACE_UNREAD_FILTER_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function writeWorkspaceUnreadFilter(enabled, storage = localStorage) {
+  try {
+    storage.setItem(WORKSPACE_UNREAD_FILTER_KEY, enabled ? "true" : "false");
+  } catch {
+    // Tracked component state still controls this page when storage is unavailable.
+  }
 }
 
 function visibleChildren(category, siteSettings, site) {

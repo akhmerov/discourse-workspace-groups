@@ -42,6 +42,7 @@ import {
   focusedWorkspaceCategory as focusedSidebarWorkspaceCategory,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
+  readWorkspaceUnreadFilter,
   sidebarChannelCategories,
   sidebarWorkspaceCategory,
   WORKSPACE_FOCUS_CHANGED_EVENT,
@@ -51,6 +52,7 @@ import {
   workspaceOverviewPath,
   workspaceSidebarChannelOrder,
   workspaceSidebarLayout,
+  writeWorkspaceUnreadFilter,
 } from "../lib/workspace-team-sidebar-state";
 
 const WORKSPACE_NAV_HINT_KEY = "workspace-groups:navigation-hint-seen";
@@ -105,6 +107,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     super(...arguments);
 
     this.workspaceSidebarFocusId = this.readWorkspaceSidebarFocusId();
+    this.showUnreadOnly = readWorkspaceUnreadFilter();
     this.workspaceNavigationHintSeen =
       this.readWorkspaceNavigationHintSeen();
     this.linkCache = new Map();
@@ -702,7 +705,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       this.sidebarLayoutOptions
     );
     this.editingSidebar = true;
-    this.showUnreadOnly = false;
     this.sidebarSectionsOverride = editableLayout;
     this.sidebarSectionsOverrideWorkspaceId = this.workspaceCategory?.id ?? null;
     this.sidebarDropTarget = null;
@@ -740,7 +742,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return;
     }
 
-    this.showUnreadOnly = false;
     this.resetActiveWorkspaceSidebarEditingState();
     this.clearWorkspaceSidebarEditingState();
   }
@@ -1218,7 +1219,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     );
     this.sidebarSectionsElement?.classList.toggle(
       this.unreadOnlySidebarClass,
-      this.inWorkspaceContext && this.showUnreadOnly
+      this.inWorkspaceContext && this.showUnreadOnly && !this.editingSidebar
     );
   }
 
@@ -1286,8 +1287,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return;
     }
 
-    this.showUnreadOnly = false;
-
     if (this.editingSidebar) {
       const rollbackLayout = this.currentSidebarLayout;
       this.applyEditingSidebarSectionTitle();
@@ -1340,6 +1339,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     }
 
     this.showUnreadOnly = !this.showUnreadOnly;
+    writeWorkspaceUnreadFilter(this.showUnreadOnly);
     this.updateSidebarFocus();
   }
 

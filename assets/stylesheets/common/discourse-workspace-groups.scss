@@ -32,11 +32,9 @@
 
 .sidebar-sections.workspace-team-sidebar--unread-only
   > .sidebar-section-wrapper[data-section-name="chat-dms"]
-  .sidebar-section-link-wrapper:not(:has(.active)):not(
-    :has(.badge-notification)
-  ):not(:has(.chat-channel-unread-indicator)):not(:has(.unread)):not(
-    :has([class*="unread"])
-  ):not(:has([class*="mention"])) {
+  .sidebar-section-link-wrapper:not(:has(.sidebar-section-link.active)):not(:has(.badge-notification)):not(
+    :has(.sidebar-section-link-content-badge:is(.unread, .urgent))
+  ) {
   display: none;
 }
 

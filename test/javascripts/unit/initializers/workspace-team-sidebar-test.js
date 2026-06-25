@@ -5,15 +5,18 @@ import {
   focusedWorkspaceCategory,
   memberWorkspaceCategories,
   pairedCategoryChannelFor,
+  readWorkspaceUnreadFilter,
   rememberedOrDefaultWorkspaceCategory,
   rememberedWorkspaceCategory,
   sidebarChannelCategories,
   sidebarScopedCategories,
   userSelectedScopedCategories,
   WORKSPACE_FOCUS_KEY,
+  WORKSPACE_UNREAD_FILTER_KEY,
   workspaceScopedCategory,
   workspaceSidebarChannelOrder,
   workspaceSidebarSectionChannelOrder,
+  writeWorkspaceUnreadFilter,
 } from "discourse/plugins/discourse-workspace-groups/discourse/lib/workspace-team-sidebar-state";
 
 module(
@@ -21,11 +24,13 @@ module(
   function (hooks) {
     hooks.beforeEach(function () {
       localStorage.removeItem("workspace-groups:last-workspace-id");
+      localStorage.removeItem(WORKSPACE_UNREAD_FILTER_KEY);
       sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
     });
 
     hooks.afterEach(function () {
       localStorage.removeItem("workspace-groups:last-workspace-id");
+      localStorage.removeItem(WORKSPACE_UNREAD_FILTER_KEY);
       sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
     });
 
@@ -538,6 +543,16 @@ module(
           },
         })
       );
+    });
+
+    test("persists the unread-only sidebar preference", function (assert) {
+      writeWorkspaceUnreadFilter(true);
+      assert.true(readWorkspaceUnreadFilter());
+      assert.strictEqual(localStorage.getItem(WORKSPACE_UNREAD_FILTER_KEY), "true");
+
+      writeWorkspaceUnreadFilter(false);
+      assert.false(readWorkspaceUnreadFilter());
+      assert.strictEqual(localStorage.getItem(WORKSPACE_UNREAD_FILTER_KEY), "false");
     });
 
     test("uses the remembered workspace when there is no active scoped category", function (assert) {
