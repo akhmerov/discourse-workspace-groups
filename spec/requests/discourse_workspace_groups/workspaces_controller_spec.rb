@@ -812,6 +812,20 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body.dig("channel", "color")).to eq("E45735")
       expect(response.parsed_body.dig("channel", "style_type")).to eq("emoji")
       expect(response.parsed_body.dig("channel", "emoji")).to eq("rocket")
+      expect(category_chat_channel(public_channel).reload.emoji).to eq("rocket")
+
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}.json",
+          params: {
+            name: public_channel.name,
+            description: public_channel.topic.first_post.raw,
+            visibility: "public",
+            color: "E45735",
+            style_type: "square",
+          }
+
+      expect(response).to have_http_status(:ok)
+      expect(public_channel.reload.emoji).to be_nil
+      expect(category_chat_channel(public_channel).reload.emoji).to be_nil
     end
 
     it "closes paired chat when switching a channel into category-only mode" do

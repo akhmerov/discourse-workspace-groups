@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
-
 module ::DiscourseWorkspaceGroups
   class SyncCategoryChatChannel
     CHAT_DESCRIPTION_MAX_LENGTH = 500
@@ -31,6 +29,7 @@ module ::DiscourseWorkspaceGroups
             name: category.name,
             description: chat_description,
             slug: slug,
+            emoji: desired_emoji,
             auto_join_users: false,
             threading_enabled: true,
           )
@@ -39,6 +38,7 @@ module ::DiscourseWorkspaceGroups
         attrs[:name] = category.name if chat_channel.name != category.name
         attrs[:description] = chat_description if chat_channel.description != chat_description
         attrs[:slug] = slug if chat_channel.slug != slug
+        attrs[:emoji] = desired_emoji if chat_channel.emoji != desired_emoji
         attrs[:auto_join_users] = false if chat_channel.auto_join_users?
         attrs[:threading_enabled] = true if !chat_channel.threading_enabled?
         chat_channel.update!(attrs) if attrs.present?
@@ -65,7 +65,7 @@ module ::DiscourseWorkspaceGroups
     end
 
     def group_users
-      category.workspace_group&.users&.to_a || []
+      category.workspace_group&.users.to_a || []
     end
 
     def sync_group_memberships(chat_channel)
@@ -145,6 +145,12 @@ module ::DiscourseWorkspaceGroups
       return description if description.grapheme_clusters.size <= CHAT_DESCRIPTION_MAX_LENGTH
 
       "#{description.grapheme_clusters.first(CHAT_DESCRIPTION_MAX_LENGTH - 1).join}\u2026"
+    end
+
+    def desired_emoji
+      return if category.style_type != "emoji"
+
+      category.emoji.presence
     end
   end
 end

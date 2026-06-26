@@ -50,6 +50,26 @@ export default class WorkspaceTeamSidebarRow extends Component {
     return this.args.categoryLink.prefixBadge;
   }
 
+  get mainPrefixType() {
+    return this.useChatMainPrefix ? "icon" : this.args.categoryLink.prefixType;
+  }
+
+  get mainPrefixValue() {
+    return this.useChatMainPrefix ? "d-chat" : this.args.categoryLink.prefixValue;
+  }
+
+  get mainPrefixColor() {
+    return this.useChatMainPrefix ? null : this.prefixColor;
+  }
+
+  get mainPrefixBadge() {
+    return this.useChatMainPrefix ? null : this.prefixBadge;
+  }
+
+  get useChatMainPrefix() {
+    return this.mainLinkOpensChat && !this.args.categoryLink.category?.emoji;
+  }
+
   get categoryButtonClass() {
     return dConcatClass(
       "workspace-team-sidebar__mode-button",
@@ -179,10 +199,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
           >
             <span class="workspace-team-sidebar__main-link-prefix">
               <SectionLinkPrefix
-                @prefixType={{@categoryLink.prefixType}}
-                @prefixValue={{@categoryLink.prefixValue}}
-                @prefixColor={{this.prefixColor}}
-                @prefixBadge={{this.prefixBadge}}
+                @prefixType={{this.mainPrefixType}}
+                @prefixValue={{this.mainPrefixValue}}
+                @prefixColor={{this.mainPrefixColor}}
+                @prefixBadge={{this.mainPrefixBadge}}
               />
 
               {{#if this.mainLinkUnread}}
@@ -210,10 +230,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
           >
             <span class="workspace-team-sidebar__main-link-prefix">
               <SectionLinkPrefix
-                @prefixType={{@categoryLink.prefixType}}
-                @prefixValue={{@categoryLink.prefixValue}}
-                @prefixColor={{this.prefixColor}}
-                @prefixBadge={{this.prefixBadge}}
+                @prefixType={{this.mainPrefixType}}
+                @prefixValue={{this.mainPrefixValue}}
+                @prefixColor={{this.mainPrefixColor}}
+                @prefixBadge={{this.mainPrefixBadge}}
               />
 
               {{#if this.mainLinkUnread}}
@@ -242,10 +262,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
           >
             <span class="workspace-team-sidebar__main-link-prefix">
               <SectionLinkPrefix
-                @prefixType={{@categoryLink.prefixType}}
-                @prefixValue={{@categoryLink.prefixValue}}
-                @prefixColor={{this.prefixColor}}
-                @prefixBadge={{this.prefixBadge}}
+                @prefixType={{this.mainPrefixType}}
+                @prefixValue={{this.mainPrefixValue}}
+                @prefixColor={{this.mainPrefixColor}}
+                @prefixBadge={{this.mainPrefixBadge}}
               />
 
               {{#if this.mainLinkUnread}}

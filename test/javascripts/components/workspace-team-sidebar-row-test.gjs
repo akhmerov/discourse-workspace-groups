@@ -232,6 +232,7 @@ module(
 
     test("hides duplicate mode buttons when only one surface is available", async function (assert) {
       this.categoryLink = {
+        category: { id: 29 },
         name: "chat-first",
         route: "discovery.category",
         model: "quantum-tinkerer/chat-first/29",
@@ -258,6 +259,9 @@ module(
 
       assert.dom(".workspace-team-sidebar__modes").doesNotExist();
       assert
+        .dom(".workspace-team-sidebar__main-link-prefix .d-icon-d-chat")
+        .exists();
+      assert
         .dom(".workspace-team-sidebar__main-link")
         .hasClass("workspace-team-sidebar__main-link--compact");
       assert
@@ -268,6 +272,38 @@ module(
       assert
         .dom(".workspace-team-sidebar__main-link")
         .hasClass("workspace-team-sidebar__main-link--unread");
+    });
+
+    test("keeps emoji prefix for chat-only rows with category emoji", async function (assert) {
+      this.categoryLink = {
+        category: { id: 29, emoji: "rocket" },
+        name: "chat-first",
+        route: "discovery.category",
+        model: "quantum-tinkerer/chat-first/29",
+        currentWhen: "discovery.category",
+        title: "Chat First",
+        text: "Chat First",
+        prefixType: "emoji",
+        prefixValue: "rocket",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryLink={{this.categoryLink}}
+            @categoryTitle="Open Chat First topics"
+            @chatPath="/chat/c/chat-first/15"
+            @chatTitle="Open Chat First chat"
+            @categoryAvailable={{false}}
+            @chatAvailable={{true}}
+          />
+        </template>
+      );
+
+      assert
+        .dom(".workspace-team-sidebar__main-link-prefix .d-icon-d-chat")
+        .doesNotExist();
+      assert.dom(".workspace-team-sidebar__main-link-prefix img.emoji").exists();
     });
 
     test("shows unread state on the main icon for category-only rows", async function (assert) {
