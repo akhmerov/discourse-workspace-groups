@@ -1,6 +1,10 @@
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import { apiInitializer } from "discourse/lib/api";
+import {
+  openLinkInNewTab,
+  shouldOpenInNewTab,
+} from "discourse/lib/click-track";
 import { iconHTML } from "discourse/lib/icon-library";
 import WorkspaceChannelMembersModal from "discourse/plugins/discourse-workspace-groups/discourse/components/modal/workspace-channel-members";
 import WorkspaceChannelSettingsModal from "discourse/plugins/discourse-workspace-groups/discourse/components/modal/workspace-channel-settings";
@@ -298,7 +302,19 @@ function buildDescription(descriptionHtml) {
   const description = document.createElement("span");
   description.className = `${CONTEXT_CLASS}__description`;
   description.innerHTML = descriptionHtml;
+  description.addEventListener("click", openExternalLinkWithUserPreference);
   return description;
+}
+
+function openExternalLinkWithUserPreference(event) {
+  const link = event.target.closest?.("a[href]");
+  if (!link || !event.currentTarget.contains(link)) {
+    return;
+  }
+
+  if (shouldOpenInNewTab(link.href)) {
+    openLinkInNewTab(event, link);
+  }
 }
 
 function buildMembersButton(chat, modal, channel, data) {
