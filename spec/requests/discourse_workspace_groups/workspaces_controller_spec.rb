@@ -268,6 +268,7 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body.dig("workspace", "can_manage")).to eq(true)
+      expect(response.parsed_body.dig("workspace", "color")).to eq(workspace.color)
       expect(response.parsed_body.dig("workspace", "public_read")).to eq(false)
       expect(response.parsed_body.dig("workspace", "members_can_create_channels")).to eq(true)
       expect(response.parsed_body.dig("workspace", "members_can_create_private_channels")).to eq(
@@ -1250,6 +1251,34 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body.dig("workspace", "members_can_create_private_channels")).to eq(
         false,
       )
+    end
+
+    it "updates channels that still use the previous workspace color" do
+      workspace.update!(color: "112233")
+      inherited_channel = public_channel
+      custom_channel = private_channel
+      custom_channel.update!(color: "ABCDEF")
+      ordinary_subcategory =
+        Fabricate(:category, parent_category: workspace, user: admin, color: "112233")
+
+      sign_in(admin)
+
+      put "/workspace-groups/workspaces/#{workspace.id}.json",
+          params: {
+            description: "Workspace notes.",
+            color: "445566",
+            public_read: false,
+            members_can_create_channels: true,
+            members_can_create_private_channels: true,
+          }
+
+      expect(response).to have_http_status(:ok)
+
+      expect(workspace.reload.color).to eq("445566")
+      expect(inherited_channel.reload.color).to eq("445566")
+      expect(custom_channel.reload.color).to eq("ABCDEF")
+      expect(ordinary_subcategory.reload.color).to eq("112233")
+      expect(response.parsed_body.dig("workspace", "color")).to eq("445566")
     end
 
     it "updates workspace auto-join channels and enrolls existing workspace members" do

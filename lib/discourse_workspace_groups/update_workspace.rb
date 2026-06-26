@@ -2,9 +2,12 @@
 
 module ::DiscourseWorkspaceGroups
   class UpdateWorkspace
+    UNSET = Object.new.freeze
+
     attr_reader :workspace,
                 :user,
                 :description,
+                :color,
                 :public_read,
                 :members_can_create_channels,
                 :members_can_create_private_channels,
@@ -14,6 +17,7 @@ module ::DiscourseWorkspaceGroups
       workspace:,
       user:,
       description:,
+      color: UNSET,
       public_read:,
       members_can_create_channels:,
       members_can_create_private_channels:,
@@ -22,6 +26,7 @@ module ::DiscourseWorkspaceGroups
       @workspace = workspace
       @user = user
       @description = description.to_s.strip
+      @color = color == UNSET ? workspace.color : normalize_color(color)
       @public_read = cast_boolean(public_read, workspace.workspace_root_public_read?)
       @members_can_create_channels =
         cast_boolean(
@@ -40,9 +45,12 @@ module ::DiscourseWorkspaceGroups
 
     def call
       validate!
+      previous_color = workspace.color
       previous_auto_join_channel_ids = workspace.workspace_auto_join_channel_ids
 
       Category.transaction do
+        update_color!
+        sync_inherited_channel_colors!(previous_color)
         update_description!
         update_permissions!
         sync_new_auto_join_memberships!(previous_auto_join_channel_ids)
@@ -57,7 +65,28 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::InvalidAccess if user.blank?
       raise Discourse::InvalidAccess if !workspace&.workspace_root?
       raise Discourse::InvalidAccess if !DiscourseWorkspaceGroups.can_manage_workspace?(workspace, user)
+      raise Discourse::InvalidParameters.new(:color) if !valid_color?
       raise Discourse::InvalidParameters.new(:auto_join_channel_ids) if !valid_auto_join_channel_ids?
+    end
+
+    def update_color!
+      return if workspace.color == color
+
+      workspace.update!(color: color)
+    end
+
+    def sync_inherited_channel_colors!(previous_color)
+      return if previous_color == color
+
+      workspace_channel_ids =
+        CategoryCustomField.where(
+          name: WORKSPACE_KIND,
+          value: WORKSPACE_KIND_CHANNEL,
+        ).select(:category_id)
+
+      Category
+        .where(id: workspace_channel_ids, parent_category_id: workspace.id, color: previous_color)
+        .update_all(color: color, updated_at: Time.zone.now)
     end
 
     def update_description!
@@ -105,6 +134,14 @@ module ::DiscourseWorkspaceGroups
 
     def current_description
       workspace.topic&.first_post&.raw.to_s.strip
+    end
+
+    def normalize_color(value)
+      value.to_s.delete_prefix("#").upcase
+    end
+
+    def valid_color?
+      color.present? && color.match?(/\A\h{6}\z/)
     end
 
     def cast_boolean(value, fallback)

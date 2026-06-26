@@ -4,16 +4,23 @@ import { Input, Textarea } from "@ember/component";
 import { fn } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
+import { service } from "@ember/service";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import { uniqueItemsFromArray } from "discourse/lib/array-tools";
 import { has, not } from "discourse/truth-helpers";
 import DButton from "discourse/ui-kit/d-button";
+import DColorPicker from "discourse/ui-kit/d-color-picker";
 import DModal from "discourse/ui-kit/d-modal";
 import DToggleSwitch from "discourse/ui-kit/d-toggle-switch";
 import { i18n } from "discourse-i18n";
 
 export default class WorkspaceSettingsModal extends Component {
+  @service site;
+  @service siteSettings;
+
   @tracked description;
+  @tracked color;
   @tracked publicRead;
   @tracked membersCanCreateChannels;
   @tracked membersCanCreatePrivateChannels;
@@ -25,6 +32,7 @@ export default class WorkspaceSettingsModal extends Component {
     super(...arguments);
 
     this.description = this.workspace?.about_raw || "";
+    this.color = this.workspace?.color || "0088CC";
     this.publicRead = Boolean(this.workspace?.public_read);
     this.membersCanCreateChannels = Boolean(
       this.workspace?.members_can_create_channels
@@ -72,6 +80,33 @@ export default class WorkspaceSettingsModal extends Component {
     return i18n("discourse_workspace_groups.workspace_settings_title");
   }
 
+  get backgroundColors() {
+    const categories = this.site.get("categoriesList") || [];
+    return uniqueItemsFromArray(
+      this.siteSettings.category_colors
+        .split("|")
+        .filter(Boolean)
+        .map((color) => color.toUpperCase())
+        .concat(
+          categories
+            .map((category) => category.color?.toUpperCase())
+            .filter(Boolean)
+        )
+    );
+  }
+
+  get usedBackgroundColors() {
+    const categories = this.site.get("categoriesList") || [];
+    return categories
+      .map((category) => {
+        return Number(category.id) === Number(this.workspace?.id) &&
+          this.color?.toUpperCase() === category.color?.toUpperCase()
+          ? null
+          : category.color?.toUpperCase();
+      })
+      .filter(Boolean);
+  }
+
   get canSave() {
     return !this.saving;
   }
@@ -79,6 +114,11 @@ export default class WorkspaceSettingsModal extends Component {
   @action
   togglePublicRead() {
     this.publicRead = !this.publicRead;
+  }
+
+  @action
+  updateColor(color) {
+    this.color = color;
   }
 
   @action
@@ -131,6 +171,7 @@ export default class WorkspaceSettingsModal extends Component {
         type: "PUT",
         data: {
           description: this.description.trim(),
+          color: this.color,
           public_read: this.publicRead,
           members_can_create_channels: this.membersCanCreateChannels,
           members_can_create_private_channels:
@@ -170,6 +211,20 @@ export default class WorkspaceSettingsModal extends Component {
             class="workspace-groups-create-channel-modal__textarea"
           />
         </label>
+
+        <div class="workspace-groups-create-channel-modal__field category-color-editor">
+          <span class="workspace-groups-create-channel-modal__label">
+            {{i18n "category.background_color"}}
+          </span>
+          <DColorPicker
+            @value={{this.color}}
+            @colors={{this.backgroundColors}}
+            @usedColors={{this.usedBackgroundColors}}
+            @onSelectColor={{this.updateColor}}
+            @ariaLabel={{i18n "category.background_color"}}
+            class="workspace-groups-create-channel-modal__color-picker"
+          />
+        </div>
 
         <div class="workspace-groups-create-channel-modal__field">
           <DToggleSwitch
