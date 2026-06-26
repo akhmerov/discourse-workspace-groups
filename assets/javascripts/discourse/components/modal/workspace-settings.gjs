@@ -5,12 +5,12 @@ import { fn } from "@ember/helper";
 import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
+import FKControlColor from "discourse/form-kit/components/fk/control/color";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import { uniqueItemsFromArray } from "discourse/lib/array-tools";
 import { has, not } from "discourse/truth-helpers";
 import DButton from "discourse/ui-kit/d-button";
-import DColorPicker from "discourse/ui-kit/d-color-picker";
 import DModal from "discourse/ui-kit/d-modal";
 import DToggleSwitch from "discourse/ui-kit/d-toggle-switch";
 import { i18n } from "discourse-i18n";
@@ -111,14 +111,21 @@ export default class WorkspaceSettingsModal extends Component {
     return !this.saving;
   }
 
+  get colorField() {
+    return {
+      value: this.color,
+      hasExplicitType: true,
+      set: (value) => this.updateColorValue(value),
+    };
+  }
+
   @action
   togglePublicRead() {
     this.publicRead = !this.publicRead;
   }
 
-  @action
-  updateColor(color) {
-    this.color = color;
+  updateColorValue(color) {
+    this.color = color?.toUpperCase().replace(/^#/, "");
   }
 
   @action
@@ -216,13 +223,11 @@ export default class WorkspaceSettingsModal extends Component {
           <span class="workspace-groups-create-channel-modal__label">
             {{i18n "category.background_color"}}
           </span>
-          <DColorPicker
-            @value={{this.color}}
+          <FKControlColor
+            @field={{this.colorField}}
             @colors={{this.backgroundColors}}
             @usedColors={{this.usedBackgroundColors}}
-            @onSelectColor={{this.updateColor}}
-            @ariaLabel={{i18n "category.background_color"}}
-            class="workspace-groups-create-channel-modal__color-picker"
+            placeholder="RRGGBB"
           />
         </div>
 

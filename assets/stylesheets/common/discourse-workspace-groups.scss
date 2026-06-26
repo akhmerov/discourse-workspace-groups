@@ -743,8 +743,15 @@ body.workspace-team-sidebar-scroll-lock {
   width: 100%;
 }
 
-.workspace-groups-create-channel-modal__color-picker {
-  justify-content: flex-start;
+.workspace-groups-create-channel-modal__field.category-color-editor {
+  .form-kit__control-color-input {
+    align-items: center;
+  }
+
+  .form-kit__control-color-input-hex,
+  .form-kit__control-color-input-picker[type="color"] {
+    margin-right: 0;
+  }
 }
 
 .workspace-groups-create-channel-modal__emoji-row {

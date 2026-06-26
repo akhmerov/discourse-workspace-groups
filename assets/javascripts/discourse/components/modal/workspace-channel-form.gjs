@@ -5,11 +5,11 @@ import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
 import EmojiPicker from "discourse/components/emoji-picker";
+import FKControlColor from "discourse/form-kit/components/fk/control/color";
 import { uniqueItemsFromArray } from "discourse/lib/array-tools";
 import ComboBox from "discourse/select-kit/components/combo-box";
 import { not } from "discourse/truth-helpers";
 import DButton from "discourse/ui-kit/d-button";
-import DColorPicker from "discourse/ui-kit/d-color-picker";
 import DToggleSwitch from "discourse/ui-kit/d-toggle-switch";
 import { i18n } from "discourse-i18n";
 
@@ -55,7 +55,7 @@ export default class WorkspaceChannelForm extends Component {
     const categories = this.site.get("categoriesList") || [];
     return categories
       .map((category) => {
-        return this.args.categoryId &&
+        return Number(category.id) === Number(this.args.categoryId) &&
           this.args.color?.toUpperCase() === category.color?.toUpperCase()
           ? null
           : category.color?.toUpperCase();
@@ -65,6 +65,14 @@ export default class WorkspaceChannelForm extends Component {
 
   get emojiPickerLabel() {
     return this.args.emoji ? null : i18n("category.select_emoji");
+  }
+
+  get colorField() {
+    return {
+      value: this.args.color,
+      hasExplicitType: true,
+      set: (value) => this.updateColorValue(value),
+    };
   }
 
   @action
@@ -97,9 +105,8 @@ export default class WorkspaceChannelForm extends Component {
     this.args.onChannelWideMentionsToggle?.();
   }
 
-  @action
-  updateColor(color) {
-    this.args.onColorChange?.(color);
+  updateColorValue(color) {
+    this.args.onColorChange?.(color?.toUpperCase().replace(/^#/, ""));
   }
 
   @action
@@ -171,13 +178,11 @@ export default class WorkspaceChannelForm extends Component {
         <span class="workspace-groups-create-channel-modal__label">
           {{i18n "category.background_color"}}
         </span>
-        <DColorPicker
-          @value={{@color}}
+        <FKControlColor
+          @field={{this.colorField}}
           @colors={{this.backgroundColors}}
           @usedColors={{this.usedBackgroundColors}}
-          @onSelectColor={{this.updateColor}}
-          @ariaLabel={{i18n "category.background_color"}}
-          class="workspace-groups-create-channel-modal__color-picker"
+          placeholder="RRGGBB"
         />
       </div>
 
