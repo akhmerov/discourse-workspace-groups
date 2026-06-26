@@ -241,6 +241,7 @@ module(
         text: "Chat First",
         prefixType: "icon",
         prefixValue: "folder",
+        prefixColor: "2563EB",
       };
 
       await render(
@@ -261,6 +262,9 @@ module(
       assert
         .dom(".workspace-team-sidebar__main-link-prefix .d-icon-d-chat")
         .exists();
+      assert
+        .dom(".workspace-team-sidebar__main-link-prefix .sidebar-section-link-prefix")
+        .hasStyle({ color: "rgb(37, 99, 235)" });
       assert
         .dom(".workspace-team-sidebar__main-link")
         .hasClass("workspace-team-sidebar__main-link--compact");

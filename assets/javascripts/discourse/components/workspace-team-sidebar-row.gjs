@@ -59,7 +59,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get mainPrefixColor() {
-    return this.useChatMainPrefix ? null : this.prefixColor;
+    return this.prefixColor;
   }
 
   get mainPrefixBadge() {
