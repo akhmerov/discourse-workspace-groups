@@ -40,6 +40,7 @@ module(
             @channel={{this.channel}}
             @onJoin={{this.noop}}
             @onLeave={{this.noop}}
+            @onOpenMembers={{this.noop}}
             @onOpenSettings={{this.noop}}
           />
         </template>
@@ -47,10 +48,10 @@ module(
 
       assert
         .dom(".workspace-groups-overview__membership-link")
-        .hasAttribute("href", "/g/lab-notes");
+        .hasText("4 members");
       assert.dom(".workspace-groups-overview__card-actions").exists();
       assert.dom(".workspace-groups-overview__card-actions .btn").exists({
-        count: 2,
+        count: 3,
       });
       assert
         .dom(".workspace-groups-overview__channel-link")
@@ -71,8 +72,11 @@ module(
         .dom(".workspace-groups-overview__card-actions .d-icon-wrench")
         .exists();
       assert
-        .dom(".workspace-groups-overview__card-actions .btn:last-child")
+        .dom('.workspace-groups-overview__card-actions .btn[title="Channel settings"]')
         .hasAttribute("title", "Channel settings");
+      assert
+        .dom('.workspace-groups-overview__card-actions .btn[title="Channel members"]')
+        .hasAttribute("title", "Channel members");
     });
 
     test("renders the visibility icon before the channel name and moves the label into a tooltip", async function (assert) {
@@ -215,9 +219,7 @@ module(
         topics_url: "/c/quantum-tinkerer/chat-first/29",
         mode: "chat_only",
         chat_channel_id: 77,
-        chat_channel: {
-          slug: "quantumtinkerer-chat-first-77",
-        },
+        chat_channel_slug: "quantumtinkerer-chat-first-77",
         can_open_topics: false,
         can_view_members: true,
         joined: true,

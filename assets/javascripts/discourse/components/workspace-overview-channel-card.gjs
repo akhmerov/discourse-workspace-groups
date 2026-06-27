@@ -22,7 +22,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
       return null;
     }
 
-    return `/chat/c/${this.channel.chat_channel?.slug || "-"}/${this.channel.chat_channel_id}`;
+    return `/chat/c/${this.channel.chat_channel_slug || this.channel.chat_channel?.slug || "-"}/${this.channel.chat_channel_id}`;
   }
 
   get titleHref() {

@@ -106,6 +106,20 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(payload["members_url"]).to eq("/g/#{public_channel.workspace_group.name}")
     end
 
+    it "returns lightweight chat metadata without embedding full chat channel payloads" do
+      public_channel.workspace_group.add(workspace_member)
+      chat_channel = category_chat_channel(public_channel)
+
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+
+      expect(response).to have_http_status(:ok)
+      payload = response.parsed_body["channels"].find { |channel| channel["id"] == public_channel.id }
+      expect(payload["chat_channel_id"]).to eq(chat_channel.id)
+      expect(payload["chat_channel_slug"]).to eq(chat_channel.slug)
+      expect(payload["chat_channel"]).to be_nil
+    end
+
     it "routes owners to the native group members page" do
       private_channel
 

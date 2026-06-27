@@ -26,8 +26,7 @@ module ::DiscourseWorkspaceGroups
       guardian.ensure_can_see!(@workspace)
       raise Discourse::NotFound if !@workspace.workspace_root?
 
-      active_channels = workspace_channels(archived: false)
-      archived_channels = workspace_channels(archived: true)
+      active_channels, archived_channels = workspace_channels_by_archive_state
       context = build_channels_context(active_channels + archived_channels)
       visible_active_channels = visible_channels(active_channels, **context)
       visible_archived_channels = visible_channels(archived_channels, **context)
@@ -35,7 +34,10 @@ module ::DiscourseWorkspaceGroups
       render json: {
                workspace: serialize_workspace(**context, all_active_channels: active_channels),
                archived_channel_count: visible_archived_channels.length,
-               channels: visible_active_channels.map { |category| serialize_channel(category, **context) },
+               channels:
+                 visible_active_channels.map do |category|
+                   serialize_channel(category, **context, include_chat_channel: false)
+                 end,
              }
     end
 
@@ -49,7 +51,7 @@ module ::DiscourseWorkspaceGroups
       render json: {
                channels:
                  visible_channels(archived_channels, **context).map do |category|
-                   serialize_channel(category, **context)
+                   serialize_channel(category, **context, include_chat_channel: false)
                  end,
              }
     end
@@ -464,13 +466,44 @@ module ::DiscourseWorkspaceGroups
         else
           Set.new
         end
+      owner_group_ids =
+        if group_ids.present?
+          GroupUser
+            .where(user_id: current_user.id, group_id: group_ids, owner: true)
+            .pluck(:group_id)
+            .to_set
+        else
+          Set.new
+        end
+      group_ids_with_other_owners =
+        if group_ids.present?
+          GroupUser
+            .where(group_id: group_ids, owner: true)
+            .where.not(user_id: current_user.id)
+            .distinct
+            .pluck(:group_id)
+            .to_set
+        else
+          Set.new
+        end
 
       {
         groups_by_id: groups_by_id,
         joined_group_ids: joined_group_ids,
+        owner_group_ids: owner_group_ids,
+        group_ids_with_other_owners: group_ids_with_other_owners,
+        group_member_counts: group_member_counts(group_ids),
+        workspace_can_manage: guardian.can_manage_workspace?(@workspace),
         workspace_member: workspace_member,
+        chat_channels_by_category_id: chat_channels_by_category_id(channels),
         last_activity_at_by_category_id: last_activity_at_by_category_id(channels),
       }
+    end
+
+    def group_member_counts(group_ids)
+      return {} if group_ids.blank?
+
+      GroupUser.where(group_id: group_ids).group(:group_id).count
     end
 
     def last_activity_at_by_category_id(channels)
@@ -511,11 +544,24 @@ module ::DiscourseWorkspaceGroups
         .to_h
     end
 
+    def chat_channels_by_category_id(channels)
+      return {} if !defined?(::Chat::Channel)
+
+      category_ids = channels.select(&:workspace_chat_enabled?).map(&:id)
+      return {} if category_ids.blank?
+
+      ::Chat::Channel.where(chatable_type: "Category", chatable_id: category_ids).index_by(&:chatable_id)
+    end
+
     def visible_channels(channels, **context)
       channels.select { |category| visible_channel?(category, **context) }
     end
 
     def workspace_channels(archived:)
+      workspace_channels_by_archive_state[archived ? 1 : 0]
+    end
+
+    def workspace_channels_by_archive_state
       categories =
         Category.where(parent_category_id: @workspace.id)
           .includes(topic: :first_post)
@@ -523,9 +569,20 @@ module ::DiscourseWorkspaceGroups
           .to_a
       Category.preload_custom_fields(categories, Site.preloaded_category_custom_fields)
 
-      categories
-        .select(&:workspace_channel?)
-        .select { |category| category.workspace_archived? == archived }
+      categories.select!(&:workspace_channel?)
+
+      active_channels = []
+      archived_channels = []
+
+      categories.each do |category|
+        if category.workspace_archived?
+          archived_channels << category
+        else
+          active_channels << category
+        end
+      end
+
+      [active_channels, archived_channels]
     end
 
     def joinable_channel_search_candidates(term)
@@ -658,19 +715,43 @@ module ::DiscourseWorkspaceGroups
              }
     end
 
-    def serialize_channel(category, groups_by_id:, joined_group_ids:, workspace_member:, last_activity_at_by_category_id:)
+    def serialize_channel(
+      category,
+      groups_by_id:,
+      joined_group_ids:,
+      owner_group_ids:,
+      group_ids_with_other_owners:,
+      group_member_counts:,
+      workspace_can_manage:,
+      workspace_member:,
+      chat_channels_by_category_id:,
+      last_activity_at_by_category_id:,
+      include_chat_channel: true
+    )
       group = groups_by_id[category.workspace_group_id]
       joined = group.present? && joined_group_ids.include?(group.id)
       visible = visible_channel?(category, joined_group_ids: joined_group_ids, workspace_member: workspace_member)
       can_join = visible && !joined && category.workspace_visibility != VISIBILITY_PRIVATE && workspace_member
-      can_leave = joined && DiscourseWorkspaceGroups.can_leave_channel_group?(group, current_user)
-      can_manage = DiscourseWorkspaceGroups.can_manage_workspace_channel?(category, current_user)
-      can_add_members = DiscourseWorkspaceGroups.can_add_workspace_channel_members?(category, current_user)
+      current_user_last_owner =
+        group.present? && owner_group_ids.include?(group.id) && !group_ids_with_other_owners.include?(group.id)
+      can_leave = joined && !current_user_last_owner
+      can_manage =
+        guardian.is_admin? ||
+          (category.workspace_visibility == VISIBILITY_PUBLIC && workspace_can_manage) ||
+          (group.present? && owner_group_ids.include?(group.id))
+      can_add_members =
+        can_manage ||
+          (
+            category.workspace_visibility != VISIBILITY_PRIVATE && workspace_member && joined
+          )
       can_open_topics = joined || guardian.is_admin?
       archived = category.workspace_archived?
 
       can_view_members =
-        DiscourseWorkspaceGroups.can_view_workspace_channel_members?(category, current_user)
+        guardian.is_admin? ||
+          joined ||
+          (category.workspace_visibility != VISIBILITY_PRIVATE && workspace_member)
+      chat_channel = chat_channels_by_category_id[category.id]
 
       {
         id: category.id,
@@ -686,7 +767,7 @@ module ::DiscourseWorkspaceGroups
         visibility: category.workspace_visibility,
         mode: category.workspace_channel_mode,
         events_enabled: category.workspace_events_enabled?,
-        allow_channel_wide_mentions: category.category_channel&.allow_channel_wide_mentions,
+        allow_channel_wide_mentions: chat_channel&.allow_channel_wide_mentions,
         archived: archived,
         visible: visible,
         joined: joined,
@@ -698,20 +779,18 @@ module ::DiscourseWorkspaceGroups
         can_manage_members: can_manage,
         can_open_topics: can_open_topics,
         can_view_members: can_view_members,
-        member_count: can_view_members && group.present? ? group.group_users.count : nil,
+        member_count: can_view_members && group.present? ? group_member_counts[group.id].to_i : nil,
         members_url: can_view_members ? group_members_url(group) : nil,
         last_activity_at: last_activity_at_by_category_id[category.id],
         topics_url: category.url,
-        chat_channel_id: category.workspace_chat_enabled? ? category.category_channel&.id : nil,
-        chat_channel: serialize_chat_channel(category),
+        chat_channel_id: chat_channel&.id,
+        chat_channel_slug: chat_channel&.slug,
+        chat_channel: serialize_chat_channel(chat_channel, include_chat_channel: include_chat_channel),
       }
     end
 
-    def serialize_chat_channel(category)
-      return if !category.workspace_chat_enabled?
-
-      chat_channel = category.category_channel
-      return if chat_channel.blank?
+    def serialize_chat_channel(chat_channel, include_chat_channel:)
+      return if !include_chat_channel || chat_channel.blank?
 
       membership = chat_channel.membership_for(current_user)
       return if membership.blank?

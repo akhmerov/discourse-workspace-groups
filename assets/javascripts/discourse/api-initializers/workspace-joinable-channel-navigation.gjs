@@ -68,7 +68,7 @@ export function targetAfterJoin(candidate, channel) {
   }
 
   if (channel?.mode === "chat_only" && channel.chat_channel_id) {
-    return `/chat/c/${channel.chat_channel?.slug || "-"}/${channel.chat_channel_id}`;
+    return `/chat/c/${channel.chat_channel_slug || channel.chat_channel?.slug || "-"}/${channel.chat_channel_id}`;
   }
 
   return candidate.target;
@@ -202,8 +202,8 @@ export default apiInitializer((api) => {
     }
 
     try {
-      const result = await joinChannel(channel);
-      navigateTo(targetAfterJoin(candidate, result?.channel || channel));
+      const joinResult = await joinChannel(channel);
+      navigateTo(targetAfterJoin(candidate, joinResult?.channel || channel));
     } catch (error) {
       popupAjaxError(error);
     } finally {
@@ -231,10 +231,10 @@ export default apiInitializer((api) => {
       if (shouldResolveBeforeNativeRoute(pendingCandidate)) {
         event.preventDefault();
         event.stopImmediatePropagation();
-        const candidate = pendingCandidate;
+        const candidateToResolve = pendingCandidate;
         pendingCandidate = null;
         setTimeout(() =>
-          resolveCandidate(candidate, { fallbackToTarget: true })
+          resolveCandidate(candidateToResolve, { fallbackToTarget: true })
         );
       }
     },
