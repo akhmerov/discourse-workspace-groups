@@ -2,11 +2,13 @@ import { module, test } from "qunit";
 import sinon from "sinon";
 import pretender from "discourse/tests/helpers/create-pretender";
 import { setupTest } from "discourse/tests/helpers/index";
+import { setupWorkspaceChatServices } from "../../helpers/setup-workspace-chat-services";
 
 module(
   "Discourse Workspace Groups | Controller | workspace-overview",
   function (hooks) {
     setupTest(hooks);
+    setupWorkspaceChatServices(hooks);
 
     hooks.afterEach(function () {
       sinon.restore();

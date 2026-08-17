@@ -6,11 +6,13 @@ import Category from "discourse/models/category";
 import { setupRenderingTest } from "discourse/tests/helpers/component-test";
 import pretender from "discourse/tests/helpers/create-pretender";
 import CreateWorkspaceChannelModal from "discourse/plugins/discourse-workspace-groups/discourse/components/modal/create-workspace-channel";
+import { setupWorkspaceChatServices } from "../helpers/setup-workspace-chat-services";
 
 module(
   "Discourse Workspace Groups | Component | create-workspace-channel",
   function (hooks) {
     setupRenderingTest(hooks);
+    setupWorkspaceChatServices(hooks);
 
     hooks.beforeEach(function () {
       this.closeModal = sinon.spy();
@@ -81,7 +83,10 @@ module(
     });
 
     test("does not render private member inputs", async function (assert) {
-      this.model = { category: { id: 28 } };
+      this.model = {
+        category: { id: 28 },
+        workspace: { can_create_private_channel: true },
+      };
 
       await render(
         <template>
@@ -93,7 +98,7 @@ module(
         </template>
       );
 
-      await click(".d-toggle-switch");
+      await click(".d-toggle-switch__checkbox");
 
       assert
         .dom(".workspace-groups-create-channel-modal")

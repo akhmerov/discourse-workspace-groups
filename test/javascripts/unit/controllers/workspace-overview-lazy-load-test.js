@@ -1,11 +1,13 @@
 import { module, test } from "qunit";
 import pretender from "discourse/tests/helpers/create-pretender";
 import { setupTest } from "discourse/tests/helpers/index";
+import { setupWorkspaceChatServices } from "../../helpers/setup-workspace-chat-services";
 
 module(
   "Discourse Workspace Groups | Controller | workspace-overview lazy load",
   function (hooks) {
     setupTest(hooks);
+    setupWorkspaceChatServices(hooks);
 
     test("loads archived channels only once when the section is opened", async function (assert) {
       const controller = this.owner.lookup("controller:discovery.workspaceOverview");
