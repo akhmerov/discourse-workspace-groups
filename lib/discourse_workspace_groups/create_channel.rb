@@ -56,6 +56,7 @@ module ::DiscourseWorkspaceGroups
       channel_group.custom_fields["workspace_parent_group_id"] = workspace_group.id
       channel_group.save!
 
+      configure_category_notification_default(channel_group, channel)
       DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: channel, user: user).call
 
       channel
@@ -134,6 +135,16 @@ module ::DiscourseWorkspaceGroups
 
     def channel_permissions(channel_group)
       DiscourseWorkspaceGroups.channel_permissions(channel_group, channel_mode)
+    end
+
+    def configure_category_notification_default(channel_group, channel)
+      notification_level = NotificationLevels.all[:watching_first_post]
+      GroupCategoryNotificationDefault.create!(
+        group: channel_group,
+        category: channel,
+        notification_level: notification_level,
+      )
+      CategoryUser.set_notification_level_for_category(user, notification_level, channel.id)
     end
 
     def collision_error

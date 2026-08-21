@@ -52,6 +52,34 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     ).to eq(CategoryGroup.permission_types[:readonly])
   end
 
+  it "defaults category notifications to watching first post for channel members" do
+    workspace.workspace_group.add(other_user)
+    channel =
+      described_class.new(
+        workspace: workspace,
+        user: admin,
+        name: "Notification Defaults #{SecureRandom.hex(3)}",
+        description: nil,
+        visibility: "public",
+      ).call
+
+    expect(
+      GroupCategoryNotificationDefault.find_by!(
+        group: channel.workspace_group,
+        category: channel,
+      ).notification_level,
+    ).to eq(NotificationLevels.all[:watching_first_post])
+    expect(CategoryUser.find_by!(user: admin, category: channel).notification_level).to eq(
+      NotificationLevels.all[:watching_first_post],
+    )
+
+    DiscourseWorkspaceGroups::JoinChannel.new(channel: channel, user: other_user).call
+
+    expect(CategoryUser.find_by!(user: other_user, category: channel).notification_level).to eq(
+      NotificationLevels.all[:watching_first_post],
+    )
+  end
+
   it "creates globally unique paired chat slugs for duplicate channel names across workspaces" do
     SiteSetting.chat_enabled = true
     SiteSetting.enable_public_channels = true
