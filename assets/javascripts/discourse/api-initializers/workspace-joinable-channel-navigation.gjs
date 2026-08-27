@@ -126,11 +126,13 @@ async function restorePreviousRoute(candidate, router) {
   await nextFrame();
 }
 
-function shouldResolveBeforeNativeRoute(candidate) {
+export function shouldResolveBeforeNativeRoute(
+  candidate,
+  path = currentPath()
+) {
   return (
-    candidate &&
-    currentPath().startsWith("/chat/") &&
-    hashtagCandidate(candidate)
+    hashtagCandidate(candidate) &&
+    (chatCandidate(candidate) || path.startsWith("/chat/"))
   );
 }
 

@@ -2,6 +2,7 @@ import { module, test } from "qunit";
 import {
   hashtagCandidate,
   internalWorkspaceCandidatePath,
+  shouldResolveBeforeNativeRoute,
   targetAfterJoin,
 } from "discourse/plugins/discourse-workspace-groups/discourse/api-initializers/workspace-joinable-channel-navigation";
 
@@ -44,6 +45,29 @@ module(
       assert.false(hashtagCandidate({ hashtagType: "user" }));
       assert.false(hashtagCandidate({}));
       assert.false(hashtagCandidate(null));
+    });
+
+    test("resolves semantic chat links before native routing from any page", function (assert) {
+      const chatHashtag = {
+        target: "/chat/c/team-channel-42/7",
+        hashtagType: "channel",
+      };
+      const categoryHashtag = {
+        target: "/c/team/channel/42",
+        hashtagType: "category",
+      };
+
+      assert.true(shouldResolveBeforeNativeRoute(chatHashtag, "/latest"));
+      assert.true(
+        shouldResolveBeforeNativeRoute(categoryHashtag, "/chat/c/direct/8")
+      );
+      assert.false(shouldResolveBeforeNativeRoute(categoryHashtag, "/latest"));
+      assert.false(
+        shouldResolveBeforeNativeRoute(
+          { target: "/chat/c/team-channel-42/7" },
+          "/chat/c/direct/8"
+        )
+      );
     });
 
     test("ignores external, non-forum, and new-window links", function (assert) {
