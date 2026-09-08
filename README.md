@@ -42,6 +42,7 @@ Workspace channels support:
 - manager-controlled membership for private channels
 - channel settings for name, description, visibility, archive state, and mode
 - archive and unarchive behavior
+- team owners become owners of every channel they already belong to, including private and archived channels; this also applies when an existing member becomes a team owner
 
 Each channel can operate in one of three modes:
 

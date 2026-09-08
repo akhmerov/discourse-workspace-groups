@@ -175,6 +175,13 @@ module ::DiscourseWorkspaceGroups
     return if user.blank? || !workspace_root_group?(group)
 
     TrustLevelGranter.grant(TEAM_OWNER_TRUST_LEVEL, user)
+
+    workspace = workspace_root_category_for_group(group)
+    return if workspace.blank?
+
+    GroupUser
+      .where(user_id: user.id, group_id: workspace_channel_group_ids(workspace), owner: false)
+      .find_each { |membership| membership.update!(owner: true) }
   end
 
   def self.recalculate_workspace_owner_trust_level!(group, user)
@@ -765,6 +772,25 @@ after_initialize do
 
   GroupManager.prepend(::DiscourseWorkspaceGroups::GroupManagerWorkspaceMemberRemoval)
 
+  # Core's owner endpoint uses update_all, bypassing GroupUser callbacks.
+  module ::DiscourseWorkspaceGroups::SyncOwnersAfterGroupPromotion
+    def add_owners
+      super
+      return if !SiteSetting.discourse_workspace_groups_enabled || !response.successful?
+
+      group = Group.find_by(id: params[:id])
+      return if !DiscourseWorkspaceGroups.workspace_root_group?(group)
+
+      users_from_params.each do |user|
+        next if !DiscourseWorkspaceGroups.group_owner?(group, user)
+
+        DiscourseWorkspaceGroups.promote_workspace_owner!(group, user)
+      end
+    end
+  end
+
+  GroupsController.prepend(::DiscourseWorkspaceGroups::SyncOwnersAfterGroupPromotion)
+
   Discourse::Application.routes.prepend do
     get "c/*category_slug_path/:category_id/overview" =>
           "discourse_workspace_groups/workspaces#overview_page",
@@ -1028,13 +1054,13 @@ after_initialize do
     DiscourseWorkspaceGroups.sync_workspace_auto_join_memberships!(workspace, users: [user])
   end
 
-  add_model_callback(GroupUser, :after_commit, on: :update) do
+  add_model_callback(GroupUser, :after_commit, on: %i[create update]) do
     next if !SiteSetting.discourse_workspace_groups_enabled
     next if !previous_changes.key?("owner")
 
     if owner?
       DiscourseWorkspaceGroups.promote_workspace_owner!(group, user)
-    else
+    elsif previous_changes["owner"].first == true
       DiscourseWorkspaceGroups.recalculate_workspace_owner_trust_level!(group, user)
     end
   end
