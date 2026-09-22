@@ -85,6 +85,21 @@ RSpec.describe DiscourseWorkspaceGroups::VoiceController do
     expect(DiscourseWorkspaceGroups::VoiceBinding.where(source_id: channel.id).count).to eq(1)
   end
 
+  it "resolves a stable room link after core expires an empty native room" do
+    original = room
+    slug = original.slug
+    original.destroy!
+    sign_in(outsider)
+    get "/voice/rooms/#{slug}.json"
+    expect(response.status).to eq(404)
+    expect(binding.reload.room_id).to be_nil
+    sign_in(member)
+    get "/voice/rooms/#{slug}.json"
+    expect(response.status).to eq(200)
+    expect(response.parsed_body.dig("room", "id")).not_to eq(original.id)
+    expect(response.parsed_body.dig("room", "slug")).to eq(slug)
+  end
+
   it "requires channel management to enable a room" do
     binding.update!(enabled: false)
     sign_in(member)

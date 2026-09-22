@@ -111,6 +111,17 @@ module DiscourseWorkspaceGroups
 
       private
 
+      def load_room
+        # Core expires empty ephemeral rooms. A channel's shared URL still
+        # resolves to its place; guests must be admitted again for a new call.
+        match = /\Aworkspace-(category|dm)-(\d+)\z/.match(params[:id].to_s)
+        if match
+          binding = VoiceBinding.find_by(source_type: match[1], source_id: match[2])
+          binding.prepare!(current_user) if binding&.can_join?(current_user) && !binding.native_room
+        end
+        super
+      end
+
       def check_workspace_voice_binding
         binding = VoiceIntegration.binding(@room)
         return unless binding
