@@ -13,6 +13,7 @@ export default class WorkspaceVoiceService extends Service {
   @tracked channels = [];
   pendingRingRoomId = null;
   refreshTimer = null;
+  roomRevision = 0;
 
   constructor() {
     super(...arguments);
@@ -47,8 +48,24 @@ export default class WorkspaceVoiceService extends Service {
       this.channels = [];
       return;
     }
+    const revision = this.roomRevision;
     const result = await ajax("/workspace-groups/voice/rooms.json");
     await this.voiceRooms.ready;
+    if (revision !== this.roomRevision) {
+      return;
+    }
+    // Forget expired or revoked channel rooms so a shared slug is resolved
+    // again. A slow directory response must not discard a newer preparation.
+    for (const room of this.voiceRooms.rooms) {
+      const binding = room.workspace_voice;
+      if (binding?.source_type === "category" && !binding.is_guest &&
+          !result.channels.some((channel) => channel.room?.id === room.id)) {
+        if (this.voiceWebrtc.activeRoomId === room.id) {
+          this.voiceWebrtc.leave(room, { skipServer: true });
+        }
+        this.voiceRooms.handleDirectoryEvent({ type: "destroyed", room });
+      }
+    }
     result.channels.forEach((channel) => {
       if (channel.room) {
         this.voiceRooms.upsertRoom(channel.room);
@@ -58,12 +75,19 @@ export default class WorkspaceVoiceService extends Service {
   }
 
   async prepare(sourceType, sourceId) {
+    this.roomRevision++;
     const result = await ajax("/workspace-groups/voice/prepare", {
       type: "POST",
       data: { source_type: sourceType, source_id: sourceId },
     });
+    this.roomRevision++;
     await this.voiceRooms.ready;
     this.voiceRooms.upsertRoom(result.room);
+    if (sourceType === "category") {
+      this.channels = this.channels.map((channel) =>
+        channel.category_id === Number(sourceId) ? { ...channel, room: result.room } : channel
+      );
+    }
     if (
       sourceType === "dm" &&
       !result.room.active_participants?.length &&
@@ -76,6 +100,7 @@ export default class WorkspaceVoiceService extends Service {
 
   @bind
   async revoked(message) {
+    this.roomRevision++;
     const room = this.voiceRooms.roomById(message.room_id);
     if (room) {
       this.voiceWebrtc.leave(room, { skipServer: true });
