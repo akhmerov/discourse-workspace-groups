@@ -18,9 +18,9 @@ register_svg_icon "clock"
 register_svg_icon "calendar-day"
 register_svg_icon "magnifying-glass"
 register_svg_icon "right-to-bracket"
+register_svg_icon "microphone"
 
 require "digest/sha1"
-require "set"
 
 module ::DiscourseWorkspaceGroups
   PLUGIN_NAME = "discourse-workspace-groups"
@@ -1088,4 +1088,72 @@ after_initialize do
 
     DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: category).call
   end
+
+  require_relative "app/models/discourse_workspace_groups/voice_guest_grant"
+  require_relative "app/models/discourse_workspace_groups/voice_binding"
+  require_relative "lib/discourse_workspace_groups/voice_integration"
+  require_relative "app/controllers/discourse_workspace_groups/voice_controller"
+
+  add_to_class(:category, :workspace_voice_enabled?) do
+    DiscourseWorkspaceGroups::VoiceBinding.exists?(source_type: "category", source_id: id, enabled: true)
+  end
+  add_to_serializer(:basic_category, :workspace_voice_enabled) { object.workspace_voice_enabled? }
+  add_to_serializer(:current_user, :workspace_voice_can_start_dm) do
+    defined?(::Voice) && scope.can_start_voice_call?
+  end
+
+  Discourse::Application.routes.prepend do
+    get "/workspace-voice(/*path)" => "discourse_workspace_groups/voice#page"
+  end
+
+  if defined?(::Voice::GuardianExtension)
+    # Prepend to Voice's module itself: it is installed into Guardian later in
+    # plugin initialization order, and must not supersede these restrictions.
+    ::Voice::GuardianExtension.prepend(DiscourseWorkspaceGroups::VoiceIntegration::GuardianPermissions)
+    ::Voice::Room.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomAudience)
+    ::Voice::RoomBroadcaster.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomBroadcasts)
+    ::Voice::RoomInviter.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ManagedInvites)
+    ::Voice::RoomsController.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ManagedRoomRequests)
+    ::Voice::RoomsController.before_action :check_workspace_voice_binding
+    ::Voice::RoomMembershipsController.include(DiscourseWorkspaceGroups::VoiceIntegration::ManagedMembershipRequests)
+    ::Voice::RoomMembershipsController.before_action :check_workspace_voice_membership
+
+    ::Voice::ParticipantTracker.singleton_class.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ParticipantRemoval)
+    ::Voice::AdminRoomsController.prepend(DiscourseWorkspaceGroups::VoiceIntegration::AdminRoomRequests)
+    ::Voice::AdminRoomsController.before_action :check_workspace_voice_admin_room, only: %i[show update destroy end_call]
+    ::Voice::RoomSerializer.attributes :workspace_voice
+    ::Voice::RoomSerializer.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomDetails)
+
+    ::Voice::Room.after_destroy do
+      DiscourseWorkspaceGroups::VoiceBinding.where(room_id: id).update_all(room_id: nil)
+    end
+    GroupUser.after_commit do
+      DiscourseWorkspaceGroups::VoiceBinding.revoke_group_guest_grants!(user_id, group_id)
+      DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
+    end
+    ::Chat::DirectMessageChannel.prepend(DiscourseWorkspaceGroups::VoiceIntegration::DirectMessageDeparture)
+    ::Chat::DirectMessageUser.after_destroy { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
+    ::Chat::DirectMessageChannel.after_commit { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
+    User.after_commit do
+      if previous_changes.keys.intersect?(%w[suspended_till silenced_till active])
+        DiscourseWorkspaceGroups::VoiceGuestGrant.where(user_id: id).delete_all unless DiscourseWorkspaceGroups::VoiceBinding.account_eligible?(self)
+        DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
+      end
+    end
+    on(:user_removed_from_group) do |user, group|
+      DiscourseWorkspaceGroups::VoiceBinding.revoke_group_guest_grants!(user.id, group.id)
+      DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
+    end
+    on(:category_updated) { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
+    on(:category_destroyed) { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
+    on(:site_setting_changed) do |name, _old_value, _new_value|
+      if name.to_s.in?(%w[voice_enabled chat_enabled chat_allowed_groups direct_message_enabled_groups])
+        DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
+      end
+    end
+    on_enabled_change do |_old_value, new_value|
+      DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! unless new_value
+    end
+  end
+
 end

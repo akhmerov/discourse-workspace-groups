@@ -1,11 +1,9 @@
 # Voice integration with workspace channels and direct messages
 
-Status: technical proposal, 2026-09-22, updated to use one optional Voice
-capability per workspace channel. Town Square supplies the common room through
-the same setting. The [product analysis](voice-product-analysis.md) proposes
-temporary session guests; reconcile that proposal with this draft's invitation
-rules before implementation. No workspace integration has been deployed. Native
-TL2 direct calls are enabled in production and sandbox.
+Status: implementation under local validation, 2026-09-22. The channel, DM,
+navbar, and temporary-guest design is approved. Native TL2 direct calls are
+already enabled in production and sandbox. Workspace integration has not yet
+been promoted to either remote tier.
 
 ## Product model
 
@@ -39,13 +37,15 @@ acceptance criteria, not deferred product functionality.
 | --- | --- | --- | --- |
 | Workspace channel | Current channel-group members with eligible accounts, while Voice is enabled | Any eligible member | Existing channel managers |
 | Private workspace channel | Current private-channel members with eligible accounts, while Voice is enabled | Any eligible member | Existing private-channel managers |
-| One-to-one DM | The two participants, subject to account/chat restrictions | Either participant, subject to communication preferences | Both are peers; no permanent creator privilege |
-| Group DM | Current participants in that DM | Any eligible participant | Follow the DM's existing membership-management rules |
+| One-to-one DM | The two participants, subject to account/chat restrictions | A participant with native direct-call permission, subject to communication preferences | Both are peers; no permanent creator privilege |
+| Group DM | Current participants in that DM | A participant with native direct-call permission | Follow the DM's existing membership-management rules |
 
 Trust level is not workspace membership. TL0/TL1 members can participate when
 their channel and account permissions allow it; TL2 outsiders gain no access.
-The site-wide Voice gate must admit eligible channel/DM users and retain the global
-kill switch. For integrated rooms, channel authorization is authoritative.
+Integrated rooms use conversation membership and the global Voice kill switch.
+The native site-wide group gate remains unchanged for ordinary native rooms and
+profile calls. Starting a DM call requires the native direct-call permission
+(currently TL2/staff); eligible TL1 participants can join an active DM call.
 
 A public workspace channel is joinable under workspace rules, not a site-public
 Voice room. Join the channel first, then join the call. Publicly readable category
@@ -67,30 +67,40 @@ do-not-disturb preferences. Existing DM membership must not bypass those
 preferences when sending a ring. Joining is always explicit; opening a channel
 never turns on a microphone.
 
-Inviting means notifying an already eligible participant. Bringing an outsider
-into a call requires the normal channel/DM membership operation, including its
-existing access and history implications. If adding someone to a one-to-one DM
+Channel managers who are participating can admit an existing VSF user as a
+temporary guest. This creates no channel, workspace, chat, or native Voice
+membership. Guests cannot invite others. The channel's **Allow temporary call
+guests** setting defaults on and lets managers disable admission and immediately
+remove current guests. DM calls never admit outsiders through this route.
+Invitations honor the native communication preferences and DND behavior. If adding someone to a one-to-one DM
 creates a new group conversation, the group gets a separate call; the private
 call is not silently widened. Removed participants lose future call access even
 if DM history remains readable under chat's rules.
 
-Current channel managers can end a channel call and use native moderation tools.
+Current channel managers who belong to the channel can end a call and use
+native participant moderation. Kicking a guest also revokes their grant.
+Guest grants and pending invitations expire when the session ends or the last
+regular participant leaves. Reinstatement after suspension does not restore a
+guest grant. Room identity may persist, but guest access never survives sessions.
 Ordinary participants can mute/deafen/leave, but starting the call does not grant
 permanent management or permission to edit its audience. Do not use the native
 room creator field as the source of management rights. For DMs, prefer peer
 behavior and existing communication controls over inventing workspace ownership.
 
-Reuse the existing chat conversation for call messages. Do not require a new
-thread or silently enable threading merely to allow a DM call. Native Voice's
-optional thread-based chat panel is distinct from the conversation's existing
-chat UI.
+Call messages are a separate ephemeral surface. Joined participants can exchange
+plain text and links; guests can read only messages sent after their admission.
+They receive no conversation/history link. Messages are limited to 2,000
+characters and the latest 100 entries, with a one-day Redis backstop TTL, and
+are deleted on session end. Nothing is copied automatically to channel or DM
+history. Regular members can explicitly open the original conversation.
+Native thread-based chat is not linked or silently enabled.
 
 ## Membership and lifecycle
 
 Check current eligibility on protected requests: directory/room reads, joins,
 heartbeats, signaling, media tokens, management actions, invites, and chat.
-Copied native Voice membership rows may support native listing/broadcasts but
-must never become an independent authority. Prevent native room APIs from
+Managed native rooms have only a system creator membership. Every ordinary
+user is authorized from the live conversation or an unexpired guest grant. Prevent native room APIs from
 changing inherited visibility, membership, or chat linkage.
 
 On removal, suspension, loss of participation rights, disabling channel Voice,
@@ -112,9 +122,8 @@ independent DMs remain governed by their own membership and account policy.
 
 Keep the current eight-person cap and peer-to-peer transport. Recording and
 transcription are separate, explicit features; linking a conversation does not
-enable either or imply consent. Native direct calls are currently enabled for
-TL2 users and staff. Integrating DM calls requires a deliberate access policy
-consistent with the DM audience; the native rollout does not decide that policy.
+enable either or imply consent. Native profile calls remain enabled for TL2 users and staff. The same start
+gate applies to bound DM calls, including native join URLs for empty calls.
 
 ## Privacy and implementation
 
@@ -200,3 +209,26 @@ Production promotion is a separate authorized operation.
 Rollback must disable and end managed calls before unloading the integration.
 Do not leave stale native memberships or creator privileges usable after plugin
 removal. Preserve association data for a controlled recovery.
+
+## Local validation record
+
+Validated against core `9cccc5837dc83a7af376dd40d4cb709cd25b0228` in an isolated
+runtime, preserving the older development checkout and its unrelated edits.
+
+- 333 request/service examples passed across the workspace suite and native
+  Voice room, membership, and invitation request suites.
+- The directory and topics-only channel setting rendered in a real browser.
+- A TL2 DM starter rang a TL1 DM participant, who answered using the native
+  incoming-call dialog. Both browsers received audio packets. The TL1 user had
+  no start button before a call existed.
+- A manager admitted a guest through the picker. The guest exchanged call text
+  and received audio and camera video, could not read text from before admission
+  or open channel history, and lost native room access when the call ended.
+- Frontend lint passed. Ruby checks on the new code passed; the existing
+  `UpdateChannel` non-local iterator return remains a pre-existing lint warning.
+
+These media checks use separate local browser contexts and synthetic devices.
+They do not establish microphone quality or connectivity across institutional
+networks. A native timezone-preference CSRF error was reproduced on the ordinary
+forum homepage with impersonated test users; matching fixture timezones to the
+browser avoids that unrelated first-login request.

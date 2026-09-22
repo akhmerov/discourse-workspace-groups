@@ -26,6 +26,7 @@ module ::DiscourseWorkspaceGroups
       end
 
       DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: channel, user: user).call
+      DiscourseWorkspaceGroups::VoiceBinding.find_by(source_type: "category", source_id: channel.id)&.reconcile!
       channel
     end
 

@@ -7,6 +7,7 @@ import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import DButton from "discourse/ui-kit/d-button";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
+import { i18n } from "discourse-i18n";
 import WorkspaceChannelMembersModal from "../../components/modal/workspace-channel-members";
 import WorkspaceChannelSettingsModal from "../../components/modal/workspace-channel-settings";
 
@@ -17,10 +18,20 @@ export default class WorkspaceChannelActions extends Component {
 
   @service modal;
   @service site;
+  @service workspaceVoice;
 
   @tracked channel;
+
   @tracked loadKey;
   @tracked workspace;
+
+  get voicePath() {
+    return this.workspaceVoice.channels.some(
+      (item) => item.category_id === this.category?.id
+    )
+      ? `/workspace-voice/channels/${this.category.id}`
+      : null;
+  }
 
   get category() {
     const outletCategory = this.args.outletArgs.category;
@@ -108,7 +119,7 @@ export default class WorkspaceChannelActions extends Component {
       }
       const result = await response.json();
 
-      if (this.isDestroying || this.isDestroyed || this.loadKey !== loadKey) {
+      if (this.isDestroying || this.loadKey !== loadKey) {
         return;
       }
 
@@ -181,10 +192,10 @@ export default class WorkspaceChannelActions extends Component {
     <div class="workspace-groups-actions" {{didInsert this.loadChannel}}>
       {{#if this.chatPath}}
         <a
-          href={{this.chatPath}}
-          class="btn no-text btn-icon btn-default workspace-groups-actions__button workspace-groups-actions__chat"
-          title="Chat channel"
           aria-label="Chat channel"
+          class="btn no-text btn-icon btn-default workspace-groups-actions__button workspace-groups-actions__chat"
+          href={{this.chatPath}}
+          title="Chat channel"
         >
           {{dIcon "d-chat"}}
           <span aria-hidden="true">
@@ -193,33 +204,42 @@ export default class WorkspaceChannelActions extends Component {
         </a>
       {{/if}}
 
+      {{#if this.voicePath}}
+        <a
+          aria-label={{i18n "discourse_workspace_groups.voice.title"}}
+          class="btn no-text btn-icon btn-default workspace-groups-actions__voice"
+          href={{this.voicePath}}
+          title={{i18n "discourse_workspace_groups.voice.title"}}
+        >{{dIcon "microphone"}}</a>
+      {{/if}}
+
       {{#if this.canViewMembers}}
         <DButton
+          class="btn-default workspace-groups-actions__button workspace-groups-actions__members"
           @action={{this.openMembers}}
+          @ariaLabel="discourse_workspace_groups.channel_members"
           @icon="user"
           @title="discourse_workspace_groups.channel_members"
-          @ariaLabel="discourse_workspace_groups.channel_members"
-          class="btn-default workspace-groups-actions__button workspace-groups-actions__members"
         />
       {{/if}}
 
       {{#if this.canSeeSettings}}
         <DButton
+          class="btn-default workspace-groups-actions__button workspace-groups-actions__settings"
           @action={{this.openSettings}}
+          @ariaLabel="discourse_workspace_groups.channel_settings"
           @icon="wrench"
           @title="discourse_workspace_groups.channel_settings"
-          @ariaLabel="discourse_workspace_groups.channel_settings"
-          class="btn-default workspace-groups-actions__button workspace-groups-actions__settings"
         />
       {{/if}}
 
       {{#if this.canEnableWorkspace}}
         <DButton
+          class="btn-default workspace-groups-actions__button"
           @action={{this.enableWorkspace}}
+          @ariaLabel="discourse_workspace_groups.enable_workspace"
           @icon="plus"
           @title="discourse_workspace_groups.enable_workspace"
-          @ariaLabel="discourse_workspace_groups.enable_workspace"
-          class="btn-default workspace-groups-actions__button"
         />
       {{/if}}
     </div>

@@ -258,6 +258,8 @@ module ::DiscourseWorkspaceGroups
           visibility: params[:visibility],
           channel_mode: params[:channel_mode],
           events_enabled: params[:events_enabled],
+          voice_enabled: params[:voice_enabled],
+          voice_allow_guests: params[:voice_allow_guests],
           allow_channel_wide_mentions: params[:allow_channel_wide_mentions],
           color: params.key?(:color) ? params[:color] : DiscourseWorkspaceGroups::UpdateChannel::UNSET,
           style_type:
@@ -767,6 +769,8 @@ module ::DiscourseWorkspaceGroups
         visibility: category.workspace_visibility,
         mode: category.workspace_channel_mode,
         events_enabled: category.workspace_events_enabled?,
+        voice_enabled: category.workspace_voice_enabled?,
+        voice_allow_guests: DiscourseWorkspaceGroups::VoiceBinding.find_by(source_type: "category", source_id: category.id)&.allow_guests != false,
         allow_channel_wide_mentions: chat_channel&.allow_channel_wide_mentions,
         archived: archived,
         visible: visible,

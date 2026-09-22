@@ -47,7 +47,11 @@ export default class WorkspaceChannelForm extends Component {
         .split("|")
         .filter(Boolean)
         .map((color) => color.toUpperCase())
-        .concat(categories.map((category) => category.color?.toUpperCase()).filter(Boolean))
+        .concat(
+          categories
+            .map((category) => category.color?.toUpperCase())
+            .filter(Boolean)
+        )
     );
   }
 
@@ -125,9 +129,9 @@ export default class WorkspaceChannelForm extends Component {
         {{i18n "discourse_workspace_groups.channel_name"}}
       </span>
       <Input
-        @value={{@name}}
-        class="workspace-groups-create-channel-modal__input"
         autofocus={{@autofocus}}
+        class="workspace-groups-create-channel-modal__input"
+        @value={{@name}}
         {{on "input" this.updateName}}
       />
     </label>
@@ -137,8 +141,8 @@ export default class WorkspaceChannelForm extends Component {
         {{i18n "discourse_workspace_groups.channel_description"}}
       </span>
       <Textarea
-        @value={{@description}}
         class="workspace-groups-create-channel-modal__textarea"
+        @value={{@description}}
         {{on "input" this.updateDescription}}
       />
     </label>
@@ -149,10 +153,10 @@ export default class WorkspaceChannelForm extends Component {
           {{i18n "discourse_workspace_groups.channel_mode"}}
         </span>
         <ComboBox
-          @value={{@channelMode}}
           @content={{this.channelModeOptions}}
-          @options={{hash}}
           @onChange={{this.updateChannelMode}}
+          @options={{hash}}
+          @value={{@channelMode}}
         />
         <p class="workspace-groups-create-channel-modal__help">
           {{i18n "discourse_workspace_groups.channel_mode_help"}}
@@ -160,11 +164,34 @@ export default class WorkspaceChannelForm extends Component {
       </div>
     {{/if}}
 
+    {{#if @showVoiceEnabled}}
+      <div class="workspace-groups-create-channel-modal__field">
+        <DToggleSwitch
+          @label="discourse_workspace_groups.voice.enable"
+          @state={{@voiceEnabled}}
+          {{on "click" @onVoiceEnabledToggle}}
+        />
+        <p class="workspace-groups-create-channel-modal__help">{{i18n
+            "discourse_workspace_groups.voice.enable_help"
+          }}</p>
+      </div>
+      {{#if @voiceEnabled}}
+        <DToggleSwitch
+          @label="discourse_workspace_groups.voice.allow_guests"
+          @state={{@voiceAllowGuests}}
+          {{on "click" @onVoiceAllowGuestsToggle}}
+        />
+        <p class="workspace-groups-field-description">{{i18n
+            "discourse_workspace_groups.voice.allow_guests_help"
+          }}</p>
+      {{/if}}
+    {{/if}}
+
     {{#if @showEventsEnabled}}
       <div class="workspace-groups-create-channel-modal__field">
         <DToggleSwitch
-          @state={{@eventsEnabled}}
           @label="discourse_workspace_groups.channel_events"
+          @state={{@eventsEnabled}}
           {{on "click" this.toggleEventsEnabled}}
         />
         <p class="workspace-groups-create-channel-modal__help">
@@ -174,15 +201,17 @@ export default class WorkspaceChannelForm extends Component {
     {{/if}}
 
     {{#if @showCategoryStyle}}
-      <div class="workspace-groups-create-channel-modal__field category-color-editor">
+      <div
+        class="workspace-groups-create-channel-modal__field category-color-editor"
+      >
         <span class="workspace-groups-create-channel-modal__label">
           {{i18n "category.background_color"}}
         </span>
         <FKControlColor
-          @field={{this.colorField}}
-          @colors={{this.backgroundColors}}
-          @usedColors={{this.usedBackgroundColors}}
           placeholder="RRGGBB"
+          @colors={{this.backgroundColors}}
+          @field={{this.colorField}}
+          @usedColors={{this.usedBackgroundColors}}
         />
       </div>
 
@@ -192,19 +221,19 @@ export default class WorkspaceChannelForm extends Component {
         </span>
         <div class="workspace-groups-create-channel-modal__emoji-row">
           <EmojiPicker
-            @emoji={{@emoji}}
-            @didSelectEmoji={{this.updateEmoji}}
             @btnClass="btn-default btn-emoji"
-            @modalForMobile={{false}}
             @context="channel-emoji"
+            @didSelectEmoji={{this.updateEmoji}}
+            @emoji={{@emoji}}
             @inline={{true}}
             @label={{this.emojiPickerLabel}}
+            @modalForMobile={{false}}
           />
           <DButton
-            @label="chat.channel_edit_name_slug_modal.reset_emoji"
+            class="btn-flat"
             @action={{this.clearEmoji}}
             @disabled={{not @emoji}}
-            class="btn-flat"
+            @label="chat.channel_edit_name_slug_modal.reset_emoji"
           />
         </div>
       </div>
@@ -213,8 +242,8 @@ export default class WorkspaceChannelForm extends Component {
     {{#if @showVisibility}}
       <div class="workspace-groups-create-channel-modal__field">
         <DToggleSwitch
-          @state={{@isPrivate}}
           @label="discourse_workspace_groups.private_channel"
+          @state={{@isPrivate}}
           {{on "click" this.togglePrivate}}
         />
         <p class="workspace-groups-create-channel-modal__help">
@@ -226,8 +255,8 @@ export default class WorkspaceChannelForm extends Component {
     {{#if @showChannelWideMentions}}
       <div class="workspace-groups-create-channel-modal__field">
         <DToggleSwitch
-          @state={{@allowChannelWideMentions}}
           @label="chat.settings.channel_wide_mentions_label"
+          @state={{@allowChannelWideMentions}}
           {{on "click" this.toggleChannelWideMentions}}
         />
         <p class="workspace-groups-create-channel-modal__help">

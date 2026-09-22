@@ -141,9 +141,9 @@
 
 .sidebar-sections.workspace-team-sidebar--unread-only
   > .sidebar-section-wrapper[data-section-name="chat-dms"]
-  .sidebar-section-link-wrapper:not(:has(.sidebar-section-link.active)):not(:has(.badge-notification)):not(
-    :has(.sidebar-section-link-content-badge:is(.unread, .urgent))
-  ) {
+  .sidebar-section-link-wrapper:not(:has(.sidebar-section-link.active)):not(
+    :has(.badge-notification)
+  ):not(:has(.sidebar-section-link-content-badge:is(.unread, .urgent))) {
   display: none;
 }
 
@@ -899,7 +899,8 @@ body.workspace-team-sidebar-scroll-lock {
   transition: transform 0.2s ease;
 }
 
-.workspace-groups-overview__archived[open] .workspace-groups-overview__archived-summary::before {
+.workspace-groups-overview__archived[open]
+  .workspace-groups-overview__archived-summary::before {
   transform: rotate(90deg);
 }
 
@@ -1283,4 +1284,60 @@ body.workspace-team-sidebar-scroll-lock {
     color: var(--primary-medium);
     font-size: var(--font-down-1);
   }
+}
+
+.workspace-voice-directory {
+  max-width: 900px;
+  margin: 2em auto;
+}
+.workspace-voice-directory__workspace {
+  margin-top: 2em;
+}
+.workspace-voice-directory__room {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1em;
+  padding: 1em;
+  border-bottom: 1px solid var(--primary-low);
+}
+.workspace-voice-directory__participants {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.workspace-voice-header__active {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.workspace-voice-call-details {
+  padding: 1em;
+  border-bottom: 1px solid var(--primary-low);
+}
+.workspace-voice-call-details__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+}
+.workspace-voice-messages {
+  max-height: 180px;
+  overflow-y: auto;
+}
+.workspace-voice-messages p {
+  margin: 0.5em 0;
+}
+.workspace-voice-messages span {
+  white-space: pre-wrap;
+}
+.workspace-voice-message-form {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 0.5em;
+}
+.workspace-voice-message-form input {
+  flex: 1;
 }

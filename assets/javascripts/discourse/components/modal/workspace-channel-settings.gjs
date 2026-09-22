@@ -13,12 +13,15 @@ import WorkspaceChannelForm from "./workspace-channel-form";
 
 export default class WorkspaceChannelSettingsModal extends Component {
   @service siteSettings;
+  @service workspaceVoice;
 
   @tracked name;
   @tracked description;
   @tracked isPrivate;
   @tracked channelMode;
   @tracked eventsEnabled;
+  @tracked voiceEnabled;
+  @tracked voiceAllowGuests;
   @tracked allowChannelWideMentions;
   @tracked color;
   @tracked styleType;
@@ -30,10 +33,13 @@ export default class WorkspaceChannelSettingsModal extends Component {
     super(...arguments);
 
     this.name = this.channel?.name || "";
-    this.description = this.channel?.description_raw || this.channel?.description || "";
+    this.description =
+      this.channel?.description_raw || this.channel?.description || "";
     this.isPrivate = this.channel?.visibility === "private";
     this.channelMode = this.channel?.mode || "both";
     this.eventsEnabled = this.channel?.events_enabled === true;
+    this.voiceEnabled = this.channel?.voice_enabled === true;
+    this.voiceAllowGuests = this.channel?.voice_allow_guests !== false;
     this.allowChannelWideMentions =
       this.channel?.allow_channel_wide_mentions !== false;
     this.color = this.channel?.color || "0088CC";
@@ -58,7 +64,9 @@ export default class WorkspaceChannelSettingsModal extends Component {
   }
 
   get canSave() {
-    return !this.saving && !this.changingArchiveState && this.name.trim().length > 0;
+    return (
+      !this.saving && !this.changingArchiveState && this.name.trim().length > 0
+    );
   }
 
   get archiveActionLabel() {
@@ -100,6 +108,16 @@ export default class WorkspaceChannelSettingsModal extends Component {
     if (channelMode === "chat_only") {
       this.eventsEnabled = false;
     }
+  }
+
+  @action
+  toggleVoiceAllowGuests() {
+    this.voiceAllowGuests = !this.voiceAllowGuests;
+  }
+
+  @action
+  toggleVoiceEnabled() {
+    this.voiceEnabled = !this.voiceEnabled;
   }
 
   @action
@@ -146,6 +164,8 @@ export default class WorkspaceChannelSettingsModal extends Component {
               : {}),
             channel_mode: this.channelMode,
             events_enabled: this.showEventsEnabled && this.eventsEnabled,
+            voice_enabled: this.voiceEnabled,
+            voice_allow_guests: this.voiceAllowGuests,
             color: this.color,
             style_type: this.styleType,
             emoji: this.emoji,
@@ -154,7 +174,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
                   allow_channel_wide_mentions: this.allowChannelWideMentions,
                 }
               : {}),
-          }
+          },
         }
       );
 
@@ -164,6 +184,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
         result.channel.events_enabled
       );
       await this.args.model.onUpdate?.(result.channel);
+      await this.workspaceVoice.refresh();
       this.args.closeModal();
     } catch (error) {
       popupAjaxError(error);
@@ -189,6 +210,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
       );
 
       await this.args.model.onUpdate?.(result.channel);
+      await this.workspaceVoice.refresh();
       this.args.closeModal();
     } catch (error) {
       popupAjaxError(error);
@@ -210,62 +232,67 @@ export default class WorkspaceChannelSettingsModal extends Component {
 
   <template>
     <DModal
-      @title={{this.modalTitle}}
+      class="workspace-groups-create-channel-modal workspace-groups-channel-settings-modal"
       @closeModal={{@closeModal}}
       @inline={{@inline}}
-      class="workspace-groups-create-channel-modal workspace-groups-channel-settings-modal"
+      @title={{this.modalTitle}}
     >
       <:body>
         <WorkspaceChannelForm
-          @name={{this.name}}
-          @description={{this.description}}
-          @isPrivate={{this.isPrivate}}
-          @channelMode={{this.channelMode}}
-          @eventsEnabled={{this.eventsEnabled}}
           @allowChannelWideMentions={{this.allowChannelWideMentions}}
-          @color={{this.color}}
-          @styleType={{this.styleType}}
-          @emoji={{this.emoji}}
-          @categoryId={{this.channel.id}}
           @autofocus={{true}}
-          @showVisibility={{this.canEditVisibility}}
-          @showChannelMode={{true}}
-          @showEventsEnabled={{this.showEventsEnabled}}
-          @showChannelWideMentions={{this.showChannelWideMentions}}
-          @showCategoryStyle={{true}}
-          @onNameChange={{this.updateName}}
-          @onDescriptionChange={{this.updateDescription}}
-          @onPrivateToggle={{this.togglePrivate}}
+          @categoryId={{this.channel.id}}
+          @channelMode={{this.channelMode}}
+          @color={{this.color}}
+          @description={{this.description}}
+          @emoji={{this.emoji}}
+          @eventsEnabled={{this.eventsEnabled}}
+          @isPrivate={{this.isPrivate}}
+          @name={{this.name}}
           @onChannelModeChange={{this.updateChannelMode}}
-          @onEventsEnabledToggle={{this.toggleEventsEnabled}}
           @onChannelWideMentionsToggle={{this.toggleChannelWideMentions}}
           @onColorChange={{this.updateColor}}
+          @onDescriptionChange={{this.updateDescription}}
           @onEmojiChange={{this.updateEmoji}}
+          @onEventsEnabledToggle={{this.toggleEventsEnabled}}
+          @onNameChange={{this.updateName}}
+          @onPrivateToggle={{this.togglePrivate}}
+          @onVoiceAllowGuestsToggle={{this.toggleVoiceAllowGuests}}
+          @onVoiceEnabledToggle={{this.toggleVoiceEnabled}}
+          @showCategoryStyle={{true}}
+          @showChannelMode={{true}}
+          @showChannelWideMentions={{this.showChannelWideMentions}}
+          @showEventsEnabled={{this.showEventsEnabled}}
+          @showVisibility={{this.canEditVisibility}}
+          @showVoiceEnabled={{this.siteSettings.voice_enabled}}
+          @styleType={{this.styleType}}
+          @voiceAllowGuests={{this.voiceAllowGuests}}
+          @voiceEnabled={{this.voiceEnabled}}
         />
       </:body>
       <:footer>
         {{#if this.channel.can_view_members}}
           <DButton
-            @action={{this.openMembers}}
-            @label="discourse_workspace_groups.channel_members"
-            @icon="user"
             class="btn-default"
+            @action={{this.openMembers}}
             @disabled={{this.saving}}
+            @icon="user"
+            @label="discourse_workspace_groups.channel_members"
           />
         {{/if}}
         <DButton
-          @action={{this.saveChannel}}
-          @label="discourse_workspace_groups.save_channel"
           class="btn-primary"
+          @action={{this.saveChannel}}
           @disabled={{not this.canSave}}
+          @label="discourse_workspace_groups.save_channel"
         />
         <DButton
-          @action={{this.toggleArchiveState}}
-          @label={{this.archiveActionLabel}}
           class="btn-default"
+          @action={{this.toggleArchiveState}}
           @disabled={{this.saving}}
+          @label={{this.archiveActionLabel}}
         />
-        <DButton @action={{this.cancel}} @label="cancel" class="btn-default" />
+        <DButton class="btn-default" @action={{this.cancel}} @label="cancel" />
       </:footer>
     </DModal>
   </template>

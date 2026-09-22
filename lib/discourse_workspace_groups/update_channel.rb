@@ -26,6 +26,8 @@ module ::DiscourseWorkspaceGroups
       visibility:,
       channel_mode: nil,
       events_enabled: nil,
+      voice_enabled: nil,
+      voice_allow_guests: nil,
       allow_channel_wide_mentions: nil,
       color: UNSET,
       style_type: UNSET,
@@ -38,6 +40,8 @@ module ::DiscourseWorkspaceGroups
       @description = description.to_s.strip
       @visibility = visibility.presence || channel.workspace_visibility
       @channel_mode = channel_mode.presence || channel.workspace_channel_mode
+      @voice_enabled = voice_enabled.nil? ? nil : ActiveModel::Type::Boolean.new.cast(voice_enabled)
+      @voice_allow_guests = voice_allow_guests.nil? ? nil : ActiveModel::Type::Boolean.new.cast(voice_allow_guests)
       @events_enabled =
         if events_enabled.nil?
           channel.workspace_events_enabled?
@@ -69,8 +73,10 @@ module ::DiscourseWorkspaceGroups
         update_channel_mode!
         update_events_enabled!
         sync_chat_channel!
+        update_voice_enabled!
       end
 
+      DiscourseWorkspaceGroups::VoiceBinding.find_by(source_type: "category", source_id: channel.id)&.reconcile!
       channel.reload
     end
 
@@ -208,6 +214,18 @@ module ::DiscourseWorkspaceGroups
       return if desired_enabled == DiscourseWorkspaceGroups.events_calendar_category_enabled?(channel)
 
       DiscourseWorkspaceGroups.set_workspace_events_enabled!(channel, desired_enabled)
+    end
+
+    def update_voice_enabled!
+      return if @voice_enabled.nil? && @voice_allow_guests.nil?
+      if @voice_enabled && !DiscourseWorkspaceGroups::VoiceBinding.integration_enabled?
+        raise Discourse::InvalidAccess
+      end
+      binding = DiscourseWorkspaceGroups::VoiceBinding.find_or_initialize_by(source_type: "category", source_id: channel.id)
+      binding.enabled = @voice_enabled unless @voice_enabled.nil?
+      binding.allow_guests = @voice_allow_guests unless @voice_allow_guests.nil?
+      binding.save!
+      binding.sync_name!
     end
 
     def sync_chat_channel!

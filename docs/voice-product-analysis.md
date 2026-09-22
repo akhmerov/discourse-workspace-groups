@@ -1,8 +1,9 @@
 # Voice for research workspaces: product analysis
 
-Status: product recommendation for discussion, 2026-09-22. This document does
-not authorize implementation or deployment. Native TL2 direct calls are already
-enabled in production and sandbox; workspace integration remains to be built.
+Status: approved product direction, 2026-09-22. Temporary call guests were
+explicitly approved after the channel, DM, and navbar design. Native TL2 direct
+calls are already enabled in production and sandbox. See the
+[implementation and validation notes](voice-integration.md) for rollout status.
 
 VSF should support three related activities: calling particular people, talking
 in a project's context, and making oneself available in a shared place. The
@@ -13,11 +14,11 @@ one of these places, with an explicit start, end, and, where permitted, temporar
 guests. A common room and a project room use the same channel abstraction.
 
 Voice is a channel capability independent of whether that channel presents
-topics, chat, or both. The proposed temporary visitor policy would allow session
-admission without permanent channel membership or access to its history; it
-remains a recommendation to resolve before implementation. The
-[technical proposal](voice-integration.md) records the channel model, but its
-invitation rules still need reconciliation with that guest proposal.
+topics, chat, or both. Temporary visitors receive session admission without channel membership or
+access to channel history. Channel managers admit authenticated VSF users;
+channel settings can disable guest admission. The
+[technical design](voice-integration.md) specifies the authorization and expiry
+rules.
 
 **What the evidence establishes.** Discourse's native product emphasizes
 persistent rooms, visible participants, and staying connected while browsing;
@@ -143,8 +144,9 @@ Trust level and group membership answer different questions. TL2 remains the
 current production direct-call policy. For the proposed workspace integration,
 actual group membership should establish the room audience, subject to site-wide
 account restrictions and a Voice kill switch. A legitimate TL1 member should not
-need a promotion solely to attend their group's call. That policy change is a
-separate implementation decision; this analysis changes no trust levels.
+need a promotion solely to attend their group's call. DM call initiation retains
+the native TL2 policy; eligible DM participants can join an active call. The
+integration does not change trust levels.
 
 Workspace owners have no ordinary entitlement to unjoined private channels or
 other people's DMs. Creating or starting a call does not confer lasting ownership.
@@ -159,7 +161,7 @@ For a one-off consultation, either create a group DM with the intended people
 or admit the visitor to a particular room session. These operations have
 different consequences and need different labels in the UI.
 
-The recommended guest policy is conservative and explicit: room managers admit
+The approved guest policy is explicit: room managers admit
 authenticated VSF users for one session; ordinary members can request an
 invitation. Private-room guest admission can be disabled. A guest sees the room
 purpose and present participants, but receives no channel membership, earlier

@@ -1,5 +1,8 @@
 en:
   discourse_workspace_groups:
+    voice:
+      dm_name: "Direct call"
+      dm_audience: "Participants in this direct message"
     errors:
       channel_name_collision: "Choose a more distinct channel name. This one collides with an existing internal group name."
       usernames_required: "Enter at least one username."

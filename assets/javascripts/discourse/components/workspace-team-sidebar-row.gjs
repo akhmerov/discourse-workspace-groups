@@ -8,11 +8,35 @@ import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix"
 import DiscourseURL from "discourse/lib/url";
 import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
+import { i18n } from "discourse-i18n";
 import { isEventCategory } from "../lib/workspace-event-categories";
 
 export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
   @service siteSettings;
+  @service workspaceVoice;
+  @service voiceRooms;
+
+  get voiceAvailable() {
+    const id = this.args.category?.id || this.args.categoryLink.category?.id;
+    return this.workspaceVoice.channels.some(
+      (channel) => channel.category_id === id
+    );
+  }
+
+  get voiceParticipantCount() {
+    const channel = this.workspaceVoice.channels.find(
+      (item) => item.category_id === this.voiceCategoryId
+    );
+    return (
+      this.voiceRooms.rooms.find((room) => room.id === channel?.room?.id)
+        ?.active_participants?.length || 0
+    );
+  }
+
+  get voiceCategoryId() {
+    return this.args.category?.id || this.args.categoryLink.category?.id;
+  }
 
   get categoryModels() {
     if (this.args.categoryLink.model) {
@@ -55,7 +79,9 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get mainPrefixValue() {
-    return this.useChatMainPrefix ? "d-chat" : this.args.categoryLink.prefixValue;
+    return this.useChatMainPrefix
+      ? "d-chat"
+      : this.args.categoryLink.prefixValue;
   }
 
   get mainPrefixColor() {
@@ -87,7 +113,9 @@ export default class WorkspaceTeamSidebarRow extends Component {
   }
 
   get categoryModeIcon() {
-    return isEventCategory(this.siteSettings, this.args.category) ? "calendar-day" : "list";
+    return isEventCategory(this.siteSettings, this.args.category)
+      ? "calendar-day"
+      : "list";
   }
 
   get chatDisabled() {
@@ -184,9 +212,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
       data-list-item-name={{@categoryLink.name}}
     >
       <div
-        class={{dConcatClass
-          this.rowClass
-        }}
+        class={{dConcatClass this.rowClass}}
         data-workspace-category-id={{@categoryLink.category.id}}
         data-workspace-sidebar-section-id={{@sidebarSectionId}}
         {{! eslint-disable-next-line ember/template-no-pointer-down-event-binding }}
@@ -199,10 +225,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
           >
             <span class="workspace-team-sidebar__main-link-prefix">
               <SectionLinkPrefix
+                @prefixBadge={{this.mainPrefixBadge}}
+                @prefixColor={{this.mainPrefixColor}}
                 @prefixType={{this.mainPrefixType}}
                 @prefixValue={{this.mainPrefixValue}}
-                @prefixColor={{this.mainPrefixColor}}
-                @prefixBadge={{this.mainPrefixBadge}}
               />
 
               {{#if this.mainLinkUnread}}
@@ -222,18 +248,18 @@ export default class WorkspaceTeamSidebarRow extends Component {
           </div>
         {{else if this.mainLinkOpensChat}}
           <button
-            type="button"
-            title={{@chatTitle}}
             aria-label={{@chatTitle}}
             class={{this.mainLinkClass}}
+            title={{@chatTitle}}
+            type="button"
             {{on "click" this.openChat}}
           >
             <span class="workspace-team-sidebar__main-link-prefix">
               <SectionLinkPrefix
+                @prefixBadge={{this.mainPrefixBadge}}
+                @prefixColor={{this.mainPrefixColor}}
                 @prefixType={{this.mainPrefixType}}
                 @prefixValue={{this.mainPrefixValue}}
-                @prefixColor={{this.mainPrefixColor}}
-                @prefixBadge={{this.mainPrefixBadge}}
               />
 
               {{#if this.mainLinkUnread}}
@@ -253,19 +279,19 @@ export default class WorkspaceTeamSidebarRow extends Component {
           </button>
         {{else}}
           <LinkTo
-            @route={{@categoryLink.route}}
+            class={{this.mainLinkClass}}
+            @current-when={{@categoryLink.currentWhen}}
             @models={{this.categoryModels}}
             @query={{this.categoryQuery}}
-            @current-when={{@categoryLink.currentWhen}}
+            @route={{@categoryLink.route}}
             @title={{@categoryLink.title}}
-            class={{this.mainLinkClass}}
           >
             <span class="workspace-team-sidebar__main-link-prefix">
               <SectionLinkPrefix
+                @prefixBadge={{this.mainPrefixBadge}}
+                @prefixColor={{this.mainPrefixColor}}
                 @prefixType={{this.mainPrefixType}}
                 @prefixValue={{this.mainPrefixValue}}
-                @prefixColor={{this.mainPrefixColor}}
-                @prefixBadge={{this.mainPrefixBadge}}
               />
 
               {{#if this.mainLinkUnread}}
@@ -285,6 +311,19 @@ export default class WorkspaceTeamSidebarRow extends Component {
           </LinkTo>
         {{/if}}
 
+        {{#if this.voiceAvailable}}
+          <LinkTo
+            class="workspace-team-sidebar__mode-button workspace-voice-channel-link"
+            @model={{this.voiceCategoryId}}
+            @route="workspace-voice.channel"
+            @title={{i18n "discourse_workspace_groups.voice.title"}}
+          >
+            {{dIcon "microphone"}}
+            {{#if this.voiceParticipantCount}}<span
+                class="workspace-voice-channel-count"
+              >{{this.voiceParticipantCount}}</span>{{/if}}
+          </LinkTo>
+        {{/if}}
         {{#if this.showModes}}
           <div class="workspace-team-sidebar__modes">
             {{#if @editable}}
@@ -299,12 +338,12 @@ export default class WorkspaceTeamSidebarRow extends Component {
               </span>
             {{else}}
               <LinkTo
-                @route={{@categoryLink.route}}
+                class={{this.categoryButtonClass}}
+                @current-when={{@categoryLink.currentWhen}}
                 @models={{this.categoryModels}}
                 @query={{this.categoryQuery}}
-                @current-when={{@categoryLink.currentWhen}}
+                @route={{@categoryLink.route}}
                 @title={{@categoryTitle}}
-                class={{this.categoryButtonClass}}
               >
                 <span class="workspace-team-sidebar__mode-icon">
                   {{dIcon this.categoryModeIcon}}
@@ -328,11 +367,11 @@ export default class WorkspaceTeamSidebarRow extends Component {
               </span>
             {{else}}
               <button
-                type="button"
-                class={{this.chatButtonClass}}
-                title={{@chatTitle}}
                 aria-label={{@chatTitle}}
+                class={{this.chatButtonClass}}
                 disabled={{this.chatDisabled}}
+                title={{@chatTitle}}
+                type="button"
                 {{on "click" this.openChat}}
               >
                 <span class="workspace-team-sidebar__mode-icon">

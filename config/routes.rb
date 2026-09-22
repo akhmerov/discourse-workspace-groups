@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 DiscourseWorkspaceGroups::Engine.routes.draw do
+  get "/voice/rooms" => "voice#index"
+  get "/voice/dms/:source_id" => "voice#dm_status"
+  post "/voice/prepare" => "voice#prepare"
+  get "/voice/rooms/:room_id/messages" => "voice#messages"
+  post "/voice/rooms/:room_id/messages" => "voice#create_message"
+  post "/voice/rooms/:room_id/ring" => "voice#ring"
+  delete "/voice/rooms/:room_id/session" => "voice#end_session"
   get "/workspaces/:id" => "workspaces#show"
   get "/joinable-channel" => "workspaces#joinable_channel"
   get "/joinable-channels" => "workspaces#joinable_channels"
