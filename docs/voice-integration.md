@@ -1,7 +1,11 @@
 # Voice integration with workspace channels and direct messages
 
-Status: proposed complete design, 2026-09-22. No integration code or remote
-changes have been applied. The sandbox Voice pilot remains enabled.
+Status: earlier technical proposal, 2026-09-22. The
+[product analysis](voice-product-analysis.md) revises its room model and guest
+policy. Reconcile those recommendations before implementing this draft; its
+chat-only binding and membership-only invitations are no longer the recommended
+product model. No workspace integration has been deployed. Native TL2 direct
+calls are enabled in production and sandbox.
 
 ## Product model
 
@@ -103,9 +107,10 @@ independent DMs remain governed by their own membership and account policy.
 
 Keep the current eight-person cap and peer-to-peer transport. Recording and
 transcription are separate, explicit features; linking a conversation does not
-enable either or imply consent. Direct-call site policy must be deliberately
-configured as part of DM enablement rather than relying on its current disabled
-default.
+enable either or imply consent. Native direct calls are currently enabled for
+TL2 users and staff. Integrating DM calls requires a deliberate access policy
+consistent with the DM audience;
+the native rollout does not decide that policy.
 
 ## Privacy and implementation
 
