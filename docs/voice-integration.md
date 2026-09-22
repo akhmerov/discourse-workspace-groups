@@ -1,9 +1,9 @@
 # Voice integration with workspace channels and direct messages
 
-Status: implementation under local validation, 2026-09-22. The channel, DM,
-navbar, and temporary-guest design is approved. Native TL2 direct calls are
-already enabled in production and sandbox. Workspace integration has not yet
-been promoted to either remote tier.
+Status: implemented, 2026-09-23. The channel, DM, navbar, and temporary-guest
+design is approved. Deployment is an independent operation; verify the target's
+plugin revision rather than inferring rollout from this source document. Native
+TL2 profile calls retain their existing production and sandbox policy.
 
 ## Product model
 
@@ -215,8 +215,11 @@ removal. Preserve association data for a controlled recovery.
 Validated against core `9cccc5837dc83a7af376dd40d4cb709cd25b0228` in an isolated
 runtime, preserving the older development checkout and its unrelated edits.
 
-- 333 request/service examples passed across the workspace suite and native
-  Voice room, membership, and invitation request suites.
+- The isolated release passed 323 examples across the workspace suite and
+  native Voice room, membership, and invitation request suites. The subsequent
+  stable-link expiry regression passed with all 27 focused integration cases.
+  The release is based on deployed plugin `f470c93` and excludes unrelated local
+  assistant changes.
 - The directory and topics-only channel setting rendered in a real browser.
 - A TL2 DM starter rang a TL1 DM participant, who answered using the native
   incoming-call dialog. Both browsers received audio packets. The TL1 user had
@@ -224,6 +227,8 @@ runtime, preserving the older development checkout and its unrelated edits.
 - A manager admitted a guest through the picker. The guest exchanged call text
   and received audio and camera video, could not read text from before admission
   or open channel history, and lost native room access when the call ended.
+- Shared channel room links resolve after core expires an empty native room;
+  expired guests cannot recreate or join the next call.
 - Frontend lint passed. Ruby checks on the new code passed; the existing
   `UpdateChannel` non-local iterator return remains a pre-existing lint warning.
 

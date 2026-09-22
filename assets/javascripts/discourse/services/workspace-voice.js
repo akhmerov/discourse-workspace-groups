@@ -58,8 +58,11 @@ export default class WorkspaceVoiceService extends Service {
     // again. A slow directory response must not discard a newer preparation.
     for (const room of this.voiceRooms.rooms) {
       const binding = room.workspace_voice;
-      if (binding?.source_type === "category" && !binding.is_guest &&
-          !result.channels.some((channel) => channel.room?.id === room.id)) {
+      if (
+        binding?.source_type === "category" &&
+        !binding.is_guest &&
+        !result.channels.some((channel) => channel.room?.id === room.id)
+      ) {
         if (this.voiceWebrtc.activeRoomId === room.id) {
           this.voiceWebrtc.leave(room, { skipServer: true });
         }
@@ -85,7 +88,9 @@ export default class WorkspaceVoiceService extends Service {
     this.voiceRooms.upsertRoom(result.room);
     if (sourceType === "category") {
       this.channels = this.channels.map((channel) =>
-        channel.category_id === Number(sourceId) ? { ...channel, room: result.room } : channel
+        channel.category_id === Number(sourceId)
+          ? { ...channel, room: result.room }
+          : channel
       );
     }
     if (
