@@ -93,8 +93,8 @@ inherits actual Town Square membership rather than treating all workspace
 members as implicit channel members.
 
 The voice affordance stays on the existing channel row or header while enabled,
-including when empty, so a common room remains discoverable without another
-room directory. Starting a session updates that channel's participant indicator.
+including when empty, so a common room remains discoverable in its channel.
+Starting a session updates that channel's participant indicator.
 Disabling Voice ends its active session and denies further joins; archiving a
 channel also makes its room unavailable. Re-enabling restores the same place
 with current permissions, not earlier participants or guest grants.
@@ -104,6 +104,15 @@ participants, under the direct-call policy. They do not need a workspace channel
 setting. A call from a user card remains a convenient direct entry point. The UI
 must distinguish a call tied to an existing DM from a temporary call with
 selected people; it must not claim to share a history it does not use.
+
+The main navbar also gains a microphone icon labelled **Voice**, alongside the
+forum and chat entry points. It opens an index of the existing enabled channel
+rooms, grouped by workspace, with occupied rooms first and empty rooms still
+available. This is another view of channel rooms, not another kind of room.
+Show only rooms the viewer is eligible to enter, including any participant
+previews. Private DMs never appear in that index. A connected user gets a current
+call indicator and a way to return to their own call. Opening Voice does not
+join a room or change microphone state; mute stays in the call controls.
 
 One active session per channel keeps simultaneous starts together. A separate
 side discussion can use a group DM. Two unrelated meetings should not fight for

@@ -139,8 +139,15 @@ user statuses. Reuse native private-room status wording where appropriate.
 Enabled workspace channels expose Join room on their existing header or sidebar
 row even when empty, and current participants only to the eligible audience.
 The DM header exposes Start/Join call and the DM list may show an active-call
-indicator. Managed calls should not clutter the standalone global room directory.
-The existing global Watercooler is a separate site room with its explicit policy.
+indicator. A microphone icon labelled Voice in the main navbar opens a
+permission-filtered index of enabled channel rooms, grouped by workspace with
+occupied rooms first. Include empty enabled rooms; exclude private DM calls.
+The index reuses channel bindings and grants no independent room membership.
+Its requests, participant previews, and live updates enforce the same access as
+the channel. Opening the index does not join, unmute, or activate devices. Show
+the viewer's current call separately with a return action. The existing global
+Watercooler remains a separate site room with its explicit policy; it does not
+automatically enter the workspace room index.
 
 ## Verified upstream behavior
 
@@ -180,7 +187,9 @@ channel guests; owners in unjoined private channels; private DM access by
 nonparticipant staff; one-to-one and group DM calls; communication preferences;
 concurrent starts; adding/removing DM participants; former creators/owners;
 active-call removal and suspension; stale URLs; archive/delete/unarchive;
-metadata broadcasts; and integration disablement/rollback. Native room APIs must
+metadata broadcasts; navbar index and participant previews for members versus
+outsiders; private DM exclusion from that index; opening Voice without activating
+media; and integration disablement/rollback. Native room APIs must
 not bypass the inherited restrictions. Test real browser state, not only HTTP.
 
 After local request/service/browser checks, publish and deploy only the required
