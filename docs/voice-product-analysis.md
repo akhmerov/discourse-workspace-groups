@@ -6,17 +6,18 @@ enabled in production and sandbox; workspace integration remains to be built.
 
 VSF should support three related activities: calling particular people, talking
 in a project's context, and making oneself available in a shared place. The
-recommended product combines DM calls, calls in workspace channels, and a small
-number of persistent workspace rooms. Existing groups define the regular
-audience. A meeting is a session in one of these places, with an explicit start,
-end, and, where permitted, temporary guests.
+recommended product combines DM calls with an optional voice room on each
+workspace channel. Enabling Voice on Town Square provides the common room.
+Existing channel groups define the regular audience. A meeting is a session in
+one of these places, with an explicit start, end, and, where permitted, temporary
+guests. A common room and a project room use the same channel abstraction.
 
-This revises the earlier proposal in two substantive ways. A workspace room can
-exist without a chat channel. A visitor can be admitted to a session without
-receiving permanent channel membership or access to its history. These are
-product recommendations, not capabilities already supplied by our integration.
-The earlier [technical proposal](voice-integration.md) needs reconciliation
-before implementation, particularly its chat-only binding and invitation rules.
+Voice is a channel capability independent of whether that channel presents
+topics, chat, or both. The proposed temporary visitor policy would allow session
+admission without permanent channel membership or access to its history; it
+remains a recommendation to resolve before implementation. The
+[technical proposal](voice-integration.md) records the channel model, but its
+invitation rules still need reconciliation with that guest proposal.
 
 **What the evidence establishes.** Discourse's native product emphasizes
 persistent rooms, visible participants, and staying connected while browsing;
@@ -47,7 +48,7 @@ to test with members, not claims about their observed behavior.
 | Ask a colleague about a calculation or result | Two people | Existing DM or user card | A quick invitation, immediate screen sharing, little setup |
 | Debug code, inspect data, or revise a figure together | Small project team | Project channel | The relevant links and discussion are already there; others in the project can join |
 | Supervisor meeting or sensitive discussion | Explicitly chosen people | One-to-one or group DM | Predictable audience and no workspace-wide presence announcement |
-| Coffee, open office hours, or quiet writing together | Whoever chooses to drop in | Persistent workspace room | A known place, visible occupants, and a clear invitation to join |
+| Coffee, open office hours, or quiet writing together | Eligible channel members who choose to drop in | Town Square or another channel with Voice enabled | A known place, visible occupants, and a clear invitation to join |
 | Recurring group meeting or journal club | A known group, sometimes with a visitor | Meeting channel or event with a stable room link | Predictable location, agenda, readable shared material, and clear guest access |
 | Consult a collaborator from another institution | Selected members plus a visitor | Group DM or a room session with an admitted guest | Joining the meeting does not expose unrelated discussions |
 | Seminar, large group meeting, or hybrid room | Larger audience and possibly anonymous visitors | Event and meeting service | Capacity, admission, accessibility, and room audio requirements exceed the currently validated setup |
@@ -71,30 +72,42 @@ informal contact as a need, but does not show that adding a voice room solves it
 nor directly establish the behavior of academic groups.
 [Yang et al., Nature Human Behaviour](https://doi.org/10.1038/s41562-021-01196-4)
 
-**One coherent room model.** A persistent place has a name, purpose, stable link,
-and regular audience. Individual sessions come and go. Three entry points expose
-that model without making users administer a second organization:
+**One channel model.** A channel already supplies the name, purpose, stable
+location, membership, and managers. Its settings gain an **Enable voice room**
+option, off by default. Existing channel managers can change it. Enabled channels
+offer Join room even when empty, and show participants while a session is active.
+The channel remains the place people navigate to; its room is a capability of
+that place. Provision the underlying native room when first needed.
 
-1. A workspace owner can enable a common room, pinned in that workspace even
-   when empty. Its regular audience is the workspace group. Start with one;
-   owners can add another when concurrent uses need different social conventions,
-   such as coffee and quiet work. A smaller permanent audience belongs in a
-   private channel. A common room does not require joining a particular general
-   chat, and remains useful to a workspace organized around topics.
-2. Every eligible workspace channel can expose Start call / Join call. Its
-   regular audience is the channel group, including that channel's guests.
-   Provision the native room when needed. Show activity beside the channel;
-   avoid a second directory containing an empty room for every channel. Topics-only
-   channels use the same access model without silently enabling chat. Managers
-   can disable calls in channels such as announcements.
-3. One-to-one and group DMs expose the same call controls, using the conversation's
-   participants. A call from a user card remains a convenient direct entry point.
-   The UI must distinguish a call tied to an existing DM from a temporary call
-   with selected people; it must not claim to share a history it does not use.
+Town Square with Voice enabled supplies the shared common room. A project
+channel uses the same option for project discussions. A Coffee or Quiet writing
+channel can express a different purpose using its name and description. These
+uses need no separate workspace-room object, room membership editor, or
+persistent-versus-ad-hoc setting. Additional spaces are ordinary channels.
+
+Voice is independent of channel mode: topics-only channels can have a room
+without opening a paired chat channel. Enabling Voice does not change membership
+or visibility. If Town Square should serve everyone in the workspace, configure
+its membership through the existing join and auto-join mechanisms; the room
+inherits actual Town Square membership rather than treating all workspace
+members as implicit channel members.
+
+The voice affordance stays on the existing channel row or header while enabled,
+including when empty, so a common room remains discoverable without another
+room directory. Starting a session updates that channel's participant indicator.
+Disabling Voice ends its active session and denies further joins; archiving a
+channel also makes its room unavailable. Re-enabling restores the same place
+with current permissions, not earlier participants or guest grants.
+
+One-to-one and group DMs expose call controls using the conversation's
+participants, under the direct-call policy. They do not need a workspace channel
+setting. A call from a user card remains a convenient direct entry point. The UI
+must distinguish a call tied to an existing DM from a temporary call with
+selected people; it must not claim to share a history it does not use.
 
 One active session per channel keeps simultaneous starts together. A separate
 side discussion can use a group DM. Two unrelated meetings should not fight for
-the workspace common room: use their project or meeting channels. No participant
+Town Square's room: use their project or meeting channels. No participant
 should be silently moved, evicted, or connected to audio when following a link.
 
 A channel or room link can be placed in an existing meeting event or calendar
@@ -104,17 +117,16 @@ is unnecessary for this integration. Temporary guest invitations, however, must
 identify a particular session rather than grant access to every later meeting.
 
 **Make the audience understandable before joining.** The room view should state
-who can join: all workspace members, members of a named channel, or the people
-in a DM. Show current participants separately; three people present does not
-mean only those three are allowed to enter. Visiting guests must also be visible.
+who can join: members of the named channel, or the people in the DM. Show current
+participants separately; three people present does not mean only those three are
+allowed to enter. Visiting guests must also be visible.
 A pre-join view should expose microphone and camera state. Opening a workspace,
 channel, DM, or invitation must never itself transmit audio or video.
 
 | Place | Regular access | Who starts or joins | Management |
 | --- | --- | --- | --- |
-| Workspace common room | Current workspace group | Eligible workspace members | Workspace owners |
-| Workspace channel call | Current channel group | Eligible channel members | Current channel managers |
-| Private channel call | Current private-channel group | Eligible private-channel members | Managers of that private channel |
+| Channel room, including Town Square | Current channel group | Eligible channel members when Voice is enabled | Current channel managers |
+| Private-channel room | Current private-channel group | Eligible private-channel members when Voice is enabled | Managers of that private channel |
 | DM call | Current DM participants | Eligible participants, subject to communication preferences | Peers and the DM's existing membership rules |
 | Guest visit to a room session | Explicit, temporary admission | Invited authenticated user | Manager of that room's scope |
 
@@ -197,14 +209,15 @@ changes. Strong server-enforced removal also requires a media architecture that
 can enforce it; the earlier technical proposal records the peer-to-peer limit.
 
 **How to evaluate the complete integration.** Product completeness means the
-room, DM, privacy, guest, and lifecycle rules agree. Validation can use several
-small trials without splitting those requirements into separate products. Use
+channel setting, room, DM, privacy, guest, and lifecycle rules agree. Validation
+can use several small trials without splitting those requirements into separate products. Use
 volunteers for a project discussion, a coffee/writing session, a private meeting,
 and a meeting with a visiting collaborator. No trial invitations are sent as
 part of this analysis.
 
-Ask whether people could predict the audience before joining; whether moving
-from text to voice was easier; whether they could share and read the relevant
+Verify Voice enable/disable and archive behavior, including topics-only
+channels. Ask whether people could predict the audience before joining; whether
+moving from text to voice was easier; whether they could share and read the relevant
 material; whether visitors could participate without seeing history; and whether
 they would choose it again. Observe failure recovery and unwanted interruptions.
 Use participant feedback and deliberately observed test sessions while analytics
