@@ -17,6 +17,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
   @service dialog;
   @service modal;
   @service siteSettings;
+  @service workspaceVoice;
 
   get subcategoryWithPermission() {
     if (this.siteSettings.default_subcategory_on_read_only_category) {
@@ -303,6 +304,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
       );
 
       this.applyChannelPayload(channel, result.channel);
+      await this.workspaceVoice.refresh();
       await this.syncJoinedChatChannel(result.channel);
     } catch (error) {
       popupAjaxError(error);
@@ -329,6 +331,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
 
       this.removeJoinedChatChannel(result.channel);
       this.applyChannelPayload(channel, result.channel);
+      await this.workspaceVoice.refresh();
     } catch (error) {
       popupAjaxError(error);
     } finally {

@@ -25,6 +25,10 @@ export default class WorkspaceVoiceService extends Service {
         `/workspace-voice/revoked/${this.currentUser.id}`,
         this.revoked
       );
+      this.messageBus.subscribe(
+        `/workspace-voice/access/${this.currentUser.id}`,
+        this.accessChanged
+      );
     }
   }
 
@@ -36,7 +40,18 @@ export default class WorkspaceVoiceService extends Service {
         `/workspace-voice/revoked/${this.currentUser.id}`,
         this.revoked
       );
+      this.messageBus.unsubscribe(
+        `/workspace-voice/access/${this.currentUser.id}`,
+        this.accessChanged
+      );
     }
+  }
+
+  @bind
+  accessChanged() {
+    // Invalidate any directory request started before this membership change.
+    this.roomRevision++;
+    this.refresh().catch(() => {});
   }
 
   async refresh() {

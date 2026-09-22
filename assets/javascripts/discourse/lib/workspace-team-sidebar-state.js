@@ -203,6 +203,9 @@ function chatCategoryFor(services) {
 }
 
 export function currentScopedCategory(services) {
+  if (services.router?.currentRouteName === "voice-room" || services.router?.currentRouteName?.startsWith("workspace-voice")) {
+    return null;
+  }
   return (
     routeCategoryFor(services) ||
     topicCategoryFor(services) ||

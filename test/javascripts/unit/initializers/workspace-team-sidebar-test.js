@@ -1,6 +1,7 @@
 import { module, test } from "qunit";
 import {
   chatChannelHasUnread,
+  currentScopedCategory,
   currentScopedMode,
   focusedWorkspaceCategory,
   memberWorkspaceCategories,
@@ -32,6 +33,15 @@ module(
       localStorage.removeItem("workspace-groups:last-workspace-id");
       localStorage.removeItem(WORKSPACE_UNREAD_FILTER_KEY);
       sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
+    });
+
+    test("Voice routes leave workspace context even with a retained chat channel", function (assert) {
+      for (const route of ["voice-room", "workspace-voice.index", "workspace-voice.channel"]) {
+        assert.strictEqual(currentScopedCategory({
+          router: { currentRouteName: route, currentRoute: { attributes: { category: { id: 29, workspace_kind: "channel" } } } },
+          chat: { activeChannel: { isCategoryChannel: true, chatableId: 29 } },
+        }), null, route);
+      }
     });
 
     test("only treats workspace categories as scoped sidebar categories", function (assert) {

@@ -1,6 +1,7 @@
 import Component from "@glimmer/component";
 import { fn } from "@ember/helper";
 import { on } from "@ember/modifier";
+import { LinkTo } from "@ember/routing";
 import { service } from "@ember/service";
 import { trustHTML } from "@ember/template";
 import DButton from "discourse/ui-kit/d-button";
@@ -102,11 +103,27 @@ export default class WorkspaceOverviewChannelCard extends Component {
   }
 
   get topicsIcon() {
-    return isEventCategory(this.siteSettings, this.channel) ? "calendar-day" : "list";
+    return isEventCategory(this.siteSettings, this.channel)
+      ? "calendar-day"
+      : "list";
   }
 
   get showsChatIcon() {
     return this.channel?.mode !== "category_only";
+  }
+
+  get showsVoiceIcon() {
+    return (
+      this.siteSettings.voice_enabled &&
+      this.channel?.voice_enabled &&
+      !this.channel?.archived
+    );
+  }
+
+  get voiceAccessLabel() {
+    return this.channel?.can_join
+      ? "discourse_workspace_groups.voice.join_channel_first"
+      : "discourse_workspace_groups.voice.members_only";
   }
 
   get topicsHref() {
@@ -132,27 +149,27 @@ export default class WorkspaceOverviewChannelCard extends Component {
           <div class="workspace-groups-overview__heading">
             <h3>
               <span
+                aria-label={{this.visibilityLabel}}
                 class="workspace-groups-overview__visibility workspace-groups-overview__visibility--title"
                 title={{this.visibilityLabel}}
-                aria-label={{this.visibilityLabel}}
               >
                 {{dIcon this.visibilityIcon}}
               </span>
 
               {{#if this.titleHref}}
                 <a
-                  href={{this.titleHref}}
                   class="workspace-groups-overview__channel-link"
+                  href={{this.titleHref}}
                 >
                   {{this.channel.name}}
                 </a>
               {{else if this.channel.can_join}}
                 <button
-                  type="button"
                   class="workspace-groups-overview__channel-link workspace-groups-overview__channel-link-button"
-                  title={{i18n "discourse_workspace_groups.join_channel"}}
-                  {{on "click" (fn @onJoin this.channel)}}
                   disabled={{this.channel.is_pending}}
+                  title={{i18n "discourse_workspace_groups.join_channel"}}
+                  type="button"
+                  {{on "click" (fn @onJoin this.channel)}}
                 >
                   {{this.channel.name}}
                 </button>
@@ -167,18 +184,22 @@ export default class WorkspaceOverviewChannelCard extends Component {
               {{#if this.showsTopicsIcon}}
                 {{#if this.topicsHref}}
                   <a
-                    href={{this.topicsHref}}
+                    aria-label={{i18n
+                      "discourse_workspace_groups.channel_topics"
+                    }}
                     class="workspace-groups-overview__channel-mode workspace-groups-overview__channel-mode-link"
+                    href={{this.topicsHref}}
                     title={{i18n "discourse_workspace_groups.channel_topics"}}
-                    aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
                   >
                     {{dIcon this.topicsIcon}}
                   </a>
                 {{else}}
                   <span
+                    aria-label={{i18n
+                      "discourse_workspace_groups.channel_topics"
+                    }}
                     class="workspace-groups-overview__channel-mode"
                     title={{i18n "discourse_workspace_groups.channel_topics"}}
-                    aria-label={{i18n "discourse_workspace_groups.channel_topics"}}
                   >
                     {{dIcon this.topicsIcon}}
                   </span>
@@ -188,20 +209,45 @@ export default class WorkspaceOverviewChannelCard extends Component {
               {{#if this.showsChatIcon}}
                 {{#if this.chatHref}}
                   <a
-                    href={{this.chatHref}}
+                    aria-label={{i18n
+                      "discourse_workspace_groups.channel_chat"
+                    }}
                     class="workspace-groups-overview__channel-mode workspace-groups-overview__channel-mode-link"
+                    href={{this.chatHref}}
                     title={{i18n "discourse_workspace_groups.channel_chat"}}
-                    aria-label={{i18n "discourse_workspace_groups.channel_chat"}}
                   >
                     {{dIcon "d-chat"}}
                   </a>
                 {{else}}
                   <span
+                    aria-label={{i18n
+                      "discourse_workspace_groups.channel_chat"
+                    }}
                     class="workspace-groups-overview__channel-mode"
                     title={{i18n "discourse_workspace_groups.channel_chat"}}
-                    aria-label={{i18n "discourse_workspace_groups.channel_chat"}}
                   >
                     {{dIcon "d-chat"}}
+                  </span>
+                {{/if}}
+              {{/if}}
+              {{#if this.showsVoiceIcon}}
+                {{#if this.channel.joined}}
+                  <LinkTo
+                    aria-label={{i18n "discourse_workspace_groups.voice.open"}}
+                    class="workspace-groups-overview__channel-mode workspace-groups-overview__channel-mode-link workspace-groups-overview__voice"
+                    title={{i18n "discourse_workspace_groups.voice.open"}}
+                    @model={{this.channel.id}}
+                    @route="workspace-voice.channel"
+                  >
+                    {{dIcon "microphone"}}
+                  </LinkTo>
+                {{else}}
+                  <span
+                    aria-label={{i18n this.voiceAccessLabel}}
+                    class="workspace-groups-overview__channel-mode workspace-groups-overview__voice"
+                    title={{i18n this.voiceAccessLabel}}
+                  >
+                    {{dIcon "microphone"}}
                   </span>
                 {{/if}}
               {{/if}}
@@ -210,9 +256,9 @@ export default class WorkspaceOverviewChannelCard extends Component {
             {{#if this.channel.can_view_members}}
               {{#if @onOpenMembers}}
                 <button
+                  class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
                   type="button"
                   {{on "click" (fn @onOpenMembers this.channel)}}
-                  class="workspace-groups-overview__membership workspace-groups-overview__membership-link"
                 >
                   {{dIcon "user"}}
                   <span>
@@ -238,8 +284,8 @@ export default class WorkspaceOverviewChannelCard extends Component {
 
           {{#if this.descriptionCooked}}
             <DDecoratedHtml
-              @html={{trustHTML this.descriptionCooked}}
               @className="cooked workspace-groups-overview__channel-description"
+              @html={{trustHTML this.descriptionCooked}}
             />
           {{else if this.channel.description}}
             <p class="workspace-groups-overview__channel-description">
@@ -271,43 +317,43 @@ export default class WorkspaceOverviewChannelCard extends Component {
             <div class="workspace-groups-overview__card-actions">
               {{#if this.channel.can_join}}
                 <DButton
+                  class="btn-primary btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
                   @action={{fn @onJoin this.channel}}
+                  @ariaLabel={{this.membershipActionLabel}}
+                  @disabled={{this.channel.is_pending}}
                   @icon={{this.membershipActionIcon}}
                   @title={{this.membershipActionLabel}}
-                  @ariaLabel={{this.membershipActionLabel}}
-                  class="btn-primary btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
-                  @disabled={{this.channel.is_pending}}
                 />
               {{else if this.channel.can_leave}}
                 <DButton
+                  class="btn-default btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
                   @action={{fn @onLeave this.channel}}
+                  @ariaLabel={{this.membershipActionLabel}}
+                  @disabled={{this.channel.is_pending}}
                   @icon={{this.membershipActionIcon}}
                   @title={{this.membershipActionLabel}}
-                  @ariaLabel={{this.membershipActionLabel}}
-                  class="btn-default btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
-                  @disabled={{this.channel.is_pending}}
                 />
               {{/if}}
 
               {{#if this.canManageChannel}}
                 <DButton
+                  class="btn-default btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
                   @action={{fn @onOpenSettings this.channel}}
+                  @ariaLabel="discourse_workspace_groups.channel_settings"
+                  @disabled={{this.channel.is_pending}}
                   @icon="wrench"
                   @title="discourse_workspace_groups.channel_settings"
-                  @ariaLabel="discourse_workspace_groups.channel_settings"
-                  class="btn-default btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
-                  @disabled={{this.channel.is_pending}}
                 />
               {{/if}}
 
               {{#if this.channel.can_view_members}}
                 <DButton
+                  class="btn-default btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
                   @action={{fn @onOpenMembers this.channel}}
+                  @ariaLabel="discourse_workspace_groups.channel_members"
+                  @disabled={{this.channel.is_pending}}
                   @icon="user"
                   @title="discourse_workspace_groups.channel_members"
-                  @ariaLabel="discourse_workspace_groups.channel_members"
-                  class="btn-default btn-small workspace-groups-overview__membership-button workspace-groups-overview__membership-button--icon"
-                  @disabled={{this.channel.is_pending}}
                 />
               {{/if}}
             </div>

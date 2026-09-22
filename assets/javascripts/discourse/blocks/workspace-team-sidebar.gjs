@@ -250,6 +250,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get inWorkspaceContext() {
+    if (
+      this.router.currentRouteName === "voice-room" ||
+      this.router.currentRouteName?.startsWith("workspace-voice")
+    ) {
+      return false;
+    }
     const focusedWorkspace = this.focusedWorkspaceCategory;
 
     return !!(

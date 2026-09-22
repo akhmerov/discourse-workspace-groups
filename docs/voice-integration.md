@@ -13,7 +13,21 @@ when empty and shows current participants during a session. One-to-one and group
 DMs expose Start call / Join call under the direct-call policy, without requiring
 a workspace channel setting. One active session per conversation avoids splitting
 participants when two people start at once. The native Voice widget lets
-participants keep browsing while connected.
+participants keep browsing while connected. Joining a channel automatically
+grants room access without creating a separate Voice membership or entering a
+call. Membership changes refresh the room directory and sidebar immediately.
+The overview shows a microphone beside topics and chat for enabled rooms;
+nonmembers see a hint to join the channel first. Clicking a channel microphone
+or a DM call action enters the call through the native device check. It does
+not require a separate room-page Join click. Opening the directory alone does
+not start audio. Voice routes exit the workspace sidebar context, including on
+mobile and when a previous chat channel remains loaded.
+
+Call actions sit beside the native room title. Invitations use a dialog, call
+messages use a collapsible side panel, and End call for everyone is in Call
+options. The generic audience paragraph is omitted; actual guests remain
+identified. The layout measures the available viewport so site banners and
+wrapped mobile controls cannot push Join or Leave below the screen.
 
 A channel room is the native Voice room carrying that channel's sessions. The
 channel provides its identity, name, membership, and management. Provision the
@@ -237,3 +251,16 @@ They do not establish microphone quality or connectivity across institutional
 networks. A native timezone-preference CSRF error was reproduced on the ordinary
 forum homepage with impersonated test users; matching fixture timezones to the
 browser avoids that unrelated first-login request.
+
+## UX follow-up validation (2026-09-23)
+
+- The overview exposes Voice alongside topics and chat, including an access
+  hint before channel membership. Channel joins and departures refresh access.
+- 28 Voice request examples passed, including channel-join access without
+  starting media or creating a native membership.
+- 92 browser assertions passed for overview controls, the overview controller,
+  and workspace context. A real local browser flow verified direct call entry, room messages,
+  viewport-visible controls at 1837 by 999 and 390 by 844, and immediate access
+  removal on channel departure.
+- The revised guest invitation dialog, isolated messages, synthetic audio/video,
+  and End call menu passed a two-browser flow with no browser errors.

@@ -79,6 +79,35 @@ RSpec.describe DiscourseWorkspaceGroups::VoiceController do
     expect(outsider.guardian.can_join_voice_room?(room)).to eq(false)
   end
 
+  it "grants room access on channel join without entering a call or adding a second membership" do
+    public_channel = DiscourseWorkspaceGroups::CreateChannel.new(
+      workspace: workspace, user: admin, name: "Voice town square", description: "Voice discovery test", visibility: "public", channel_mode: "category_only",
+    ).call
+    public_binding = DiscourseWorkspaceGroups::VoiceBinding.create!(source_type: "category", source_id: public_channel.id, enabled: true)
+    workspace.workspace_group.add(member)
+    sign_in(member)
+    notifications = MessageBus.track_publish("/workspace-voice/access/#{member.id}") do
+      post "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+    end
+    expect(response.status).to eq(200)
+    expect(notifications).not_to be_empty
+    expect(notifications.last.user_ids).to eq([member.id])
+    get "/workspace-groups/voice/rooms.json"
+    expect(response.parsed_body["channels"].map { |entry| entry["category_id"] }).to include(public_channel.id)
+    expect(public_binding.reload.room_id).to be_nil
+    target = public_binding.prepare!(member)
+    expect(Voice::ParticipantTracker.user_ids(target.id)).to be_empty
+    expect(Voice::RoomMembership.exists?(room_id: target.id, user_id: member.id)).to eq(false)
+    notifications = MessageBus.track_publish("/workspace-voice/access/#{member.id}") do
+      delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+    end
+    expect(response.status).to eq(200)
+    expect(notifications).not_to be_empty
+    get "/workspace-groups/voice/rooms.json"
+    expect(response.parsed_body["channels"].map { |entry| entry["category_id"] }).not_to include(public_channel.id)
+    expect(member.guardian.can_join_voice_room?(target)).to eq(false)
+  end
+
   it "returns the same room on repeated preparation" do
     first = room.id
     expect(binding.prepare!(manager).id).to eq(first)
@@ -214,7 +243,7 @@ RSpec.describe DiscourseWorkspaceGroups::VoiceController do
   it "limits guest messages to the current session after admission" do
     join_room(manager)
     binding.add_message!(manager, "Earlier member-only discussion")
-    freeze_time 1.second.from_now
+    freeze_time 1.second.from_now.change(usec: 0)
     post "/voice/rooms/#{room.id}/invites.json", params: { usernames: [outsider.username] }
     join_room(outsider)
     post "/workspace-groups/voice/rooms/#{room.id}/messages.json", params: { text: "Guest's link" }

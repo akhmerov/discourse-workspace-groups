@@ -228,6 +228,13 @@ module DiscourseWorkspaceGroups
       end
     end
 
+    def self.publish_access_change!(user_id, group)
+      return unless integration_enabled?
+      channel = DiscourseWorkspaceGroups.workspace_channel_category_for_group(group)
+      return unless channel&.workspace_voice_enabled?
+      MessageBus.publish("/workspace-voice/access/#{user_id}", { type: "refresh" }, user_ids: [user_id])
+    end
+
     def self.reconcile_active!
       return unless defined?(::Voice::Room) && table_exists?
       where.not(room_id: nil).find_each { |binding| binding.reconcile! }

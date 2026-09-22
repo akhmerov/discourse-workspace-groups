@@ -1313,31 +1313,95 @@ body.workspace-team-sidebar-scroll-lock {
   border-radius: 50%;
   background: var(--success);
 }
-.workspace-voice-call-details {
-  padding: 1em;
-  border-bottom: 1px solid var(--primary-low);
+
+.voice-room-page.workspace-voice-room-page {
+  height: calc(100dvh - var(--workspace-voice-page-top, 4em) - 1rem);
 }
-.workspace-voice-call-details__actions {
-  display: flex;
+
+// Keep channel actions inside the native room's bounded layout. An extra
+// panel above the room pushes the media controls below the viewport.
+.voice-room-page__title-row:has(.workspace-voice-call-toolbar) {
   flex-wrap: wrap;
+}
+
+.workspace-voice-call-toolbar {
+  display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.25em;
+  margin-left: auto;
 }
+
+.workspace-voice-guest-badge {
+  color: var(--primary-high);
+  font-size: var(--font-down-1);
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-voice-call-messages {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 22rem;
+  min-width: 0;
+  padding: 0.75em;
+  border-left: 1px solid var(--primary-low);
+  background: var(--secondary);
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    h2 {
+      margin: 0;
+      font-size: var(--font-up-1);
+    }
+  }
+}
+
+.workspace-voice-messages-help {
+  color: var(--primary-medium);
+  font-size: var(--font-down-1);
+}
+
 .workspace-voice-messages {
-  max-height: 180px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-wrap: anywhere;
+
+  p {
+    margin: 0.5em 0;
+  }
+
+  span {
+    white-space: pre-wrap;
+  }
 }
-.workspace-voice-messages p {
-  margin: 0.5em 0;
-}
-.workspace-voice-messages span {
-  white-space: pre-wrap;
-}
+
 .workspace-voice-message-form {
   display: flex;
   gap: 0.5em;
   margin-top: 0.5em;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+  }
 }
-.workspace-voice-message-form input {
-  flex: 1;
+
+@media (width <= 600px) {
+  .voice-room-page__body:has(.workspace-voice-call-messages) {
+    position: relative;
+  }
+
+  .workspace-voice-call-messages {
+    position: absolute;
+    inset: calc(var(--workspace-voice-header-height, 3rem) + 0.5rem) 0 calc(var(--workspace-voice-controls-height, 4rem) + 0.5rem);
+    z-index: 2;
+    border: 1px solid var(--primary-low);
+  }
 }

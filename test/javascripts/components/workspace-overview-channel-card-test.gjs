@@ -1,4 +1,4 @@
-import { click, render } from "@ember/test-helpers";
+import { click, render, settled } from "@ember/test-helpers";
 import { module, test } from "qunit";
 import { setupRenderingTest } from "discourse/tests/helpers/component-test";
 import WorkspaceOverviewChannelCard from "discourse/plugins/discourse-workspace-groups/discourse/components/workspace-overview-channel-card";
@@ -7,6 +7,78 @@ module(
   "Discourse Workspace Groups | Component | workspace-overview-channel-card",
   function (hooks) {
     setupRenderingTest(hooks);
+
+    test("shows an enabled Voice room beside topics and chat for channel members", async function (assert) {
+      this.siteSettings.voice_enabled = true;
+      this.channel = {
+        id: 29,
+        name: "Town Square",
+        voice_enabled: true,
+        joined: true,
+      };
+      await render(
+        <template>
+          <WorkspaceOverviewChannelCard @channel={{this.channel}} />
+        </template>
+      );
+      assert
+        .dom("a.workspace-groups-overview__voice")
+        .hasAttribute("href", "/workspace-voice/channels/29");
+      assert
+        .dom(".workspace-groups-overview__voice .d-icon-microphone")
+        .exists();
+    });
+
+    test("shows Voice capability without granting unjoined administrators room access", async function (assert) {
+      this.siteSettings.voice_enabled = true;
+      this.channel = {
+        id: 29,
+        name: "Town Square",
+        voice_enabled: true,
+        joined: false,
+        can_join: true,
+        can_open_topics: true,
+      };
+      this.noop = () => {};
+      await render(
+        <template>
+          <WorkspaceOverviewChannelCard
+            @channel={{this.channel}}
+            @onJoin={{this.noop}}
+          />
+        </template>
+      );
+      assert
+        .dom(".workspace-groups-overview__voice")
+        .hasAttribute(
+          "title",
+          "Voice enabled. Join the channel to access its room."
+        );
+      assert.dom("a.workspace-groups-overview__voice").doesNotExist();
+    });
+
+    test("hides Voice on disabled or archived channels", async function (assert) {
+      this.siteSettings.voice_enabled = true;
+      this.channel = {
+        id: 29,
+        name: "Town Square",
+        voice_enabled: false,
+        joined: true,
+      };
+      await render(
+        <template>
+          <WorkspaceOverviewChannelCard @channel={{this.channel}} />
+        </template>
+      );
+      assert.dom(".workspace-groups-overview__voice").doesNotExist();
+      this.set("channel", {
+        ...this.channel,
+        voice_enabled: true,
+        archived: true,
+      });
+      await settled();
+      assert.dom(".workspace-groups-overview__voice").doesNotExist();
+    });
 
     test("renders membership and settings actions in the same action row", async function (assert) {
       this.channel = {
@@ -66,16 +138,22 @@ module(
         .dom(".workspace-groups-overview__membership-button--icon")
         .hasAttribute("title", "Leave");
       assert
-        .dom(".workspace-groups-overview__membership-button--icon .d-icon-right-from-bracket")
+        .dom(
+          ".workspace-groups-overview__membership-button--icon .d-icon-right-from-bracket"
+        )
         .exists();
       assert
         .dom(".workspace-groups-overview__card-actions .d-icon-wrench")
         .exists();
       assert
-        .dom('.workspace-groups-overview__card-actions .btn[title="Channel settings"]')
+        .dom(
+          '.workspace-groups-overview__card-actions .btn[title="Channel settings"]'
+        )
         .hasAttribute("title", "Channel settings");
       assert
-        .dom('.workspace-groups-overview__card-actions .btn[title="Channel members"]')
+        .dom(
+          '.workspace-groups-overview__card-actions .btn[title="Channel members"]'
+        )
         .hasAttribute("title", "Channel members");
     });
 
@@ -112,7 +190,9 @@ module(
         </template>
       );
 
-      assert.dom(".workspace-groups-overview__heading h3").hasText("Secure Lab");
+      assert
+        .dom(".workspace-groups-overview__heading h3")
+        .hasText("Secure Lab");
       assert
         .dom(".workspace-groups-overview__visibility--title")
         .hasAttribute("title", "Private");
@@ -160,7 +240,9 @@ module(
       assert
         .dom(".workspace-groups-overview__channel-description a")
         .hasAttribute("href", "https://example.com/docs");
-      assert.dom(".workspace-groups-overview__channel-description").includesText("Read the docs.");
+      assert
+        .dom(".workspace-groups-overview__channel-description")
+        .includesText("Read the docs.");
     });
 
     test("flattens wrapped pipe-separated link descriptions without dropping links", async function (assert) {
@@ -203,7 +285,9 @@ module(
       assert
         .dom(".workspace-groups-overview__channel-description")
         .doesNotContainText("\n");
-      assert.dom(".workspace-groups-overview__channel-description br").doesNotExist();
+      assert
+        .dom(".workspace-groups-overview__channel-description br")
+        .doesNotExist();
       assert
         .dom(".workspace-groups-overview__channel-description a")
         .exists({ count: 4 });
@@ -295,8 +379,12 @@ module(
         </template>
       );
 
-      assert.dom(".workspace-groups-overview__channel-modes .d-icon-calendar-day").exists();
-      assert.dom(".workspace-groups-overview__channel-modes .d-icon-list").doesNotExist();
+      assert
+        .dom(".workspace-groups-overview__channel-modes .d-icon-calendar-day")
+        .exists();
+      assert
+        .dom(".workspace-groups-overview__channel-modes .d-icon-list")
+        .doesNotExist();
     });
 
     test("offers join instead of linking unjoined public channels", async function (assert) {
@@ -342,14 +430,18 @@ module(
       assert
         .dom(".workspace-groups-overview__channel-link-button")
         .hasText("Public Bench");
-      assert.dom(".workspace-groups-overview__channel-link[href]").doesNotExist();
+      assert
+        .dom(".workspace-groups-overview__channel-link[href]")
+        .doesNotExist();
       assert.dom(".workspace-groups-overview__channel-modes a").doesNotExist();
       assert.dom(".workspace-groups-overview__membership-link").doesNotExist();
       assert.dom(".workspace-groups-overview__membership").hasText("4 members");
 
       await click(".workspace-groups-overview__channel-link-button");
 
-      assert.dom(".workspace-groups-overview__membership-button--icon").hasAttribute("title", "Join");
+      assert
+        .dom(".workspace-groups-overview__membership-button--icon")
+        .hasAttribute("title", "Join");
     });
   }
 );

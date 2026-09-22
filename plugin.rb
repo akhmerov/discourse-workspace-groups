@@ -1130,6 +1130,7 @@ after_initialize do
     GroupUser.after_commit do
       DiscourseWorkspaceGroups::VoiceBinding.revoke_group_guest_grants!(user_id, group_id)
       DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
+      DiscourseWorkspaceGroups::VoiceBinding.publish_access_change!(user_id, group)
     end
     ::Chat::DirectMessageChannel.prepend(DiscourseWorkspaceGroups::VoiceIntegration::DirectMessageDeparture)
     ::Chat::DirectMessageUser.after_destroy { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
@@ -1140,7 +1141,11 @@ after_initialize do
         DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
       end
     end
+    on(:user_added_to_group) do |user, group|
+      DiscourseWorkspaceGroups::VoiceBinding.publish_access_change!(user.id, group)
+    end
     on(:user_removed_from_group) do |user, group|
+      DiscourseWorkspaceGroups::VoiceBinding.publish_access_change!(user.id, group)
       DiscourseWorkspaceGroups::VoiceBinding.revoke_group_guest_grants!(user.id, group.id)
       DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
     end
