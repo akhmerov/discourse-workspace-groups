@@ -105,7 +105,7 @@ acceptance("Discourse Workspace Groups | Load errors", function (needs) {
     owner.register("service:workspace-voice", WorkspaceVoiceStub);
     owner.register("service:chat", ChatServiceStub);
     owner.register("service:chat-channels-manager", ChatChannelsManagerStub);
-    updateCurrentUser({ groups: [{ id: 1, name: "quantum" }] });
+    updateCurrentUser({ visibleGroups: [{ id: 1, name: "quantum" }] });
   }
 
   test("retries failed chat hydration and then offers a manual retry", async function (assert) {

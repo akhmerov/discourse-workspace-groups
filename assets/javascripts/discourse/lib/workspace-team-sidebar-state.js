@@ -471,7 +471,11 @@ export function visibleWorkspaceCategories(services) {
 
 export function memberWorkspaceCategories(services) {
   const workspaceGroupIds = new Set(
-    (services.currentUser?.groups || []).map((group) => Number(group.id))
+    (
+      services.currentUser?.visibleGroups ??
+      services.currentUser?.groups ??
+      []
+    ).map((group) => Number(group.id))
   );
 
   return visibleWorkspaceCategories(services).filter((category) =>
