@@ -6,7 +6,8 @@ export default class WorkspaceVoiceIndexRoute extends DiscourseRoute {
   @service workspaceVoice;
 
   async model() {
-    await this.workspaceVoice.refresh();
+    // The directory renders its own error state when the refresh fails.
+    await this.workspaceVoice.refresh().catch(() => {});
     return this.workspaceVoice.channels;
   }
 

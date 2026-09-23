@@ -1,6 +1,7 @@
 en:
   js:
     discourse_workspace_groups:
+      retry: "Retry"
       voice:
         title: "Voice"
         enable: "Enable voice room"
@@ -13,6 +14,7 @@ en:
           one: "%{count} participant"
           other: "%{count} participants"
         empty: "No voice rooms are enabled in your channels. Channel managers can enable them in channel settings."
+        load_failed: "Voice rooms could not be loaded."
         open: "Open voice room"
         join_channel_first: "Voice enabled. Join the channel to access its room."
         members_only: "Voice enabled. Room access requires channel membership."
@@ -40,6 +42,7 @@ en:
       overview_description: "Public channels and your joined private channels in this team."
       overview_empty: "No visible channels yet."
       overview_active_empty: "No active channels right now."
+      archived_channels_load_failed: "Archived channels could not be loaded."
       archived_channels_summary:
         one: "Archived channels (%{count})"
         other: "Archived channels (%{count})"
@@ -61,6 +64,7 @@ en:
       add_channel_members: "Add members"
       add_channel_members_help: "Channel members can add team members. Channel managers can also grant direct access."
       channel_members_empty: "No members yet."
+      channel_members_load_failed: "Channel members could not be loaded."
       channel_member_owner: "Owner"
       channel_member_guest: "Guest"
       remove_channel_member: "Remove member"
@@ -107,6 +111,7 @@ en:
       drag_channel_to_reorder: "Drag to reorder"
       no_channels: "No channels"
       no_unread_channels: "No unread channels"
+      sidebar_chat_load_failed: "Chat status for this workspace's channels could not be loaded."
       delete_channel_group_message: "Delete %{group_name}? Its channels will move to Other."
       delete_channel_group_confirm: "Delete group"
       channel_name: "Channel name"

@@ -16,6 +16,7 @@ export default class WorkspaceChannelMembersModal extends Component {
   @tracked members = [];
   @tracked selectedUsernames = [];
   @tracked loading = true;
+  @tracked loadFailed = false;
   @tracked saving = false;
 
   constructor() {
@@ -70,12 +71,13 @@ export default class WorkspaceChannelMembersModal extends Component {
   @action
   async loadAccess() {
     this.loading = true;
+    this.loadFailed = false;
 
     try {
       const result = await ajax(`${this.accessUrl}.json`);
       this.applyAccessPayload(result);
-    } catch (error) {
-      popupAjaxError(error);
+    } catch {
+      this.loadFailed = true;
     } finally {
       this.loading = false;
     }
@@ -144,6 +146,18 @@ export default class WorkspaceChannelMembersModal extends Component {
           <p class="workspace-groups-channel-members-modal__empty">
             {{i18n "loading"}}
           </p>
+        {{else if this.loadFailed}}
+          <div class="workspace-groups-channel-members-modal__error">
+            <p>
+              {{i18n "discourse_workspace_groups.channel_members_load_failed"}}
+            </p>
+            <DButton
+              @action={{this.loadAccess}}
+              @label="discourse_workspace_groups.retry"
+              @icon="arrows-rotate"
+              class="btn-default workspace-groups-channel-members-modal__retry"
+            />
+          </div>
         {{else}}
           {{#if this.canAddMembers}}
             <div class="workspace-groups-channel-members-modal__add">

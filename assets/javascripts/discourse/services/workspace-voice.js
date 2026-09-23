@@ -11,9 +11,11 @@ export default class WorkspaceVoiceService extends Service {
   @service voiceWebrtc;
 
   @tracked channels = [];
+  @tracked loadFailed = false;
   pendingRingRoomId = null;
   refreshTimer = null;
   roomRevision = 0;
+  refreshSequence = 0;
 
   constructor() {
     super(...arguments);
@@ -61,10 +63,24 @@ export default class WorkspaceVoiceService extends Service {
       !this.siteSettings.discourse_workspace_groups_enabled
     ) {
       this.channels = [];
+      this.loadFailed = false;
       return;
     }
     const revision = this.roomRevision;
-    const result = await ajax("/workspace-groups/voice/rooms.json");
+    // Only the most recent request decides whether the directory is stale.
+    const sequence = ++this.refreshSequence;
+    let result;
+    try {
+      result = await ajax("/workspace-groups/voice/rooms.json");
+    } catch (error) {
+      if (sequence === this.refreshSequence) {
+        this.loadFailed = true;
+      }
+      throw error;
+    }
+    if (sequence === this.refreshSequence) {
+      this.loadFailed = false;
+    }
     await this.voiceRooms.ready;
     if (revision !== this.roomRevision) {
       return;

@@ -189,6 +189,12 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     await this.chatChannelsManager.find(channel.chat_channel_id);
   }
 
+  refreshVoiceRooms() {
+    // Membership has already changed; a stale Voice directory is reported by
+    // the directory itself rather than as a failed join or leave.
+    return this.workspaceVoice.refresh().catch(() => {});
+  }
+
   removeJoinedChatChannel(channel) {
     if (!channel?.chat_channel_id) {
       return;
@@ -304,7 +310,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
       );
 
       this.applyChannelPayload(channel, result.channel);
-      await this.workspaceVoice.refresh();
+      await this.refreshVoiceRooms();
       await this.syncJoinedChatChannel(result.channel);
     } catch (error) {
       popupAjaxError(error);
@@ -331,7 +337,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
 
       this.removeJoinedChatChannel(result.channel);
       this.applyChannelPayload(channel, result.channel);
-      await this.workspaceVoice.refresh();
+      await this.refreshVoiceRooms();
     } catch (error) {
       popupAjaxError(error);
     } finally {
@@ -393,6 +399,7 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
     }
 
     this.model.archivedChannelsLoading = true;
+    this.model.archivedChannelsLoadFailed = false;
 
     try {
       const result = await ajax(
@@ -405,10 +412,15 @@ export default class DiscoveryWorkspaceOverviewController extends Controller {
         ...(result.channels || []).map((channel) => this.trackChannel(channel))
       );
       this.model.archivedChannelsLoaded = true;
-    } catch (error) {
-      popupAjaxError(error);
+    } catch {
+      this.model.archivedChannelsLoadFailed = true;
     } finally {
       this.model.archivedChannelsLoading = false;
     }
+  }
+
+  @action
+  retryArchivedChannels() {
+    return this.loadArchivedChannels({ target: { open: true } });
   }
 }

@@ -58,6 +58,7 @@ export default class DiscoveryWorkspaceOverviewRoute extends DiscourseRoute {
       archivedChannelCount: result.archived_channel_count || 0,
       archivedChannelsLoaded: false,
       archivedChannelsLoading: false,
+      archivedChannelsLoadFailed: false,
       filterType: "workspace-overview",
       noSubcategories: false,
     });

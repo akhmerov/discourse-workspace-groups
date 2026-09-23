@@ -20,6 +20,7 @@ import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
 import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
+import WorkspaceLoadRetries from "../lib/workspace-load-retries";
 import {
   channelIdsForLayout,
   deleteSidebarSection as deleteSidebarSectionFromLayout,
@@ -115,10 +116,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.workspaceChatIdsByWorkspaceId = new Map();
     this.hydratedWorkspaceChatIds = new Set();
     this.hydratingWorkspaceChatIds = new Set();
-    this.failedWorkspaceChatHydrationIds = new Set();
+    this.workspaceChatHydrationRetries = new WorkspaceLoadRetries();
     this.hydratedWorkspaceChatTrackingIds = new Set();
     this.hydratingWorkspaceChatTrackingIds = new Set();
-    this.failedWorkspaceChatTrackingIds = new Set();
+    this.workspaceChatTrackingRetries = new WorkspaceLoadRetries();
     this.sidebarPointerMoveCallback = (event) =>
       this.updateSidebarPointerDrag(event);
     this.sidebarPointerUpCallback = (event) =>
@@ -154,6 +155,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarSectionsElement?.classList.remove(this.focusedSidebarClass);
     this.sidebarSectionsElement?.classList.remove(this.unreadOnlySidebarClass);
     this.cancelSidebarPointerDrag();
+    this.workspaceChatHydrationRetries.clearAll();
+    this.workspaceChatTrackingRetries.clearAll();
     this.router.off("routeDidChange", this.routeDidChangeCallback);
     window.removeEventListener(
       WORKSPACE_FOCUS_CHANGED_EVENT,
@@ -884,6 +887,25 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     return i18n("discourse_workspace_groups.no_unread_channels");
   }
 
+  get workspaceChatLoadFailedLabel() {
+    return i18n("discourse_workspace_groups.sidebar_chat_load_failed");
+  }
+
+  get retryLabel() {
+    return i18n("discourse_workspace_groups.retry");
+  }
+
+  get workspaceChatLoadFailed() {
+    this.chatHydrationVersion;
+    const workspaceId = this.workspaceCategory?.id;
+
+    return Boolean(
+      workspaceId &&
+        (this.workspaceChatHydrationRetries.exhausted(workspaceId) ||
+          this.workspaceChatTrackingRetries.exhausted(workspaceId))
+    );
+  }
+
   get sidebarSectionTitleInvalid() {
     return this.editingSidebarSectionTitle.trim().length === 0;
   }
@@ -1153,7 +1175,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       !workspaceId ||
       this.hydratedWorkspaceChatIds.has(workspaceId) ||
       this.hydratingWorkspaceChatIds.has(workspaceId) ||
-      this.failedWorkspaceChatHydrationIds.has(workspaceId)
+      this.workspaceChatHydrationRetries.blocked(workspaceId)
     ) {
       return;
     }
@@ -1163,12 +1185,17 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     ajax(`/workspace-groups/workspaces/${workspaceId}`)
       .then((payload) => {
         this.storeWorkspaceChatChannels(workspaceId, payload.channels ?? []);
+        this.workspaceChatHydrationRetries.clear(workspaceId);
         this.hydratedWorkspaceChatIds.add(workspaceId);
         this.chatHydrationVersion++;
         this.ensureWorkspaceChatTracking(workspaceId);
       })
       .catch(() => {
-        this.failedWorkspaceChatHydrationIds.add(workspaceId);
+        // Re-rendering the rows retries hydration for the current workspace.
+        this.workspaceChatHydrationRetries.recordFailure(workspaceId, () => {
+          this.chatHydrationVersion++;
+        });
+        this.chatHydrationVersion++;
       })
       .finally(() => {
         this.hydratingWorkspaceChatIds.delete(workspaceId);
@@ -1181,7 +1208,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       !this.hydratedWorkspaceChatIds.has(workspaceId) ||
       this.hydratedWorkspaceChatTrackingIds.has(workspaceId) ||
       this.hydratingWorkspaceChatTrackingIds.has(workspaceId) ||
-      this.failedWorkspaceChatTrackingIds.has(workspaceId)
+      this.workspaceChatTrackingRetries.blocked(workspaceId)
     ) {
       return;
     }
@@ -1194,14 +1221,28 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           workspaceId,
           payload.channel_tracking ?? {}
         );
+        this.workspaceChatTrackingRetries.clear(workspaceId);
         this.hydratedWorkspaceChatTrackingIds.add(workspaceId);
       })
       .catch(() => {
-        this.failedWorkspaceChatTrackingIds.add(workspaceId);
+        this.workspaceChatTrackingRetries.recordFailure(workspaceId, () =>
+          this.ensureWorkspaceChatTracking(workspaceId)
+        );
+        this.chatHydrationVersion++;
       })
       .finally(() => {
         this.hydratingWorkspaceChatTrackingIds.delete(workspaceId);
       });
+  }
+
+  @action
+  retryWorkspaceChatLoad() {
+    const workspaceId = this.workspaceCategory?.id;
+
+    this.workspaceChatHydrationRetries.clear(workspaceId);
+    this.workspaceChatTrackingRetries.clear(workspaceId);
+    this.chatHydrationVersion++;
+    this.ensureWorkspaceChatTracking(workspaceId);
   }
 
   @action
@@ -2378,6 +2419,19 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           class="sidebar-section-content"
         >
           {{#if this.inWorkspaceContext}}
+            {{#if this.workspaceChatLoadFailed}}
+              <li class="workspace-team-sidebar__load-error" role="status">
+                {{dIcon "triangle-exclamation"}}
+                <span>{{this.workspaceChatLoadFailedLabel}}</span>
+                <button
+                  type="button"
+                  class="workspace-team-sidebar__load-error-retry"
+                  {{on "click" this.retryWorkspaceChatLoad}}
+                >
+                  {{this.retryLabel}}
+                </button>
+              </li>
+            {{/if}}
             {{#if this.editingSidebar}}
               {{#each this.editableGroups as |group|}}
                 {{#if group.title}}

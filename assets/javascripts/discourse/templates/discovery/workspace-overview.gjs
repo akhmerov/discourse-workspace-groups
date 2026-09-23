@@ -139,6 +139,20 @@ export default <template>
               <p class="workspace-groups-overview__archived-loading">
                 {{i18n "loading"}}
               </p>
+            {{else if @controller.model.archivedChannelsLoadFailed}}
+              <div class="workspace-groups-overview__archived-error">
+                <p>
+                  {{i18n
+                    "discourse_workspace_groups.archived_channels_load_failed"
+                  }}
+                </p>
+                <DButton
+                  @action={{@controller.retryArchivedChannels}}
+                  @label="discourse_workspace_groups.retry"
+                  @icon="arrows-rotate"
+                  class="btn-default workspace-groups-overview__archived-retry"
+                />
+              </div>
             {{else if @controller.model.archivedChannelsLoaded}}
               <div class="workspace-groups-overview__channels workspace-groups-overview__channels--archived">
                 {{#each @controller.archivedChannels as |channel|}}

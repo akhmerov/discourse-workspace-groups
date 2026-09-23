@@ -1,5 +1,5 @@
 import { module, test } from "qunit";
-import pretender from "discourse/tests/helpers/create-pretender";
+import pretender, { response } from "discourse/tests/helpers/create-pretender";
 import { setupTest } from "discourse/tests/helpers/index";
 import { setupWorkspaceChatServices } from "../../helpers/setup-workspace-chat-services";
 
@@ -44,6 +44,47 @@ module(
       assert.strictEqual(controller.model.archivedChannels.length, 1);
       assert.strictEqual(controller.model.archivedChannels[0].id, 31);
       assert.false(controller.model.archivedChannels[0].is_pending);
+    });
+
+    test("shows a retryable error when archived channels fail to load", async function (assert) {
+      const controller = this.owner.lookup("controller:discovery.workspaceOverview");
+      let requests = 0;
+
+      controller.model = {
+        category: { id: 28 },
+        archivedChannels: [],
+        archivedChannelCount: 1,
+        archivedChannelsLoaded: false,
+        archivedChannelsLoading: false,
+        archivedChannelsLoadFailed: false,
+      };
+
+      pretender.get("/workspace-groups/workspaces/28/archived-channels.json", () => {
+        requests += 1;
+
+        if (requests === 1) {
+          return response(500, { errors: ["boom"] });
+        }
+
+        return response({
+          channels: [
+            { id: 31, name: "Archive", archived: true, visibility: "public" },
+          ],
+        });
+      });
+
+      await controller.loadArchivedChannels({ target: { open: true } });
+
+      assert.true(controller.model.archivedChannelsLoadFailed);
+      assert.false(controller.model.archivedChannelsLoaded);
+      assert.false(controller.model.archivedChannelsLoading);
+
+      await controller.retryArchivedChannels();
+
+      assert.strictEqual(requests, 2);
+      assert.false(controller.model.archivedChannelsLoadFailed);
+      assert.true(controller.model.archivedChannelsLoaded);
+      assert.strictEqual(controller.model.archivedChannels[0].id, 31);
     });
   }
 );
