@@ -203,7 +203,19 @@ function chatCategoryFor(services) {
 }
 
 export function currentScopedCategory(services) {
-  if (services.router?.currentRouteName === "voice-room" || services.router?.currentRouteName?.startsWith("workspace-voice")) {
+  const routeName = services.router?.currentRouteName;
+  if (routeName === "voice-room" || routeName === "workspace-voice.channel") {
+    const binding = services.router.currentRoute?.attributes?.workspace_voice;
+    // A call guest can see the room, but has no channel or workspace membership.
+    // Use the room's binding, never retained chat state or a remembered workspace.
+    if (binding?.source_type !== "category" || binding.is_guest !== false) {
+      return null;
+    }
+    return workspaceScopedCategory(
+      siteCategoryById(services.site, binding.source_id)
+    );
+  }
+  if (routeName?.startsWith("workspace-voice")) {
     return null;
   }
   return (
@@ -218,6 +230,13 @@ export function currentWorkspaceCategory(services) {
 }
 
 export function currentScopedMode(services) {
+  if (
+    ["voice-room", "workspace-voice.channel"].includes(
+      services.router?.currentRouteName
+    )
+  ) {
+    return currentScopedCategory(services) ? "voice" : null;
+  }
   if (
     services.router?.currentRouteName?.startsWith("chat.") &&
     services.chat?.activeChannel?.isCategoryChannel

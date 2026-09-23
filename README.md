@@ -4,6 +4,17 @@
 
 It is designed for deployments where users think in terms of a team workspace with many channels, but the implementation should still reuse Discourse primitives for permissions, category metadata, and chat pairing.
 
+## Voice navigation
+
+Opening a channel's Voice room keeps members in the owning workspace, including
+when following a direct room link. The sidebar selects the channel's microphone
+instead of its topics or chat control. The global Voice room list is hidden while
+inside a workspace; the navbar microphone still opens the global directory.
+
+DM calls, standalone rooms, and temporary call guests use global navigation.
+Joining a channel grants room access; entering audio still requires the explicit
+Voice action and native device check.
+
 ## Overview
 
 The plugin introduces two category roles:

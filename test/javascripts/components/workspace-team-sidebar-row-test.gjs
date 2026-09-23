@@ -16,6 +16,14 @@ module(
         prefersFullPage = sinon.spy();
       }
 
+      class WorkspaceVoiceStub extends Service {
+        channels = [];
+      }
+      class VoiceRoomsStub extends Service {
+        rooms = [];
+      }
+      this.owner.register("service:workspace-voice", WorkspaceVoiceStub);
+      this.owner.register("service:voice-rooms", VoiceRoomsStub);
       this.owner.register(
         "service:chat-state-manager",
         ChatStateManagerStub
@@ -25,6 +33,37 @@ module(
     hooks.afterEach(function () {
       sinon.restore();
     });
+
+        test("highlights only the mic when viewing a channel Voice room", async function (assert) {
+          class WorkspaceVoiceStub extends Service {
+            channels = [{ category_id: 29, room: { id: 7 } }];
+          }
+          class VoiceRoomsStub extends Service {
+            rooms = [{ id: 7, active_participants: [{ id: 1 }] }];
+          }
+          this.owner.register("service:workspace-voice", WorkspaceVoiceStub);
+          this.owner.register("service:voice-rooms", VoiceRoomsStub);
+          this.categoryLink = {
+            category: { id: 29 }, name: "lab-notes", route: "discovery.category",
+            model: "quantum-tinkerer/lab-notes/29", currentWhen: "discovery.category",
+            title: "Lab Notes", text: "Lab Notes", prefixType: "icon", prefixValue: "folder",
+          };
+          await render(<template>
+            <WorkspaceTeamSidebarRow
+              @categoryActive={{false}}
+              @categoryLink={{this.categoryLink}}
+              @chatActive={{false}}
+              @chatPath="/chat/c/lab-notes/15"
+              @voiceActive={{true}}
+            />
+          </template>);
+          assert.dom(".workspace-voice-channel-link").hasClass("workspace-team-sidebar__mode-button--active");
+          assert.dom(".workspace-voice-channel-link").hasAttribute("aria-current", "page");
+          assert.dom(".workspace-team-sidebar__mode-button--active").exists({ count: 1 });
+          assert.dom(".workspace-team-sidebar__main-link").doesNotHaveClass("active");
+          assert.dom(".workspace-voice-channel-count").hasText("1");
+        });
+
 
     test("routes chat icon clicks without a full reload", async function (assert) {
       sinon.stub(DiscourseURL, "routeTo");

@@ -210,7 +210,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   get mobileWorkspaceCategoryOverride() {
-    return this.site.mobileView ? this.focusedWorkspaceCategory : null;
+    if (!this.site.mobileView) {
+      return null;
+    }
+    return this.mode === "voice"
+      ? currentWorkspaceCategory(this.services)
+      : this.focusedWorkspaceCategory;
   }
 
   get workspaceCategory() {
@@ -254,7 +259,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       this.router.currentRouteName === "voice-room" ||
       this.router.currentRouteName?.startsWith("workspace-voice")
     ) {
-      return false;
+      return !!currentWorkspaceCategory(this.services);
     }
     const focusedWorkspace = this.focusedWorkspaceCategory;
 
@@ -402,6 +407,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
           this.mode === "category" && this.activeCategoryId === category.id,
         chatActive:
           this.mode === "chat" && this.activeCategoryId === category.id,
+        voiceActive:
+          this.mode === "voice" && this.activeCategoryId === category.id,
       };
     });
   }
@@ -2514,6 +2521,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                       @isActive={{row.isActive}}
                       @categoryActive={{row.categoryActive}}
                       @chatActive={{row.chatActive}}
+                      @voiceActive={{row.voiceActive}}
                       @editable={{this.editingSidebar}}
                       @dragging={{row.dragging}}
                       @dropBefore={{row.dropBefore}}
@@ -2584,6 +2592,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                       @isActive={{row.isActive}}
                       @categoryActive={{row.categoryActive}}
                       @chatActive={{row.chatActive}}
+                      @voiceActive={{row.voiceActive}}
                       @editable={{this.editingSidebar}}
                     />
                   {{/each}}

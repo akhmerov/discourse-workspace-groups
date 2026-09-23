@@ -34,6 +34,13 @@ export default class WorkspaceTeamSidebarRow extends Component {
     );
   }
 
+  get voiceButtonClass() {
+    return dConcatClass(
+      "workspace-team-sidebar__mode-button workspace-voice-channel-link",
+      this.args.voiceActive && "workspace-team-sidebar__mode-button--active"
+    );
+  }
+
   get voiceCategoryId() {
     return this.args.category?.id || this.args.categoryLink.category?.id;
   }
@@ -313,7 +320,8 @@ export default class WorkspaceTeamSidebarRow extends Component {
 
         {{#if this.voiceAvailable}}
           <LinkTo
-            class="workspace-team-sidebar__mode-button workspace-voice-channel-link"
+            aria-current={{if @voiceActive "page"}}
+            class={{this.voiceButtonClass}}
             @model={{this.voiceCategoryId}}
             @route="workspace-voice.channel"
             @title={{i18n "discourse_workspace_groups.voice.title"}}

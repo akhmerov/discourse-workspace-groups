@@ -155,7 +155,11 @@
 .sidebar-sections.workspace-team-sidebar--focused
   > .sidebar-section-wrapper[data-section-name="chat-search"],
 .sidebar-sections.workspace-team-sidebar--focused
-  > .sidebar-section-wrapper[data-section-name="chat-channels"] {
+  > .sidebar-section-wrapper[data-section-name="chat-channels"],
+.sidebar-sections.workspace-team-sidebar--focused
+  > .sidebar-section-wrapper[data-section-name="voice-rooms"],
+.sidebar-sections.workspace-team-sidebar--focused
+  > .sidebar-section-wrapper[data-section-name="voice-rooms-chat"] {
   display: none;
 }
 

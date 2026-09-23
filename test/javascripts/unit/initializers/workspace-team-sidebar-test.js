@@ -35,14 +35,48 @@ module(
       sessionStorage.removeItem(WORKSPACE_FOCUS_KEY);
     });
 
-    test("Voice routes leave workspace context even with a retained chat channel", function (assert) {
-      for (const route of ["voice-room", "workspace-voice.index", "workspace-voice.channel"]) {
-        assert.strictEqual(currentScopedCategory({
-          router: { currentRouteName: route, currentRoute: { attributes: { category: { id: 29, workspace_kind: "channel" } } } },
-          chat: { activeChannel: { isCategoryChannel: true, chatableId: 29 } },
-        }), null, route);
-      }
-    });
+        test("channel Voice rooms use their owning workspace, including direct links", function (assert) {
+          const workspace = { id: 40, workspace_kind: "workspace" };
+          const channel = { id: 41, parent_category_id: 40, workspace_kind: "channel" };
+          for (const route of ["voice-room", "workspace-voice.channel"]) {
+            const services = {
+              router: { currentRouteName: route, currentRoute: { attributes: {
+                workspace_voice: { source_type: "category", source_id: 41, is_guest: false },
+              } } },
+              site: { categoriesList: [workspace, channel] },
+              siteSettings: {},
+              chat: { activeChannel: { isCategoryChannel: true, chatableId: 29 } },
+            };
+            assert.strictEqual(currentScopedCategory(services), channel, route);
+            assert.strictEqual(currentScopedMode(services), "voice", "Voice is its own channel mode");
+            assert.deepEqual(sidebarScopedCategories(services), [workspace, channel], "uses the room's workspace");
+            services.chat = null;
+            assert.strictEqual(currentScopedCategory(services), channel, "works without previously visiting chat");
+          }
+        });
+
+        test("unbound rooms, DM calls and call guests do not inherit workspace context", function (assert) {
+          for (const binding of [undefined,
+            { source_type: "dm", source_id: 41, is_guest: false },
+            { source_type: "category", source_id: 41, is_guest: true },
+            { source_type: "category", source_id: 999, is_guest: false },
+          ]) {
+            const services = {
+              router: { currentRouteName: "voice-room", currentRoute: { attributes: { workspace_voice: binding } } },
+              site: { categoriesList: [{ id: 41, workspace_kind: "channel" }] },
+              chat: { activeChannel: { isCategoryChannel: true, chatableId: 41 } },
+            };
+            assert.strictEqual(currentScopedCategory(services), null);
+            assert.strictEqual(currentScopedMode(services), null);
+          }
+          for (const route of ["workspace-voice.index", "workspace-voice.dm"]) {
+            assert.strictEqual(currentScopedCategory({
+              router: { currentRouteName: route, currentRoute: { attributes: { category: { id: 41, workspace_kind: "channel" } } } },
+              chat: { activeChannel: { isCategoryChannel: true, chatableId: 41 } },
+            }), null, route);
+          }
+        });
+
 
     test("only treats workspace categories as scoped sidebar categories", function (assert) {
       const regularCategory = {
