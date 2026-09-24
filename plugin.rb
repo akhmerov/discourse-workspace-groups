@@ -632,6 +632,7 @@ require_relative "lib/discourse_workspace_groups/remove_channel_member"
 require_relative "lib/discourse_workspace_groups/set_channel_archive_state"
 require_relative "lib/discourse_workspace_groups/sync_category_chat_channel"
 require_relative "lib/discourse_workspace_groups/sync_channel_group_chat_membership"
+require_relative "lib/discourse_workspace_groups/chatable_search"
 
 after_initialize do
   module ::DiscourseWorkspaceGroups::GuardianArchiveRestrictions
@@ -753,6 +754,10 @@ after_initialize do
     Chat::ChannelFetcher.singleton_class.prepend(
       ::DiscourseWorkspaceGroups::ExcludeArchivedWorkspaceChatChannels,
     )
+  end
+
+  if defined?(::Chat::SearchChatable)
+    ::Chat::SearchChatable.prepend(::DiscourseWorkspaceGroups::ChatableSearch)
   end
 
   module ::DiscourseWorkspaceGroups::GroupManagerWorkspaceMemberRemoval

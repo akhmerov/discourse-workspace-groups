@@ -614,10 +614,9 @@ module ::DiscourseWorkspaceGroups
       categories =
         Category
           .where.not(parent_category_id: nil)
-          .where(
-            "categories.name ILIKE :term OR categories.slug ILIKE :term",
-            term: "%#{escaped_term}%",
-          )
+          # Channel slugs start with the team slug, so matching them would return every
+          # channel of a team whose name contains the term.
+          .where("categories.name ILIKE :term", term: "%#{escaped_term}%")
           .includes(:parent_category, topic: :first_post)
           .order(Arel.sql("LOWER(categories.name) ASC"))
           .limit(JOINABLE_CHANNEL_SEARCH_LIMIT * 4)
