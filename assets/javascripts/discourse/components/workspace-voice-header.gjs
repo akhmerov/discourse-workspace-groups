@@ -1,13 +1,14 @@
 import Component from "@glimmer/component";
 import { LinkTo } from "@ember/routing";
 import { service } from "@ember/service";
+import optionalService from "discourse/lib/optional-service";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
 
 export default class WorkspaceVoiceHeader extends Component {
   @service siteSettings;
   @service currentUser;
-  @service voiceWebrtc;
+  @optionalService voiceWebrtc;
 
   <template>
     {{#if this.currentUser}}

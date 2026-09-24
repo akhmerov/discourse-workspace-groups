@@ -2,13 +2,14 @@ import { tracked } from "@glimmer/tracking";
 import Service, { service } from "@ember/service";
 import { ajax } from "discourse/lib/ajax";
 import { bind } from "discourse/lib/decorators";
+import optionalService from "discourse/lib/optional-service";
 
 export default class WorkspaceVoiceService extends Service {
   @service currentUser;
   @service messageBus;
   @service siteSettings;
-  @service voiceRooms;
-  @service voiceWebrtc;
+  @optionalService voiceRooms;
+  @optionalService voiceWebrtc;
 
   @tracked channels = [];
   @tracked loadFailed = false;

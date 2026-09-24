@@ -9,6 +9,7 @@ import { service } from "@ember/service";
 import DMenu from "discourse/float-kit/components/d-menu";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import optionalService from "discourse/lib/optional-service";
 import UserChooser from "discourse/select-kit/components/user-chooser";
 import DButton from "discourse/ui-kit/d-button";
 import DDropdownMenu from "discourse/ui-kit/d-dropdown-menu";
@@ -18,10 +19,10 @@ import { i18n } from "discourse-i18n";
 
 export default class WorkspaceVoiceCallDetails extends Component {
   @service router;
-  @service voiceRooms;
-  @service voiceWebrtc;
   @service workspaceVoice;
   @service messageBus;
+  @optionalService voiceRooms;
+  @optionalService voiceWebrtc;
 
   @tracked toolbarElement;
   @tracked bodyElement;

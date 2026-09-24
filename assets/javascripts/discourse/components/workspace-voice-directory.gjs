@@ -3,6 +3,7 @@ import { tracked } from "@glimmer/tracking";
 import { action } from "@ember/object";
 import { LinkTo } from "@ember/routing";
 import { service } from "@ember/service";
+import optionalService from "discourse/lib/optional-service";
 import DButton from "discourse/ui-kit/d-button";
 import dAvatar from "discourse/ui-kit/helpers/d-avatar";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
@@ -10,8 +11,8 @@ import { i18n } from "discourse-i18n";
 
 export default class WorkspaceVoiceDirectory extends Component {
   @service workspaceVoice;
-  @service voiceRooms;
-  @service voiceWebrtc;
+  @optionalService voiceRooms;
+  @optionalService voiceWebrtc;
 
   @tracked retrying = false;
 

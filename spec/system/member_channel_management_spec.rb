@@ -22,8 +22,6 @@ RSpec.describe "Member channel management" do
     SiteSetting.discourse_workspace_groups_enabled = true
     chat_system_bootstrap
     SiteSetting.enable_public_channels = true
-    # The workspace sidebar depends on Voice's client services.
-    SiteSetting.voice_enabled = true if SiteSetting.respond_to?(:voice_enabled)
 
     workspace.workspace_group.add(member)
     channel.workspace_group.add(member)

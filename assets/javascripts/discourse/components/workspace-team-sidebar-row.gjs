@@ -5,6 +5,7 @@ import { LinkTo } from "@ember/routing";
 import { service } from "@ember/service";
 import { isHex } from "discourse/components/sidebar/section-link";
 import SectionLinkPrefix from "discourse/components/sidebar/section-link-prefix";
+import optionalService from "discourse/lib/optional-service";
 import DiscourseURL from "discourse/lib/url";
 import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
@@ -15,7 +16,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
   @service siteSettings;
   @service workspaceVoice;
-  @service voiceRooms;
+  @optionalService voiceRooms;
 
   get voiceAvailable() {
     const id = this.args.category?.id || this.args.categoryLink.category?.id;
@@ -29,7 +30,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
       (item) => item.category_id === this.voiceCategoryId
     );
     return (
-      this.voiceRooms.rooms.find((room) => room.id === channel?.room?.id)
+      this.voiceRooms?.rooms.find((room) => room.id === channel?.room?.id)
         ?.active_participants?.length || 0
     );
   }
