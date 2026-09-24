@@ -487,51 +487,59 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
   end
 
   describe "#chat_tracking" do
-    it "returns native chat tracking for visible workspace chat channels" do
-      chat_channel = category_chat_channel(public_channel)
-      category_only_channel =
+    def team_chat_channel(name)
+      channel =
         DiscourseWorkspaceGroups::CreateChannel.new(
           workspace: workspace,
           user: admin,
-          name: "Topics Only #{SecureRandom.hex(4)}",
+          name: "#{name} #{SecureRandom.hex(4)}",
           description: nil,
           visibility: "public",
-          channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CATEGORY_ONLY,
         ).call
-      report = ::Chat::TrackingStateReport.new
-      report.channel_tracking = {
-        chat_channel.id => {
-          unread_count: 2,
-          mention_count: 1,
-          watched_threads_unread_count: 0,
-        },
-      }
+      chat_channel = category_chat_channel(channel)
+      chat_channel.add(workspace_member)
+      chat_channel
+    end
 
-      allow(::Chat::TrackingStateReportQuery).to receive(:call).with(
-        guardian: an_instance_of(Guardian),
-        channel_ids: [chat_channel.id],
-        include_missing_memberships: false,
-        include_threads: false,
-        include_read: false,
-      ).and_return(report)
+    it "returns followed team channels the client has not loaded, with their unread state" do
+      loaded = team_chat_channel("Loaded")
+      missing = team_chat_channel("Missing")
+      unfollowed = team_chat_channel("Unfollowed")
+      unfollowed.membership_for(workspace_member).update!(following: false)
+      Fabricate(:chat_message, chat_channel: missing, user: admin)
 
-      sign_in(admin)
-      get "/workspace-groups/workspaces/#{workspace.id}/chat-tracking.json"
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}/chat-tracking.json",
+          params: {
+            loaded_channel_ids: [loaded.id],
+          }
 
       expect(response).to have_http_status(:ok)
-      expect(::Chat::TrackingStateReportQuery).to have_received(:call).with(
-        guardian: an_instance_of(Guardian),
-        channel_ids: [chat_channel.id],
-        include_missing_memberships: false,
-        include_threads: false,
-        include_read: false,
+      expect(response.parsed_body["channels"].map { |channel| channel["id"] }).to eq([missing.id])
+      expect(response.parsed_body["followed_channel_ids"]).to contain_exactly(loaded.id, missing.id)
+      expect(response.parsed_body.dig("channels", 0, "current_user_membership", "following")).to eq(
+        true,
       )
-      expect(response.parsed_body.dig("channel_tracking", chat_channel.id.to_s)).to eq(
-        "unread_count" => 2,
-        "mention_count" => 1,
-        "watched_threads_unread_count" => 0,
+      expect(response.parsed_body.dig("channels", 0, "meta", "message_bus_last_ids")).to be_present
+      expect(response.parsed_body.dig("channel_tracking", missing.id.to_s, "unread_count")).to eq(1)
+      expect(response.parsed_body["unread_thread_overview"]).to eq({})
+    end
+
+    it "returns nothing when the client has every followed channel" do
+      loaded = team_chat_channel("Loaded")
+
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}/chat-tracking.json",
+          params: {
+            loaded_channel_ids: [loaded.id],
+          }
+
+      expect(response.parsed_body).to eq(
+        "followed_channel_ids" => [loaded.id],
+        "channels" => [],
+        "channel_tracking" => {},
+        "unread_thread_overview" => {},
       )
-      expect(category_chat_channel(category_only_channel)).to be_nil
     end
   end
 

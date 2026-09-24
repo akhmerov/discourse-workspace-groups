@@ -22,6 +22,10 @@ class ChatChannelsManagerStub extends Service {
   }
 }
 
+class ChatStateManagerStub extends Service {
+  hasPreloadedChannels = true;
+}
+
 class WorkspaceVoiceStub extends Service {
   channels = [];
   loadFailed = false;
@@ -73,13 +77,6 @@ acceptance("Discourse Workspace Groups | Load errors", function (needs) {
         archived_channel_count: 1,
       })
     );
-    server.get("/workspace-groups/workspaces/28", () => {
-      hydrationRequests += 1;
-
-      return hydrationFails
-        ? helper.response(500, { errors: ["boom"] })
-        : helper.response({ channels: [] });
-    });
     server.get("/workspace-groups/workspaces/28/archived-channels.json", () =>
       archivedFails
         ? helper.response(500, { errors: ["boom"] })
@@ -94,9 +91,17 @@ acceptance("Discourse Workspace Groups | Load errors", function (needs) {
             ],
           })
     );
-    server.get("/workspace-groups/workspaces/28/chat-tracking", () =>
-      helper.response({ channel_tracking: {} })
-    );
+    server.get("/workspace-groups/workspaces/28/chat-tracking", () => {
+      hydrationRequests += 1;
+
+      return hydrationFails
+        ? helper.response(500, { errors: ["boom"] })
+        : helper.response({
+            channels: [],
+            channel_tracking: {},
+            unread_thread_overview: {},
+          });
+    });
   });
 
   function registerServiceStubs(owner) {
@@ -105,6 +110,7 @@ acceptance("Discourse Workspace Groups | Load errors", function (needs) {
     owner.register("service:workspace-voice", WorkspaceVoiceStub);
     owner.register("service:chat", ChatServiceStub);
     owner.register("service:chat-channels-manager", ChatChannelsManagerStub);
+    owner.register("service:chat-state-manager", ChatStateManagerStub);
     updateCurrentUser({ visibleGroups: [{ id: 1, name: "quantum" }] });
   }
 

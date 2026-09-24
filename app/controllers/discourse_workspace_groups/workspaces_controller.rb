@@ -107,33 +107,68 @@ module ::DiscourseWorkspaceGroups
              }
     end
 
+    # Core's chat index loads a limited number of followed channels, so the
+    # sidebar asks for the team's followed channels it is missing, with the
+    # unread state core would have sent alongside them. The ids of all of them
+    # let it subscribe channels core loaded on demand without subscribing.
     def chat_tracking
       guardian.ensure_can_see!(@workspace)
       raise Discourse::NotFound if !@workspace.workspace_root?
 
       active_channels = workspace_channels(archived: false)
       context = build_channels_context(active_channels)
+      loaded_ids = Array(params[:loaded_channel_ids]).map(&:to_i).to_set
       channel_ids =
         visible_channels(active_channels, **context).filter_map do |category|
           next if !category.workspace_chat_enabled?
 
           category.category_channel&.id
         end
+      followed_ids =
+        ::Chat::UserChatChannelMembership.where(
+          user: current_user,
+          chat_channel_id: channel_ids,
+          following: true,
+        ).pluck(:chat_channel_id)
+      memberships =
+        ::Chat::UserChatChannelMembership
+          .where(user: current_user, chat_channel_id: followed_ids - loaded_ids.to_a)
+          .includes(:chat_channel)
+          .index_by(&:chat_channel_id)
 
-      tracking =
-        if channel_ids.present?
-          ::Chat::TrackingStateReportQuery.call(
-            guardian: guardian,
-            channel_ids: channel_ids,
-            include_missing_memberships: false,
-            include_threads: false,
-            include_read: false,
-          ).channel_tracking
-        else
-          {}
-        end
+      if memberships.empty?
+        render json: {
+                 followed_channel_ids: followed_ids,
+                 channels: [],
+                 channel_tracking: {},
+                 unread_thread_overview: {},
+               }
+        return
+      end
 
-      render json: { channel_tracking: tracking }
+      report =
+        ::Chat::TrackingStateReportQuery.call(
+          guardian: guardian,
+          channel_ids: memberships.keys,
+          include_threads: true,
+          include_read: false,
+          include_last_reply_details: true,
+        )
+
+      render json: {
+               followed_channel_ids: followed_ids,
+               channels:
+                 memberships.values.map do |membership|
+                   ::Chat::ChannelSerializer.new(
+                     membership.chat_channel,
+                     scope: guardian,
+                     root: false,
+                     membership: membership,
+                   ).as_json
+                 end,
+               channel_tracking: report.channel_tracking,
+               unread_thread_overview: report.thread_unread_overview_by_channel,
+             }
     end
 
     def enable

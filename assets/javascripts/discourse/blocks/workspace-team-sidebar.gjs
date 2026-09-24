@@ -11,6 +11,7 @@ import { block } from "discourse/blocks";
 import SectionHeader from "discourse/components/sidebar/section-header";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import optionalService from "discourse/lib/optional-service";
 import {
   getCollapsedSidebarSectionKey,
   getSidebarSectionContentId,
@@ -77,6 +78,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   @service sidebarState;
   @service("site-settings") siteSettings;
   @service("topic-tracking-state") topicTrackingState;
+  @optionalService chatStateManager;
 
   @tracked topicCountsVersion = 0;
   @tracked chatHydrationVersion = 0;
@@ -127,14 +129,9 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.workspaceNavigationHintSeen =
       this.readWorkspaceNavigationHintSeen();
     this.linkCache = new Map();
-    this.workspaceChatChannelsByCategoryId = new Map();
-    this.workspaceChatIdsByWorkspaceId = new Map();
     this.hydratedWorkspaceChatIds = new Set();
     this.hydratingWorkspaceChatIds = new Set();
     this.workspaceChatHydrationRetries = new WorkspaceLoadRetries();
-    this.hydratedWorkspaceChatTrackingIds = new Set();
-    this.hydratingWorkspaceChatTrackingIds = new Set();
-    this.workspaceChatTrackingRetries = new WorkspaceLoadRetries();
     this.sidebarPointerMoveCallback = (event) =>
       this.updateSidebarPointerDrag(event);
     this.sidebarPointerUpCallback = (event) =>
@@ -176,7 +173,6 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     this.sidebarSectionsElement?.classList.remove(this.unreadOnlySidebarClass);
     this.cancelSidebarPointerDrag();
     this.workspaceChatHydrationRetries.clearAll();
-    this.workspaceChatTrackingRetries.clearAll();
     this.router.off("routeDidChange", this.routeDidChangeCallback);
     window.removeEventListener(
       WORKSPACE_FOCUS_CHANGED_EVENT,
@@ -385,29 +381,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
         category,
         this.chatChannelsManager
       );
-      const workspaceChatChannel = this.workspaceChatChannelsByCategoryId.get(
-        category.id
-      );
       const categoryAvailable = workspaceCategoryModeEnabled(category);
-      const chatAvailable =
-        workspaceChatModeEnabled(category) &&
-        !!(pairedChannel || workspaceChatChannel);
-      const workspaceChatMembership =
-        workspaceChatChannel?.currentUserMembership ??
-        workspaceChatChannel?.current_user_membership;
-      const chatMuted = !!(
-        pairedChannel?.currentUserMembership?.muted ??
-        workspaceChatMembership?.muted
-      );
-      const chatChannel = pairedChannel ?? workspaceChatChannel;
+      const chatAvailable = workspaceChatModeEnabled(category) && !!pairedChannel;
+      const chatMuted = !!pairedChannel?.currentUserMembership?.muted;
       const chatUnread =
-        chatAvailable && !chatMuted && chatChannelHasUnread(chatChannel);
+        chatAvailable && !chatMuted && chatChannelHasUnread(pairedChannel);
       const chatPath =
         pairedChannel?.routeModels?.length > 0
           ? `/chat/c/${pairedChannel.routeModels.join("/")}`
-          : workspaceChatChannel?.slug && workspaceChatChannel?.id
-            ? `/chat/c/${workspaceChatChannel.slug}/${workspaceChatChannel.id}`
-            : null;
+          : null;
 
       return {
         category,
@@ -965,8 +947,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     return Boolean(
       workspaceId &&
-        (this.workspaceChatHydrationRetries.exhausted(workspaceId) ||
-          this.workspaceChatTrackingRetries.exhausted(workspaceId))
+        this.workspaceChatHydrationRetries.exhausted(workspaceId)
     );
   }
 
@@ -1202,34 +1183,37 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       state?.watched_threads_unread_count ?? 0;
   }
 
-  applyWorkspaceChatTracking(workspaceId, channelTracking = {}) {
-    const chatChannelIds = this.workspaceChatIdsByWorkspaceId.get(workspaceId);
-
-    chatChannelIds?.forEach((chatChannelId) => {
-      this.applyTrackingState(
-        this.chatChannelById(chatChannelId),
-        channelTracking[String(chatChannelId)] ?? channelTracking[chatChannelId]
-      );
-    });
-
-    this.chatHydrationVersion++;
-  }
-
-  storeWorkspaceChatChannels(workspaceId, channels) {
-    const chatChannelIds = new Set();
-
-    channels.forEach((channel) => {
-      if (channel?.chat_channel) {
-        this.workspaceChatChannelsByCategoryId.set(
-          Number(channel.id),
-          channel.chat_channel
-        );
-        chatChannelIds.add(Number(channel.chat_channel.id));
-        this.chatChannelsManager.store(channel.chat_channel, { replace: true });
+  // Core only loads a limited number of followed channels, and only those
+  // receive live updates. Add the team's remaining followed channels to core
+  // and subscribe them, keeping any object core already holds.
+  storeMissingChatChannels(payload) {
+    // Core does not subscribe channels it loads on demand, such as one
+    // opened by URL.
+    (payload.followed_channel_ids ?? []).forEach((channelId) => {
+      const channel = this.chatChannelById(channelId);
+      if (channel) {
+        this.chatChannelsManager.follow(channel);
       }
     });
 
-    this.workspaceChatIdsByWorkspaceId.set(workspaceId, chatChannelIds);
+    (payload.channels ?? []).forEach((channelObject) => {
+      if (this.chatChannelById(channelObject.id)) {
+        return;
+      }
+
+      const channel = this.chatChannelsManager.store(channelObject);
+      this.applyTrackingState(
+        channel,
+        payload.channel_tracking?.[String(channelObject.id)]
+      );
+
+      const overview = payload.unread_thread_overview?.[String(channelObject.id)];
+      if (overview && channel.threadingEnabled) {
+        channel.threadsManager.unreadThreadOverview = overview;
+      }
+
+      this.chatChannelsManager.follow(channel);
+    });
   }
 
   ensureWorkspaceChatChannels() {
@@ -1237,6 +1221,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     if (
       !workspaceId ||
+      // Only core's own channel list tells which channels are missing.
+      (this.chatStateManager && !this.chatStateManager.hasPreloadedChannels) ||
       this.hydratedWorkspaceChatIds.has(workspaceId) ||
       this.hydratingWorkspaceChatIds.has(workspaceId) ||
       this.workspaceChatHydrationRetries.blocked(workspaceId)
@@ -1246,13 +1232,18 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
     this.hydratingWorkspaceChatIds.add(workspaceId);
 
-    ajax(`/workspace-groups/workspaces/${workspaceId}`)
+    ajax(`/workspace-groups/workspaces/${workspaceId}/chat-tracking`, {
+      data: {
+        loaded_channel_ids: this.chatChannelsManager.channels.map(
+          (channel) => channel.id
+        ),
+      },
+    })
       .then((payload) => {
-        this.storeWorkspaceChatChannels(workspaceId, payload.channels ?? []);
+        this.storeMissingChatChannels(payload);
         this.workspaceChatHydrationRetries.clear(workspaceId);
         this.hydratedWorkspaceChatIds.add(workspaceId);
         this.chatHydrationVersion++;
-        this.ensureWorkspaceChatTracking(workspaceId);
       })
       .catch(() => {
         // Re-rendering the rows retries hydration for the current workspace.
@@ -1266,47 +1257,12 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       });
   }
 
-  ensureWorkspaceChatTracking(workspaceId = this.workspaceCategory?.id) {
-    if (
-      !workspaceId ||
-      !this.hydratedWorkspaceChatIds.has(workspaceId) ||
-      this.hydratedWorkspaceChatTrackingIds.has(workspaceId) ||
-      this.hydratingWorkspaceChatTrackingIds.has(workspaceId) ||
-      this.workspaceChatTrackingRetries.blocked(workspaceId)
-    ) {
-      return;
-    }
-
-    this.hydratingWorkspaceChatTrackingIds.add(workspaceId);
-
-    ajax(`/workspace-groups/workspaces/${workspaceId}/chat-tracking`)
-      .then((payload) => {
-        this.applyWorkspaceChatTracking(
-          workspaceId,
-          payload.channel_tracking ?? {}
-        );
-        this.workspaceChatTrackingRetries.clear(workspaceId);
-        this.hydratedWorkspaceChatTrackingIds.add(workspaceId);
-      })
-      .catch(() => {
-        this.workspaceChatTrackingRetries.recordFailure(workspaceId, () =>
-          this.ensureWorkspaceChatTracking(workspaceId)
-        );
-        this.chatHydrationVersion++;
-      })
-      .finally(() => {
-        this.hydratingWorkspaceChatTrackingIds.delete(workspaceId);
-      });
-  }
-
   @action
   retryWorkspaceChatLoad() {
     const workspaceId = this.workspaceCategory?.id;
 
     this.workspaceChatHydrationRetries.clear(workspaceId);
-    this.workspaceChatTrackingRetries.clear(workspaceId);
     this.chatHydrationVersion++;
-    this.ensureWorkspaceChatTracking(workspaceId);
   }
 
   @action
