@@ -93,11 +93,14 @@ RSpec.describe DiscourseWorkspaceGroups::VoiceController do
     expect(notifications).not_to be_empty
     expect(notifications.last.user_ids).to eq([member.id])
     get "/workspace-groups/voice/rooms.json"
-    expect(response.parsed_body["channels"].map { |entry| entry["category_id"] }).to include(public_channel.id)
+    expect(response.parsed_body["channels"].map { |entry| entry["category_id"] }).not_to include(public_channel.id)
     expect(public_binding.reload.room_id).to be_nil
     target = public_binding.prepare!(member)
     expect(Voice::ParticipantTracker.user_ids(target.id)).to be_empty
     expect(Voice::RoomMembership.exists?(room_id: target.id, user_id: member.id)).to eq(false)
+    Voice::ParticipantTracker.add(target.id, member.id)
+    get "/workspace-groups/voice/rooms.json"
+    expect(response.parsed_body["channels"].map { |entry| entry["category_id"] }).to include(public_channel.id)
     notifications = MessageBus.track_publish("/workspace-voice/access/#{member.id}") do
       delete "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
     end
@@ -401,6 +404,78 @@ RSpec.describe DiscourseWorkspaceGroups::VoiceController do
       DiscourseWorkspaceGroups::VoiceBinding.any_instance.expects(:reconcile!).never
 
       dm_channel.update!(name: "Renamed")
+    end
+  end
+
+  describe "on-demand channel calls" do
+    let(:chat_channel_category) do
+      DiscourseWorkspaceGroups::CreateChannel.new(
+        workspace: workspace, user: admin, name: "Lab chat", description: nil, visibility: "public", channel_mode: "both",
+      ).call
+    end
+
+    def prepare_call(user, category)
+      sign_in(user)
+      post "/workspace-groups/voice/prepare.json", params: { source_type: "category", source_id: category.id }
+    end
+
+    it "starts a call in a channel that has never had one" do
+      expect(channel.workspace_voice_enabled?).to eq(true)
+      expect(DiscourseWorkspaceGroups::VoiceBinding.where(source_id: channel.id)).to be_empty
+
+      prepare_call(member, channel)
+
+      expect(response.status).to eq(200)
+      expect(DiscourseWorkspaceGroups::VoiceBinding.find_by(source_type: "category", source_id: channel.id)).to be_enabled
+    end
+
+    it "does not start calls in channels that opt out" do
+      sign_in(manager)
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{channel.id}.json", params: { name: channel.name, voice_enabled: false }
+      expect(response.status).to eq(200)
+
+      prepare_call(member, channel)
+
+      expect(response.status).to eq(403)
+    end
+
+    it "ends running calls and stops new ones when the workspace turns calls off" do
+      join_room(member)
+      sign_in(admin)
+      put "/workspace-groups/workspaces/#{workspace.id}.json", params: { description: "", channel_calls: false }
+      expect(response.status).to eq(200)
+      expect(response.parsed_body.dig("workspace", "channel_calls")).to eq(false)
+
+      expect(Voice::ParticipantTracker.user_ids(room.id)).to be_empty
+      prepare_call(member, channel)
+      expect(response.status).to eq(403)
+    end
+
+    it "announces a call in the channel's chat and marks it ended when everyone leaves" do
+      chat_channel_category.workspace_group.add(member)
+      chat_channel = chat_channel_category.category_channel
+      prepare_call(member, chat_channel_category)
+      call_room = Voice::Room.find(response.parsed_body.dig("room", "id"))
+
+      join_room(member, call_room)
+      announcement = Chat::Message.where(chat_channel: chat_channel, user: member).last
+      expect(announcement.message).to include("Started a call", "/workspace-voice/channels/#{chat_channel_category.id}")
+
+      join_room(member, call_room)
+      expect(Chat::Message.where(chat_channel: chat_channel).count).to eq(1)
+
+      delete "/voice/rooms/#{call_room.id}/leave.json"
+      expect(announcement.reload.message).to eq(I18n.t("discourse_workspace_groups.voice.call_ended"))
+    end
+
+    it "saves channel settings on sites without Voice" do
+      SiteSetting.voice_enabled = false
+      sign_in(manager)
+
+      put "/workspace-groups/workspaces/#{workspace.id}/channels/#{channel.id}.json", params: { name: channel.name, voice_enabled: true }
+
+      expect(response.status).to eq(200)
+      expect(response.parsed_body.dig("channel", "voice_enabled")).to eq(false)
     end
   end
 end

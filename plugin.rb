@@ -36,6 +36,7 @@ module ::DiscourseWorkspaceGroups
   WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS = "workspace_members_can_create_channels"
   WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS = "workspace_members_can_create_private_channels"
   WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS = "workspace_members_can_manage_channels"
+  WORKSPACE_CHANNEL_CALLS = "workspace_channel_calls"
   WORKSPACE_AUTO_JOIN_CHANNEL_IDS = "workspace_auto_join_channel_ids"
   WORKSPACE_CHANNEL_MODE = "workspace_channel_mode"
   USER_WORKSPACE_SIDEBAR_ORDERS = "workspace_sidebar_orders"
@@ -851,6 +852,7 @@ after_initialize do
     DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS,
     :boolean,
   )
+  register_category_custom_field_type(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_CALLS, :boolean)
   register_category_custom_field_type(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE, :string)
 
   register_group_custom_field_type("workspace_category_id", :integer)
@@ -880,6 +882,7 @@ after_initialize do
   register_preloaded_category_custom_fields(
     DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS,
   )
+  register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_CALLS)
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE)
 
   add_to_serializer(:current_user, :workspace_sidebar_orders) do
@@ -979,6 +982,13 @@ after_initialize do
   add_to_class(:category, :workspace_members_can_manage_channels?) do
     value = custom_fields[DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS]
     return SiteSetting.discourse_workspace_groups_members_can_manage_channels if value.nil?
+
+    value.to_s == "true"
+  end
+
+  add_to_class(:category, :workspace_channel_calls_enabled?) do
+    value = custom_fields[DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_CALLS]
+    return SiteSetting.discourse_workspace_groups_channel_calls if value.nil?
 
     value.to_s == "true"
   end
@@ -1134,10 +1144,12 @@ after_initialize do
   require_relative "lib/discourse_workspace_groups/voice_integration"
   require_relative "app/controllers/discourse_workspace_groups/voice_controller"
 
+  # Calls are on for every channel of a workspace that allows them, unless the channel opts out.
   add_to_class(:category, :workspace_voice_enabled?) do
-    DiscourseWorkspaceGroups::VoiceBinding.exists?(source_type: "category", source_id: id, enabled: true)
+    workspace_channel? && DiscourseWorkspaceGroups::VoiceBinding.integration_enabled? &&
+      !!workspace_parent_category&.workspace_channel_calls_enabled? &&
+      !DiscourseWorkspaceGroups::VoiceBinding.exists?(source_type: "category", source_id: id, enabled: false)
   end
-  add_to_serializer(:basic_category, :workspace_voice_enabled) { object.workspace_voice_enabled? }
   add_to_serializer(:current_user, :workspace_voice_can_start_dm) do
     defined?(::Voice) && scope.can_start_voice_call?
   end
@@ -1159,13 +1171,17 @@ after_initialize do
     ::Voice::RoomMembershipsController.before_action :check_workspace_voice_membership
 
     ::Voice::ParticipantTracker.singleton_class.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ParticipantRemoval)
+    ::Voice::ParticipantTracker.singleton_class.prepend(DiscourseWorkspaceGroups::VoiceIntegration::CallAnnouncements)
     ::Voice::AdminRoomsController.prepend(DiscourseWorkspaceGroups::VoiceIntegration::AdminRoomRequests)
     ::Voice::AdminRoomsController.before_action :check_workspace_voice_admin_room, only: %i[show update destroy end_call]
     ::Voice::RoomSerializer.attributes :workspace_voice
     ::Voice::RoomSerializer.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomDetails)
 
     ::Voice::Room.after_destroy do
-      DiscourseWorkspaceGroups::VoiceBinding.where(room_id: id).update_all(room_id: nil)
+      bindings = DiscourseWorkspaceGroups::VoiceBinding.where(room_id: id)
+      # A call whose participants lapsed without leaving still gets its announcement closed.
+      bindings.each(&:announce_call_ended!)
+      bindings.update_all(room_id: nil)
     end
     GroupUser.after_commit do
       DiscourseWorkspaceGroups::VoiceBinding.revoke_group_guest_grants!(user_id, group_id)

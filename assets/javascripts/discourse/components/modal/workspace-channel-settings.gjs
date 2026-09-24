@@ -170,8 +170,10 @@ export default class WorkspaceChannelSettingsModal extends Component {
               : {}),
             channel_mode: this.channelMode,
             events_enabled: this.showEventsEnabled && this.eventsEnabled,
-            voice_enabled: this.voiceEnabled,
-            ...(this.canManage
+            ...(this.siteSettings.voice_enabled
+              ? { voice_enabled: this.voiceEnabled }
+              : {}),
+            ...(this.siteSettings.voice_enabled && this.canManage
               ? { voice_allow_guests: this.voiceAllowGuests }
               : {}),
             color: this.color,

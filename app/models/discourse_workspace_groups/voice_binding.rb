@@ -34,8 +34,9 @@ module DiscourseWorkspaceGroups
       return false unless self.class.integration_enabled? && enabled?
       item = source
       if source_type == "category"
-        item&.workspace_channel? && !item.workspace_archived? &&
-          item.workspace_parent_category&.workspace_root?
+        workspace = item&.workspace_parent_category
+        item&.workspace_channel? && !item.workspace_archived? && workspace&.workspace_root? &&
+          workspace.workspace_channel_calls_enabled?
       else
         SiteSetting.chat_enabled && item.present? && item.open? && item.deleted_at.nil?
       end
@@ -106,7 +107,42 @@ module DiscourseWorkspaceGroups
         guest_grants.delete_all
         ::Voice::Invite.where(room_id: room_id).delete_all if room_id
         Discourse.redis.del(messages_key)
+        announce_call_ended!
       end
+    end
+
+    def announcement_key
+      "workspace-voice:#{id}:announcement"
+    end
+
+    # Idle channels show no call, so the channel's chat is where members learn one started.
+    def announce_call_started!(user)
+      return unless source_type == "category" && user
+      chat_channel = source&.workspace_chat_enabled? && source.category_channel
+      return unless chat_channel
+      return unless Discourse.redis.set(announcement_key, "pending", nx: true, ex: 1.day.to_i)
+      text =
+        I18n.with_locale(SiteSetting.default_locale) do
+          I18n.t("discourse_workspace_groups.voice.call_started", url: "/workspace-voice/channels/#{source_id}")
+        end
+      result = ::Chat::CreateMessage.call(guardian: user.guardian, params: { chat_channel_id: chat_channel.id, message: text })
+      if result.success?
+        Discourse.redis.set(announcement_key, result.message_instance.id, ex: 1.day.to_i)
+      else
+        Discourse.redis.del(announcement_key)
+      end
+    end
+
+    def announce_call_ended!
+      message_id = Discourse.redis.get(announcement_key)
+      return if message_id.blank?
+      Discourse.redis.del(announcement_key)
+      message = ::Chat::Message.find_by(id: message_id)
+      return unless message
+      text = I18n.with_locale(SiteSetting.default_locale) { I18n.t("discourse_workspace_groups.voice.call_ended") }
+      message.update!(message: text)
+      message.rebake!
+      ::Chat::Publisher.publish_edit!(message.chat_channel, message)
     end
 
     def messages_key
@@ -241,14 +277,18 @@ module DiscourseWorkspaceGroups
     # active index bounds the candidates to calls from its safety window.
     def self.reconcile_active!(scope = all, user_id: nil)
       return unless defined?(::Voice::ParticipantTracker) && table_exists?
+      occupied(scope, user_id: user_id).find_each(&:reconcile!)
+    end
+
+    def self.occupied(scope = all, user_id: nil)
       candidate_room_ids =
         scope.where(room_id: ::Voice::ParticipantTracker.recently_active_room_ids).pluck(:room_id)
-      return if candidate_room_ids.empty?
+      return scope.none if candidate_room_ids.empty?
       occupied_room_ids =
         ::Voice::ParticipantTracker.room_states(candidate_room_ids).filter_map do |room_id, state|
           room_id if user_id ? state.participant_ids.include?(user_id) : state.participant_ids.any?
         end
-      scope.where(room_id: occupied_room_ids).find_each(&:reconcile!)
+      scope.where(room_id: occupied_room_ids)
     end
 
     # A membership or account change only affects the calls this user is in.

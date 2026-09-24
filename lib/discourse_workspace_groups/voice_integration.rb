@@ -163,6 +163,19 @@ module DiscourseWorkspaceGroups
       end
     end
 
+    module CallAnnouncements
+      def add_within_capacity(room_id, user_id, capacity, migrated: false)
+        was_empty = human_user_ids(room_id).empty?
+        result = super
+        if result == :added && was_empty && user_id.to_i.positive?
+          binding = VoiceBinding.find_by(room_id: room_id)
+          user = User.find_by(id: user_id)
+          binding.announce_call_started!(user) if binding&.member?(user)
+        end
+        result
+      end
+    end
+
     module AdminRoomRequests
       def index
         rooms = ::Voice::Room.where.not(id: VoiceBinding.where.not(room_id: nil).select(:room_id))

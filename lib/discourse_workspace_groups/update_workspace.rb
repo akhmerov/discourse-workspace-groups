@@ -12,6 +12,7 @@ module ::DiscourseWorkspaceGroups
                 :members_can_create_channels,
                 :members_can_create_private_channels,
                 :members_can_manage_channels,
+                :channel_calls,
                 :auto_join_channel_ids
 
     def initialize(
@@ -23,6 +24,7 @@ module ::DiscourseWorkspaceGroups
       members_can_create_channels:,
       members_can_create_private_channels:,
       members_can_manage_channels: nil,
+      channel_calls: nil,
       auto_join_channel_ids: nil
     )
       @workspace = workspace
@@ -45,6 +47,7 @@ module ::DiscourseWorkspaceGroups
           members_can_manage_channels,
           workspace.workspace_members_can_manage_channels?,
         )
+      @channel_calls = cast_boolean(channel_calls, workspace.workspace_channel_calls_enabled?)
       @auto_join_channel_ids_submitted = !auto_join_channel_ids.nil?
       @auto_join_channel_ids =
         normalize_channel_ids(
@@ -58,6 +61,7 @@ module ::DiscourseWorkspaceGroups
       validate!
       previous_color = workspace.color
       previous_auto_join_channel_ids = workspace.workspace_auto_join_channel_ids
+      calls_turned_off = workspace.workspace_channel_calls_enabled? && !channel_calls
 
       Category.transaction do
         update_color!
@@ -65,6 +69,12 @@ module ::DiscourseWorkspaceGroups
         update_description!
         update_permissions!
         sync_new_auto_join_memberships!(previous_auto_join_channel_ids)
+      end
+
+      if calls_turned_off
+        DiscourseWorkspaceGroups::VoiceBinding.reconcile_categories!(
+          Category.where(parent_category_id: workspace.id).select(:id),
+        )
       end
 
       workspace.reload
@@ -123,6 +133,7 @@ module ::DiscourseWorkspaceGroups
       workspace.custom_fields[WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS] =
         members_can_create_channels && members_can_create_private_channels
       workspace.custom_fields[WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS] = members_can_manage_channels
+      workspace.custom_fields[WORKSPACE_CHANNEL_CALLS] = channel_calls
       workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = auto_join_channel_ids_to_save
       workspace.save_custom_fields(true)
 

@@ -52,7 +52,7 @@ module(
         .dom(".workspace-groups-overview__voice")
         .hasAttribute(
           "title",
-          "Voice enabled. Join the channel to access its room."
+          "Join the channel to start or join its calls."
         );
       assert.dom("a.workspace-groups-overview__voice").doesNotExist();
     });

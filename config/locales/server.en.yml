@@ -3,6 +3,8 @@ en:
     voice:
       dm_name: "Direct call"
       dm_audience: "Participants in this direct message"
+      call_started: "📞 Started a call. [Join the call](%{url})"
+      call_ended: "📞 Call ended."
     errors:
       channel_name_collision: "Choose a more distinct channel name. This one collides with an existing internal group name."
       usernames_required: "Enter at least one username."
@@ -10,4 +12,5 @@ en:
   site_settings:
     discourse_workspace_groups_enabled: "Enable workspace groups prototype"
     discourse_workspace_groups_members_can_create_channels: "Allow workspace members to create channels"
+    discourse_workspace_groups_channel_calls: "Let channel members start calls in workspace channels by default"
     discourse_workspace_groups_members_can_manage_channels: "Allow channel members to change channel descriptions, appearance, mode, events, voice and archive state by default"

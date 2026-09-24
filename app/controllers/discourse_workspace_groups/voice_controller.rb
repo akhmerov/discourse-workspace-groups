@@ -12,10 +12,16 @@ module DiscourseWorkspaceGroups
       render "default/empty"
     end
 
+    # Lists calls in progress in the user's channels; idle channels have nothing to show.
     def index
-      entries = VoiceBinding.where(source_type: "category", enabled: true).filter_map do |binding|
+      channel_ids =
+        CategoryCustomField.where(
+          name: DiscourseWorkspaceGroups::WORKSPACE_GROUP_ID,
+          value: current_user.group_users.pluck(:group_id).map(&:to_s),
+        ).select(:category_id)
+      bindings = VoiceBinding.where(source_type: "category", enabled: true, source_id: channel_ids)
+      entries = VoiceBinding.occupied(bindings).filter_map do |binding|
         next unless binding.can_join?(current_user) && binding.member?(current_user)
-        binding.reconcile!
         channel = binding.source
         room = binding.native_room
         {
@@ -42,9 +48,8 @@ module DiscourseWorkspaceGroups
       raise Discourse::InvalidParameters.new(:source_type) if %w[category dm].exclude?(source_type)
       source_id = params.require(:source_id).to_i
       binding = VoiceBinding.find_by(source_type: source_type, source_id: source_id)
-      if source_type == "dm" && binding.nil?
-        binding = VoiceBinding.new(source_type: source_type, source_id: source_id, enabled: true)
-      end
+      # Calls start on demand; a binding only records a channel's opt-out and its live room.
+      binding ||= VoiceBinding.new(source_type: source_type, source_id: source_id, enabled: true)
       raise Discourse::InvalidAccess unless binding&.can_join?(current_user)
       RateLimiter.new(current_user, "workspace-voice-prepare", 30, 1.minute).performed!
       room = nil

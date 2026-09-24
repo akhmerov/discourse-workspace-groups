@@ -18,7 +18,6 @@ export default class WorkspaceChannelActions extends Component {
 
   @service modal;
   @service site;
-  @service workspaceVoice;
 
   @tracked channel;
 
@@ -26,9 +25,9 @@ export default class WorkspaceChannelActions extends Component {
   @tracked workspace;
 
   get voicePath() {
-    return this.workspaceVoice.channels.some(
-      (item) => item.category_id === this.category?.id
-    )
+    return this.channel?.voice_enabled &&
+      this.channel.joined &&
+      !this.channel.archived
       ? `/workspace-voice/channels/${this.category.id}`
       : null;
   }
@@ -206,10 +205,10 @@ export default class WorkspaceChannelActions extends Component {
 
       {{#if this.voicePath}}
         <a
-          aria-label={{i18n "discourse_workspace_groups.voice.title"}}
+          aria-label={{i18n "discourse_workspace_groups.voice.open"}}
           class="btn no-text btn-icon btn-default workspace-groups-actions__voice"
           href={{this.voicePath}}
-          title={{i18n "discourse_workspace_groups.voice.title"}}
+          title={{i18n "discourse_workspace_groups.voice.open"}}
         >{{dIcon "microphone"}}</a>
       {{/if}}
 

@@ -39,10 +39,10 @@ module(
 
       assert
         .dom(".workspace-voice-directory__error")
-        .includesText("Voice rooms could not be loaded.");
+        .includesText("Calls could not be loaded.");
       assert
         .dom(".workspace-voice-directory")
-        .doesNotIncludeText("No voice rooms are enabled");
+        .doesNotIncludeText("No calls in your channels right now");
 
       await click(".workspace-voice-directory__retry");
 
@@ -51,7 +51,7 @@ module(
       assert.dom(".workspace-voice-directory__retry").isNotDisabled();
     });
 
-    test("shows the empty message when no rooms are enabled", async function (assert) {
+    test("shows the empty message when no calls are running", async function (assert) {
       class WorkspaceVoiceStub extends Service {
         channels = [];
         loadFailed = false;
@@ -63,7 +63,7 @@ module(
       assert.dom(".workspace-voice-directory__error").doesNotExist();
       assert
         .dom(".workspace-voice-directory")
-        .includesText("No voice rooms are enabled");
+        .includesText("No calls in your channels right now");
     });
   }
 );

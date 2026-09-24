@@ -6,6 +6,7 @@ import {
   shouldOpenInNewTab,
 } from "discourse/lib/click-track";
 import { iconHTML } from "discourse/lib/icon-library";
+import { i18n } from "discourse-i18n";
 import WorkspaceChannelMembersModal from "discourse/plugins/discourse-workspace-groups/discourse/components/modal/workspace-channel-members";
 import WorkspaceChannelSettingsModal from "discourse/plugins/discourse-workspace-groups/discourse/components/modal/workspace-channel-settings";
 
@@ -351,6 +352,19 @@ function buildSettingsButton(chat, modal, channel, data) {
   return button;
 }
 
+function buildCallLink(data) {
+  if (!data.canCall) {
+    return null;
+  }
+
+  return buildIconLink(
+    `/workspace-voice/channels/${data.channelId}`,
+    i18n("discourse_workspace_groups.voice.open"),
+    "microphone",
+    `${CONTEXT_CLASS}__link ${CONTEXT_CLASS}__icon-action ${CONTEXT_CLASS}__call`
+  );
+}
+
 function contextData(channel, rerender) {
   const data = workspaceData(channel, rerender);
   const workspaceChannel = data?.channel;
@@ -359,6 +373,7 @@ function contextData(channel, rerender) {
   const workspaceId = workspaceCategoryId(channel);
   const channelId = channelCategoryId(channel);
   const canViewMembers = !!workspaceChannel?.can_view_members;
+  const canCall = !!(workspaceChannel?.voice_enabled && workspaceChannel.joined);
   const canSeeSettings = !!(
     workspaceChannel &&
     (data?.workspace?.can_manage ||
@@ -373,12 +388,14 @@ function contextData(channel, rerender) {
     categoryHref,
     canViewMembers,
     canSeeSettings,
+    canCall,
     signature: JSON.stringify({
       channelId: channel?.id,
       descriptionHtml,
       categoryHref,
       canViewMembers,
       canSeeSettings,
+      canCall,
     }),
   };
 }
@@ -391,9 +408,12 @@ function buildContext(chat, modal, channel, data) {
     "list",
     `${CONTEXT_CLASS}__link ${CONTEXT_CLASS}__icon-action ${CONTEXT_CLASS}__category`
   );
+  const call = buildCallLink(data);
   const members = buildMembersButton(chat, modal, channel, data);
   const settings = buildSettingsButton(chat, modal, channel, data);
-  const contentItems = [description, category, members, settings].filter(Boolean);
+  const contentItems = [description, category, call, members, settings].filter(
+    Boolean
+  );
 
   if (contentItems.length === 0) {
     return null;

@@ -233,6 +233,7 @@ module ::DiscourseWorkspaceGroups
           members_can_create_channels: params[:members_can_create_channels],
           members_can_create_private_channels: params[:members_can_create_private_channels],
           members_can_manage_channels: params[:members_can_manage_channels],
+          channel_calls: params[:channel_calls],
           auto_join_channel_ids: params[:auto_join_channel_ids],
         ).call
 
@@ -511,6 +512,12 @@ module ::DiscourseWorkspaceGroups
         group_member_counts: group_member_counts(group_ids),
         workspace_can_manage: guardian.can_manage_workspace?(@workspace),
         workspace_members_can_manage_channels: !!@workspace&.workspace_members_can_manage_channels?,
+        workspace_channel_calls:
+          @workspace &&
+            DiscourseWorkspaceGroups::VoiceBinding.integration_enabled? &&
+            @workspace.workspace_channel_calls_enabled?,
+        voice_bindings_by_category_id:
+          DiscourseWorkspaceGroups::VoiceBinding.where(source_type: "category", source_id: channels.map(&:id)).index_by(&:source_id),
         workspace_member: workspace_member,
         chat_channels_by_category_id: chat_channels_by_category_id(channels),
         last_activity_at_by_category_id: last_activity_at_by_category_id(channels),
@@ -705,6 +712,7 @@ module ::DiscourseWorkspaceGroups
         members_can_create_channels: workspace.workspace_members_can_create_channels?,
         members_can_create_private_channels: workspace.workspace_members_can_create_private_channels?,
         members_can_manage_channels: workspace.workspace_members_can_manage_channels?,
+        channel_calls: workspace.workspace_channel_calls_enabled?,
         auto_join_channel_ids: auto_join_channels.map(&:id),
         auto_join_channel_options: auto_join_channel_options,
       }
@@ -742,6 +750,8 @@ module ::DiscourseWorkspaceGroups
       group_member_counts:,
       workspace_can_manage:,
       workspace_members_can_manage_channels:,
+      workspace_channel_calls:,
+      voice_bindings_by_category_id:,
       workspace_member:,
       chat_channels_by_category_id:,
       last_activity_at_by_category_id:,
@@ -774,6 +784,7 @@ module ::DiscourseWorkspaceGroups
           joined ||
           (category.workspace_visibility != VISIBILITY_PRIVATE && workspace_member)
       chat_channel = chat_channels_by_category_id[category.id]
+      voice_binding = voice_bindings_by_category_id[category.id]
 
       {
         id: category.id,
@@ -789,8 +800,13 @@ module ::DiscourseWorkspaceGroups
         visibility: category.workspace_visibility,
         mode: category.workspace_channel_mode,
         events_enabled: category.workspace_events_enabled?,
-        voice_enabled: category.workspace_voice_enabled?,
-        voice_allow_guests: DiscourseWorkspaceGroups::VoiceBinding.find_by(source_type: "category", source_id: category.id)&.allow_guests != false,
+        voice_enabled:
+          if workspace_channel_calls.nil?
+            category.workspace_voice_enabled?
+          else
+            workspace_channel_calls && voice_binding&.enabled != false
+          end,
+        voice_allow_guests: voice_binding&.allow_guests != false,
         allow_channel_wide_mentions: chat_channel&.allow_channel_wide_mentions,
         archived: archived,
         visible: visible,

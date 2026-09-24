@@ -230,14 +230,18 @@ module ::DiscourseWorkspaceGroups
       DiscourseWorkspaceGroups.set_workspace_events_enabled!(channel, desired_enabled)
     end
 
+    # Calls are on unless the channel opts out, so a channel keeps no binding until it
+    # differs from the defaults or hosts a call.
     def update_voice_enabled!
       return if @voice_enabled.nil? && @voice_allow_guests.nil?
-      if @voice_enabled && !DiscourseWorkspaceGroups::VoiceBinding.integration_enabled?
-        raise Discourse::InvalidAccess
-      end
-      binding = DiscourseWorkspaceGroups::VoiceBinding.find_or_initialize_by(source_type: "category", source_id: channel.id)
+      return if !DiscourseWorkspaceGroups::VoiceBinding.integration_enabled?
+      binding =
+        DiscourseWorkspaceGroups::VoiceBinding.find_or_initialize_by(source_type: "category", source_id: channel.id) do |record|
+          record.enabled = true
+        end
       binding.enabled = @voice_enabled unless @voice_enabled.nil?
       binding.allow_guests = @voice_allow_guests unless @voice_allow_guests.nil?
+      return if binding.new_record? && binding.enabled? && binding.allow_guests?
       binding.save!
       binding.sync_name!
     end

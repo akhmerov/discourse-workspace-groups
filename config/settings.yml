@@ -8,3 +8,6 @@ plugins:
   discourse_workspace_groups_members_can_manage_channels:
     default: false
     client: true
+  discourse_workspace_groups_channel_calls:
+    default: true
+    client: true
