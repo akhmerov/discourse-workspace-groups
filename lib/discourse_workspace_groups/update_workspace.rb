@@ -11,6 +11,7 @@ module ::DiscourseWorkspaceGroups
                 :public_read,
                 :members_can_create_channels,
                 :members_can_create_private_channels,
+                :members_can_manage_channels,
                 :auto_join_channel_ids
 
     def initialize(
@@ -21,6 +22,7 @@ module ::DiscourseWorkspaceGroups
       public_read:,
       members_can_create_channels:,
       members_can_create_private_channels:,
+      members_can_manage_channels: nil,
       auto_join_channel_ids: nil
     )
       @workspace = workspace
@@ -37,6 +39,11 @@ module ::DiscourseWorkspaceGroups
         cast_boolean(
           members_can_create_private_channels,
           workspace.workspace_members_can_create_private_channels?,
+        )
+      @members_can_manage_channels =
+        cast_boolean(
+          members_can_manage_channels,
+          workspace.workspace_members_can_manage_channels?,
         )
       @auto_join_channel_ids_submitted = !auto_join_channel_ids.nil?
       @auto_join_channel_ids =
@@ -115,6 +122,7 @@ module ::DiscourseWorkspaceGroups
       workspace.custom_fields[WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS] = members_can_create_channels
       workspace.custom_fields[WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS] =
         members_can_create_channels && members_can_create_private_channels
+      workspace.custom_fields[WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS] = members_can_manage_channels
       workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = auto_join_channel_ids_to_save
       workspace.save_custom_fields(true)
 

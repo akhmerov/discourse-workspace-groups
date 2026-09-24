@@ -28,7 +28,7 @@ module ::DiscourseWorkspaceGroups
     def validate!
       raise Discourse::InvalidAccess if user.blank?
       raise Discourse::InvalidAccess if !channel&.workspace_channel?
-      raise Discourse::InvalidAccess if !DiscourseWorkspaceGroups.can_manage_workspace_channel?(channel, user)
+      raise Discourse::InvalidAccess if !DiscourseWorkspaceGroups.can_edit_workspace_channel_settings?(channel, user)
     end
   end
 end

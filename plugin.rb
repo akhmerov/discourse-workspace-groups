@@ -35,6 +35,7 @@ module ::DiscourseWorkspaceGroups
   WORKSPACE_ROOT_PUBLIC_READ = "workspace_root_public_read"
   WORKSPACE_MEMBERS_CAN_CREATE_CHANNELS = "workspace_members_can_create_channels"
   WORKSPACE_MEMBERS_CAN_CREATE_PRIVATE_CHANNELS = "workspace_members_can_create_private_channels"
+  WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS = "workspace_members_can_manage_channels"
   WORKSPACE_AUTO_JOIN_CHANNEL_IDS = "workspace_auto_join_channel_ids"
   WORKSPACE_CHANNEL_MODE = "workspace_channel_mode"
   USER_WORKSPACE_SIDEBAR_ORDERS = "workspace_sidebar_orders"
@@ -124,6 +125,19 @@ module ::DiscourseWorkspaceGroups
     return true if can_manage_public_workspace_channel?(category, user)
 
     group_owner?(category.workspace_group, user)
+  end
+
+  # Channel members of workspaces that opt in may change a channel's description, appearance,
+  # mode, events, voice and archive state. Name, visibility, guest access, channel-wide
+  # mentions and membership stay with the channel's managers.
+  def self.can_edit_workspace_channel_settings?(category, user)
+    return false if user.blank? || category.blank? || !category.workspace_channel?
+    return true if can_manage_workspace_channel?(category, user)
+
+    workspace = category.workspace_parent_category
+    return false if !workspace&.workspace_root? || !workspace.workspace_members_can_manage_channels?
+
+    group_member?(category.workspace_group, user) && group_member?(workspace.workspace_group, user)
   end
 
   def self.can_view_workspace_channel_members?(category, user)
@@ -833,6 +847,10 @@ after_initialize do
     DiscourseWorkspaceGroups::WORKSPACE_AUTO_JOIN_CHANNEL_IDS,
     :json,
   )
+  register_category_custom_field_type(
+    DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS,
+    :boolean,
+  )
   register_category_custom_field_type(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE, :string)
 
   register_group_custom_field_type("workspace_category_id", :integer)
@@ -858,6 +876,9 @@ after_initialize do
   )
   register_preloaded_category_custom_fields(
     DiscourseWorkspaceGroups::WORKSPACE_AUTO_JOIN_CHANNEL_IDS,
+  )
+  register_preloaded_category_custom_fields(
+    DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS,
   )
   register_preloaded_category_custom_fields(DiscourseWorkspaceGroups::WORKSPACE_CHANNEL_MODE)
 
@@ -955,6 +976,13 @@ after_initialize do
     value.to_s == "true"
   end
 
+  add_to_class(:category, :workspace_members_can_manage_channels?) do
+    value = custom_fields[DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS]
+    return SiteSetting.discourse_workspace_groups_members_can_manage_channels if value.nil?
+
+    value.to_s == "true"
+  end
+
   add_to_class(:category, :workspace_auto_join_channel_ids) do
     return [] if !workspace_root?
 
@@ -1010,6 +1038,10 @@ after_initialize do
     DiscourseWorkspaceGroups.can_manage_workspace_channel?(category, user)
   end
 
+  add_to_class(Guardian, :can_edit_workspace_channel_settings?) do |category|
+    DiscourseWorkspaceGroups.can_edit_workspace_channel_settings?(category, user)
+  end
+
   add_to_class(Guardian, :can_view_workspace_channel_members?) do |category|
     DiscourseWorkspaceGroups.can_view_workspace_channel_members?(category, user)
   end
@@ -1035,6 +1067,9 @@ after_initialize do
   end
   add_to_serializer(:basic_category, :workspace_members_can_create_private_channels) do
     object.workspace_members_can_create_private_channels?
+  end
+  add_to_serializer(:basic_category, :workspace_members_can_manage_channels) do
+    object.workspace_members_can_manage_channels?
   end
   add_to_serializer(:basic_category, :workspace_can_create_channel) do
     scope&.can_create_workspace_channel?(object)

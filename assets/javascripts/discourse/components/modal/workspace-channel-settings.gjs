@@ -75,12 +75,18 @@ export default class WorkspaceChannelSettingsModal extends Component {
       : "discourse_workspace_groups.archive_channel";
   }
 
+  // Members of workspaces that let them manage channels get the settings without the
+  // manager-only fields; the server rejects changes to those from them.
+  get canManage() {
+    return Boolean(this.channel?.can_manage_members);
+  }
+
   get canEditVisibility() {
-    return Boolean(this.workspace?.can_create_private_channel);
+    return this.canManage && Boolean(this.workspace?.can_create_private_channel);
   }
 
   get showChannelWideMentions() {
-    return this.channelMode !== "category_only";
+    return this.canManage && this.channelMode !== "category_only";
   }
 
   get showEventsEnabled() {
@@ -165,11 +171,13 @@ export default class WorkspaceChannelSettingsModal extends Component {
             channel_mode: this.channelMode,
             events_enabled: this.showEventsEnabled && this.eventsEnabled,
             voice_enabled: this.voiceEnabled,
-            voice_allow_guests: this.voiceAllowGuests,
+            ...(this.canManage
+              ? { voice_allow_guests: this.voiceAllowGuests }
+              : {}),
             color: this.color,
             style_type: this.styleType,
             emoji: this.emoji,
-            ...(this.channelMode !== "category_only"
+            ...(this.showChannelWideMentions
               ? {
                   allow_channel_wide_mentions: this.allowChannelWideMentions,
                 }
@@ -240,13 +248,15 @@ export default class WorkspaceChannelSettingsModal extends Component {
       <:body>
         <WorkspaceChannelForm
           @allowChannelWideMentions={{this.allowChannelWideMentions}}
-          @autofocus={{true}}
+          @autofocus={{this.canManage}}
           @categoryId={{this.channel.id}}
           @channelMode={{this.channelMode}}
           @color={{this.color}}
           @description={{this.description}}
           @emoji={{this.emoji}}
           @eventsEnabled={{this.eventsEnabled}}
+          @hideName={{not this.canManage}}
+          @hideVoiceAllowGuests={{not this.canManage}}
           @isPrivate={{this.isPrivate}}
           @name={{this.name}}
           @onChannelModeChange={{this.updateChannelMode}}

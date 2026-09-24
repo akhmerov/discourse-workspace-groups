@@ -134,6 +134,8 @@ en:
       members_can_create_channels_help: "Allow ordinary workspace members to create new channels. Workspace managers can always create channels."
       members_can_create_private_channels: "Members can create private channels"
       members_can_create_private_channels_help: "Allow ordinary workspace members to create private channels. This only applies when member channel creation is enabled."
+      members_can_manage_channels: "Members can manage channels"
+      members_can_manage_channels_help: "Allow members of a channel to change its description, appearance, mode, events and voice, and to archive or unarchive it. Renaming, visibility, voice guests, channel-wide mentions and removing members stay with channel owners and workspace managers."
       auto_join_channels: "Auto-join channels"
       auto_join_channels_filter_placeholder: "Filter channels"
       auto_join_channels_empty: "No matching channels."

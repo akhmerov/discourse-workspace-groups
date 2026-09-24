@@ -231,6 +231,7 @@ module ::DiscourseWorkspaceGroups
           public_read: params[:public_read],
           members_can_create_channels: params[:members_can_create_channels],
           members_can_create_private_channels: params[:members_can_create_private_channels],
+          members_can_manage_channels: params[:members_can_manage_channels],
           auto_join_channel_ids: params[:auto_join_channel_ids],
         ).call
 
@@ -247,7 +248,7 @@ module ::DiscourseWorkspaceGroups
     def update_channel
       guardian.ensure_can_see!(@workspace)
       channel = find_channel
-      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+      raise Discourse::InvalidAccess if !guardian.can_edit_workspace_channel_settings?(channel)
 
       channel =
         ::DiscourseWorkspaceGroups::UpdateChannel.new(
@@ -340,7 +341,7 @@ module ::DiscourseWorkspaceGroups
     def archive_channel
       guardian.ensure_can_see!(@workspace)
       channel = find_channel
-      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+      raise Discourse::InvalidAccess if !guardian.can_edit_workspace_channel_settings?(channel)
 
       ::DiscourseWorkspaceGroups::SetChannelArchiveState.new(
         channel: channel,
@@ -355,7 +356,7 @@ module ::DiscourseWorkspaceGroups
     def unarchive_channel
       guardian.ensure_can_see!(@workspace)
       channel = find_channel
-      raise Discourse::InvalidAccess if !guardian.can_manage_workspace_channel?(channel)
+      raise Discourse::InvalidAccess if !guardian.can_edit_workspace_channel_settings?(channel)
 
       ::DiscourseWorkspaceGroups::SetChannelArchiveState.new(
         channel: channel,
@@ -496,6 +497,7 @@ module ::DiscourseWorkspaceGroups
         group_ids_with_other_owners: group_ids_with_other_owners,
         group_member_counts: group_member_counts(group_ids),
         workspace_can_manage: guardian.can_manage_workspace?(@workspace),
+        workspace_members_can_manage_channels: !!@workspace&.workspace_members_can_manage_channels?,
         workspace_member: workspace_member,
         chat_channels_by_category_id: chat_channels_by_category_id(channels),
         last_activity_at_by_category_id: last_activity_at_by_category_id(channels),
@@ -689,6 +691,7 @@ module ::DiscourseWorkspaceGroups
         public_read: workspace.workspace_root_public_read?,
         members_can_create_channels: workspace.workspace_members_can_create_channels?,
         members_can_create_private_channels: workspace.workspace_members_can_create_private_channels?,
+        members_can_manage_channels: workspace.workspace_members_can_manage_channels?,
         auto_join_channel_ids: auto_join_channels.map(&:id),
         auto_join_channel_options: auto_join_channel_options,
       }
@@ -725,6 +728,7 @@ module ::DiscourseWorkspaceGroups
       group_ids_with_other_owners:,
       group_member_counts:,
       workspace_can_manage:,
+      workspace_members_can_manage_channels:,
       workspace_member:,
       chat_channels_by_category_id:,
       last_activity_at_by_category_id:,
@@ -741,6 +745,9 @@ module ::DiscourseWorkspaceGroups
         guardian.is_admin? ||
           (category.workspace_visibility == VISIBILITY_PUBLIC && workspace_can_manage) ||
           (group.present? && owner_group_ids.include?(group.id))
+      can_edit_settings =
+        can_manage ||
+          (workspace_members_can_manage_channels && joined && workspace_member)
       can_add_members =
         can_manage ||
           (
@@ -777,8 +784,9 @@ module ::DiscourseWorkspaceGroups
         joined: joined,
         can_join: can_join,
         can_leave: can_leave,
-        can_archive: can_manage && !archived,
-        can_unarchive: can_manage && archived,
+        can_archive: can_edit_settings && !archived,
+        can_unarchive: can_edit_settings && archived,
+        can_edit_settings: can_edit_settings,
         can_add_members: can_add_members,
         can_manage_members: can_manage,
         can_open_topics: can_open_topics,

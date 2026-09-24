@@ -1478,6 +1478,198 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "member channel management" do
+    fab!(:outsider) do
+      suffix = SecureRandom.hex(4)
+      Fabricate(:user, active: true, username: "wx#{suffix}", email: "workspace-x-#{suffix}@example.com")
+    end
+
+    let(:channel_path) { "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}" }
+
+    def enable_member_management(enabled = true)
+      workspace.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_MEMBERS_CAN_MANAGE_CHANNELS] = enabled
+      workspace.save_custom_fields(true)
+    end
+
+    def member_params(**overrides)
+      {
+        name: public_channel.name,
+        description: "Links: [notes](https://example.com/notes)",
+        channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_BOTH,
+        color: "112233",
+      }.merge(overrides)
+    end
+
+    def serialized_channel(user)
+      sign_in(user)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+      response.parsed_body["channels"].find { |channel| channel["id"] == public_channel.id }
+    end
+
+    before do
+      public_channel.workspace_group.add(workspace_member)
+      public_channel.workspace_group.add(guest_user)
+    end
+
+    it "is off by default and follows the site setting" do
+      expect(workspace.workspace_members_can_manage_channels?).to eq(false)
+
+      SiteSetting.discourse_workspace_groups_members_can_manage_channels = true
+      expect(workspace.workspace_members_can_manage_channels?).to eq(true)
+
+      enable_member_management(false)
+      expect(workspace.reload.workspace_members_can_manage_channels?).to eq(false)
+    end
+
+    it "lets workspace managers toggle the setting" do
+      sign_in(admin)
+
+      put "/workspace-groups/workspaces/#{workspace.id}.json",
+          params: { description: "", members_can_manage_channels: true }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("workspace", "members_can_manage_channels")).to eq(true)
+      expect(workspace.reload.workspace_members_can_manage_channels?).to eq(true)
+    end
+
+    it "does not let workspace members toggle the setting" do
+      sign_in(workspace_member)
+
+      put "/workspace-groups/workspaces/#{workspace.id}.json",
+          params: { description: "", members_can_manage_channels: true }
+
+      expect(response).to have_http_status(:forbidden)
+      expect(workspace.reload.workspace_members_can_manage_channels?).to eq(false)
+    end
+
+    it "rejects channel member edits while the setting is off" do
+      sign_in(workspace_member)
+
+      put "#{channel_path}.json", params: member_params
+      expect(response).to have_http_status(:forbidden)
+
+      post "#{channel_path}/archive.json"
+      expect(response).to have_http_status(:forbidden)
+      expect(public_channel.reload.workspace_archived?).to eq(false)
+    end
+
+    context "when members can manage channels" do
+      before { enable_member_management }
+
+      it "lets channel members change description, appearance, mode and events" do
+        sign_in(workspace_member)
+
+        put "#{channel_path}.json", params: member_params(events_enabled: true, emoji: "rocket", style_type: "emoji")
+
+        expect(response).to have_http_status(:ok)
+        public_channel.reload
+        expect(public_channel.topic.first_post.raw).to eq("Links: [notes](https://example.com/notes)")
+        expect(public_channel.topic.first_post.revisions.last.user_id).to eq(workspace_member.id)
+        expect(public_channel.color).to eq("112233")
+        expect(public_channel.emoji).to eq("rocket")
+        expect(public_channel.workspace_events_enabled?).to eq(true)
+
+        put "#{channel_path}.json",
+            params: member_params(channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY)
+
+        expect(response).to have_http_status(:ok)
+        expect(public_channel.reload.workspace_channel_mode).to eq(DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY)
+        expect(public_channel.workspace_events_enabled?).to eq(false)
+      end
+
+      it "lets channel members archive and unarchive" do
+        sign_in(workspace_member)
+
+        post "#{channel_path}/archive.json"
+        expect(response).to have_http_status(:ok)
+        expect(public_channel.reload.workspace_archived?).to eq(true)
+
+        delete "#{channel_path}/archive.json"
+        expect(response).to have_http_status(:ok)
+        expect(public_channel.reload.workspace_archived?).to eq(false)
+      end
+
+      it "accepts unchanged manager-only fields from channel members" do
+        sign_in(workspace_member)
+
+        put "#{channel_path}.json",
+            params: member_params(visibility: "public", allow_channel_wide_mentions: true, voice_allow_guests: true)
+
+        expect(response).to have_http_status(:ok)
+      end
+
+      {
+        name: "Renamed channel",
+        visibility: "private",
+        allow_channel_wide_mentions: false,
+        voice_allow_guests: false,
+      }.each do |field, value|
+        it "rejects #{field} changes from channel members" do
+          sign_in(workspace_member)
+          raw_before = public_channel.topic.first_post.raw
+
+          put "#{channel_path}.json", params: member_params(field => value)
+
+          expect(response).to have_http_status(:forbidden)
+          public_channel.reload
+          expect(public_channel.topic.first_post.raw).to eq(raw_before)
+          expect(public_channel.workspace_visibility).to eq("public")
+        end
+      end
+
+      it "still lets channel owners change manager-only fields" do
+        public_channel.workspace_group.group_users.find_by(user: workspace_member).update!(owner: true)
+        sign_in(workspace_member)
+
+        put "#{channel_path}.json", params: member_params(allow_channel_wide_mentions: false)
+
+        expect(response).to have_http_status(:ok)
+        expect(category_chat_channel(public_channel).allow_channel_wide_mentions).to eq(false)
+      end
+
+      it "does not extend to removing members" do
+        sign_in(workspace_member)
+
+        delete "#{channel_path}/access/#{guest_user.id}.json"
+
+        expect(response).to have_http_status(:forbidden)
+        expect(public_channel.workspace_group.users).to include(guest_user)
+      end
+
+      it "excludes workspace members who have not joined the channel" do
+        sign_in(other_workspace_member)
+
+        put "#{channel_path}.json", params: member_params
+        expect(response).to have_http_status(:forbidden)
+
+        post "#{channel_path}/archive.json"
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it "excludes channel guests who are not workspace members" do
+        sign_in(guest_user)
+
+        put "#{channel_path}.json", params: member_params
+        expect(response).to have_http_status(:forbidden)
+
+        post "#{channel_path}/archive.json"
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it "serializes the member capabilities" do
+        member_channel = serialized_channel(workspace_member)
+        expect(member_channel).to include(
+          "can_edit_settings" => true,
+          "can_archive" => true,
+          "can_manage_members" => false,
+        )
+
+        other_channel = serialized_channel(other_workspace_member)
+        expect(other_channel).to include("can_edit_settings" => false, "can_archive" => false)
+      end
+    end
+  end
+
   describe "#channel_access" do
     it "lists guests separately from team members" do
       private_channel.workspace_group.add(workspace_member)

@@ -10,3 +10,4 @@ en:
   site_settings:
     discourse_workspace_groups_enabled: "Enable workspace groups prototype"
     discourse_workspace_groups_members_can_create_channels: "Allow workspace members to create channels"
+    discourse_workspace_groups_members_can_manage_channels: "Allow channel members to change channel descriptions, appearance, mode, events, voice and archive state by default"

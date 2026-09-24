@@ -24,6 +24,7 @@ export default class WorkspaceSettingsModal extends Component {
   @tracked publicRead;
   @tracked membersCanCreateChannels;
   @tracked membersCanCreatePrivateChannels;
+  @tracked membersCanManageChannels;
   @tracked autoJoinChannelIds;
   @tracked autoJoinChannelsFilter = "";
   @tracked saving = false;
@@ -39,6 +40,9 @@ export default class WorkspaceSettingsModal extends Component {
     );
     this.membersCanCreatePrivateChannels = Boolean(
       this.workspace?.members_can_create_private_channels
+    );
+    this.membersCanManageChannels = Boolean(
+      this.workspace?.members_can_manage_channels
     );
     this.autoJoinChannelIds = this.workspace?.auto_join_channel_ids || [];
   }
@@ -138,6 +142,11 @@ export default class WorkspaceSettingsModal extends Component {
   }
 
   @action
+  toggleMembersCanManageChannels() {
+    this.membersCanManageChannels = !this.membersCanManageChannels;
+  }
+
+  @action
   toggleMembersCanCreatePrivateChannels() {
     if (!this.membersCanCreateChannels) {
       return;
@@ -183,6 +192,7 @@ export default class WorkspaceSettingsModal extends Component {
           members_can_create_channels: this.membersCanCreateChannels,
           members_can_create_private_channels:
             this.membersCanCreatePrivateChannels,
+          members_can_manage_channels: this.membersCanManageChannels,
           auto_join_channel_ids: this.autoJoinChannelIds,
         },
       });
@@ -266,6 +276,17 @@ export default class WorkspaceSettingsModal extends Component {
             {{i18n
               "discourse_workspace_groups.members_can_create_private_channels_help"
             }}
+          </p>
+        </div>
+
+        <div class="workspace-groups-create-channel-modal__field">
+          <DToggleSwitch
+            @state={{this.membersCanManageChannels}}
+            @label="discourse_workspace_groups.members_can_manage_channels"
+            {{on "click" this.toggleMembersCanManageChannels}}
+          />
+          <p class="workspace-groups-create-channel-modal__help">
+            {{i18n "discourse_workspace_groups.members_can_manage_channels_help"}}
           </p>
         </div>
 

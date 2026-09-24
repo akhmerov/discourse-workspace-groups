@@ -85,7 +85,8 @@ module ::DiscourseWorkspaceGroups
     def validate!
       raise Discourse::InvalidAccess if user.blank?
       raise Discourse::InvalidAccess if !channel&.workspace_channel?
-      raise Discourse::InvalidAccess if !DiscourseWorkspaceGroups.can_manage_workspace_channel?(channel, user)
+      raise Discourse::InvalidAccess if !DiscourseWorkspaceGroups.can_edit_workspace_channel_settings?(channel, user)
+      raise Discourse::InvalidAccess if manager_only_change? && !DiscourseWorkspaceGroups.can_manage_workspace_channel?(channel, user)
       raise Discourse::InvalidParameters.new(:name) if name.blank?
       raise Discourse::InvalidParameters.new(:visibility) if !valid_visibility?
       raise Discourse::InvalidParameters.new(:channel_mode) if !valid_channel_mode?
@@ -96,6 +97,19 @@ module ::DiscourseWorkspaceGroups
            !DiscourseWorkspaceGroups.can_create_private_workspace_channel?(workspace, user)
         raise Discourse::InvalidAccess
       end
+    end
+
+    def manager_only_change?
+      name_changed? || visibility_changed? || allow_channel_wide_mentions_changed? ||
+        voice_allow_guests_changed?
+    end
+
+    def voice_allow_guests_changed?
+      return false if @voice_allow_guests.nil?
+
+      current_voice_allow_guests =
+        DiscourseWorkspaceGroups::VoiceBinding.find_by(source_type: "category", source_id: channel.id)&.allow_guests != false
+      @voice_allow_guests != current_voice_allow_guests
     end
 
     def valid_visibility?

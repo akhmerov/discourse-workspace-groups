@@ -8,7 +8,7 @@ import EmojiPicker from "discourse/components/emoji-picker";
 import FKControlColor from "discourse/form-kit/components/fk/control/color";
 import { uniqueItemsFromArray } from "discourse/lib/array-tools";
 import ComboBox from "discourse/select-kit/components/combo-box";
-import { not } from "discourse/truth-helpers";
+import { and, not } from "discourse/truth-helpers";
 import DButton from "discourse/ui-kit/d-button";
 import DToggleSwitch from "discourse/ui-kit/d-toggle-switch";
 import { i18n } from "discourse-i18n";
@@ -124,17 +124,19 @@ export default class WorkspaceChannelForm extends Component {
   }
 
   <template>
-    <label class="workspace-groups-create-channel-modal__field">
-      <span class="workspace-groups-create-channel-modal__label">
-        {{i18n "discourse_workspace_groups.channel_name"}}
-      </span>
-      <Input
-        autofocus={{@autofocus}}
-        class="workspace-groups-create-channel-modal__input"
-        @value={{@name}}
-        {{on "input" this.updateName}}
-      />
-    </label>
+    {{#unless @hideName}}
+      <label class="workspace-groups-create-channel-modal__field">
+        <span class="workspace-groups-create-channel-modal__label">
+          {{i18n "discourse_workspace_groups.channel_name"}}
+        </span>
+        <Input
+          autofocus={{@autofocus}}
+          class="workspace-groups-create-channel-modal__input"
+          @value={{@name}}
+          {{on "input" this.updateName}}
+        />
+      </label>
+    {{/unless}}
 
     <label class="workspace-groups-create-channel-modal__field">
       <span class="workspace-groups-create-channel-modal__label">
@@ -175,7 +177,7 @@ export default class WorkspaceChannelForm extends Component {
             "discourse_workspace_groups.voice.enable_help"
           }}</p>
       </div>
-      {{#if @voiceEnabled}}
+      {{#if (and @voiceEnabled (not @hideVoiceAllowGuests))}}
         <DToggleSwitch
           @label="discourse_workspace_groups.voice.allow_guests"
           @state={{@voiceAllowGuests}}
