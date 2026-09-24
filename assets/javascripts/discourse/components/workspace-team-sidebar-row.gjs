@@ -148,8 +148,18 @@ export default class WorkspaceTeamSidebarRow extends Component {
         !this.args.editable &&
         "workspace-team-sidebar__main-link--compact",
       this.mainLinkUnread && "workspace-team-sidebar__main-link--unread",
-      this.mainLinkActive && "active"
+      this.mainLinkHighlighted && "active"
     );
+  }
+
+  // The block knows the one channel being viewed. Core's route-list current-when would
+  // mark every topics-and-chat channel active on any category page.
+  get mainLinkHighlighted() {
+    return !!(this.args.isActive && !this.args.editable);
+  }
+
+  get categoryModeActive() {
+    return !!this.args.categoryActive;
   }
 
   get mainLinkActive() {
@@ -298,7 +308,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
           <LinkTo
             aria-current={{if this.mainLinkActive "page"}}
             class={{this.mainLinkClass}}
-            @current-when={{@categoryLink.currentWhen}}
+            @current-when={{this.mainLinkHighlighted}}
             @models={{this.categoryModels}}
             @query={{this.categoryQuery}}
             @route={{@categoryLink.route}}
@@ -358,7 +368,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
             {{else}}
               <LinkTo
                 class={{this.categoryButtonClass}}
-                @current-when={{@categoryLink.currentWhen}}
+                @current-when={{this.categoryModeActive}}
                 @models={{this.categoryModels}}
                 @query={{this.categoryQuery}}
                 @route={{@categoryLink.route}}

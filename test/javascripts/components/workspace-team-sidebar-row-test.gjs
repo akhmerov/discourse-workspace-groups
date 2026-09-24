@@ -172,7 +172,7 @@ module(
       assert.true(DiscourseURL.routeTo.calledOnceWith("/chat/c/lab-notes/15"));
     });
 
-    test("only marks the main link active in topic mode", async function (assert) {
+    test("highlights the channel in chat mode and marks the chat button as the current page", async function (assert) {
       this.categoryLink = {
         name: "lab-notes",
         route: "discovery.category",
@@ -201,15 +201,46 @@ module(
         </template>
       );
 
+      assert.dom(".workspace-team-sidebar__main-link").hasClass("active");
       assert
         .dom(".workspace-team-sidebar__main-link")
-        .doesNotHaveClass("active");
+        .doesNotHaveAttribute("aria-current");
       assert.dom(".workspace-team-sidebar__mode-button").doesNotHaveClass(
         "workspace-team-sidebar__mode-button--active"
       );
       assert
         .dom(".workspace-team-sidebar__mode-button:last-child")
-        .hasClass("workspace-team-sidebar__mode-button--active");
+        .hasClass("workspace-team-sidebar__mode-button--active")
+        .hasAttribute("aria-current", "page");
+    });
+
+    test("does not highlight other channels on category pages", async function (assert) {
+      this.categoryLink = {
+        name: "lab-notes",
+        route: "discovery.category",
+        model: "quantum-tinkerer/lab-notes/29",
+        currentWhen: "discovery.category",
+        title: "Lab Notes",
+        text: "Lab Notes",
+        prefixType: "icon",
+        prefixValue: "folder",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryActive={{false}}
+            @categoryLink={{this.categoryLink}}
+            @chatPath="/chat/c/lab-notes/15"
+            @isActive={{false}}
+          />
+        </template>
+      );
+
+      assert.dom(".workspace-team-sidebar__main-link").doesNotHaveClass("active");
+      assert
+        .dom(".workspace-team-sidebar__mode-button:first-child")
+        .doesNotHaveClass("active");
     });
 
     test("uses a calendar icon for event-enabled topic channels", async function (assert) {

@@ -696,22 +696,13 @@ body.workspace-team-sidebar-scroll-lock {
   top: -0.1rem;
 }
 
-// Active is shown by the row background; bold is reserved for unread.
-.workspace-team-sidebar__row--active {
-  background: var(--d-sidebar-active-background);
-  color: var(--d-sidebar-active-color);
-}
-
-.workspace-team-sidebar
-  .workspace-team-sidebar__row--active
-  .workspace-team-sidebar__main-link.sidebar-section-link {
-  background: transparent;
+// The active link carries the highlight; bold is reserved for unread.
+.workspace-team-sidebar .workspace-team-sidebar__main-link.sidebar-section-link.active {
   font-weight: normal;
 }
 
 .workspace-team-sidebar
-  .workspace-team-sidebar__row--active
-  .workspace-team-sidebar__main-link--unread.sidebar-section-link {
+  .workspace-team-sidebar__main-link--unread.sidebar-section-link.active {
   font-weight: 700;
 }
 
