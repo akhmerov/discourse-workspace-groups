@@ -133,7 +133,6 @@ module ::DiscourseWorkspaceGroups
       memberships =
         ::Chat::UserChatChannelMembership
           .where(user: current_user, chat_channel_id: followed_ids - loaded_ids.to_a)
-          .includes(:chat_channel)
           .index_by(&:chat_channel_id)
 
       if memberships.empty?
@@ -158,12 +157,12 @@ module ::DiscourseWorkspaceGroups
       render json: {
                followed_channel_ids: followed_ids,
                channels:
-                 memberships.values.map do |membership|
+                 missing_chat_channels(memberships.keys).map do |chat_channel|
                    ::Chat::ChannelSerializer.new(
-                     membership.chat_channel,
+                     chat_channel,
                      scope: guardian,
                      root: false,
-                     membership: membership,
+                     membership: memberships[chat_channel.id],
                    ).as_json
                  end,
                channel_tracking: report.channel_tracking,
@@ -862,6 +861,30 @@ module ::DiscourseWorkspaceGroups
         chat_channel_slug: chat_channel&.slug,
         chat_channel: serialize_chat_channel(chat_channel, include_chat_channel: include_chat_channel),
       }
+    end
+
+    # Mirrors the preloading of core's chat index, which serializes the same
+    # channels.
+    def missing_chat_channels(channel_ids)
+      channels =
+        ::Chat::Channel.includes(
+          :chat_channel_archive,
+          last_message: [:uploads],
+          chatable: %i[
+            parent_category
+            topic_only_relative_url
+            uploaded_background
+            uploaded_background_dark
+            uploaded_logo
+            uploaded_logo_dark
+          ],
+        ).where(id: channel_ids)
+      extra_includes = DiscoursePluginRegistry.apply_modifier(:chat_channel_fetcher_public_includes, [])
+      channels = channels.includes(*extra_includes) if extra_includes.present?
+      channels = channels.includes(:pinned_messages) if SiteSetting.chat_pinned_messages
+      channels = channels.to_a
+      ::Chat::ChannelFetcher.preload_custom_fields_for(channels)
+      channels
     end
 
     def serialize_chat_channel(chat_channel, include_chat_channel:)

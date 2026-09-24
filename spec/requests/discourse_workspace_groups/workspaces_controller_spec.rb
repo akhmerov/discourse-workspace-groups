@@ -525,6 +525,20 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(response.parsed_body["unread_thread_overview"]).to eq({})
     end
 
+    it "does not query per missing channel" do
+      2.times { |index| Fabricate(:chat_message, chat_channel: team_chat_channel("First #{index}")) }
+      sign_in(workspace_member)
+      path = "/workspace-groups/workspaces/#{workspace.id}/chat-tracking.json"
+      get path
+
+      two_missing = track_sql_queries { get path }.size
+      3.times { |index| Fabricate(:chat_message, chat_channel: team_chat_channel("More #{index}")) }
+      five_missing = track_sql_queries { get path }.size
+
+      expect(response.parsed_body["channels"].size).to eq(5)
+      expect(five_missing).to eq(two_missing)
+    end
+
     it "returns nothing when the client has every followed channel" do
       loaded = team_chat_channel("Loaded")
 
