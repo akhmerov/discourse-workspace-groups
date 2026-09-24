@@ -319,6 +319,21 @@ module ::DiscourseWorkspaceGroups
     ids.filter_map { |id| channels_by_id[id] }
   end
 
+  # Archived channels drop out of auto-join but keep their place in the list, so unarchiving
+  # restores auto-join for members who join the workspace afterwards.
+  def self.archived_workspace_auto_join_channel_ids(workspace)
+    return [] if workspace.blank? || !workspace.workspace_root?
+
+    ids = normalize_custom_field_id_list(workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS])
+    return [] if ids.blank?
+
+    channels = Category.where(id: ids, parent_category_id: workspace.id).to_a
+    Category.preload_custom_fields(channels, Site.preloaded_category_custom_fields)
+    archived_ids = channels.select { |channel| channel.workspace_channel? && channel.workspace_archived? }.map(&:id)
+
+    ids & archived_ids
+  end
+
   def self.workspace_channels(workspace)
     return [] if workspace.blank? || !workspace.workspace_root?
 
@@ -383,16 +398,6 @@ module ::DiscourseWorkspaceGroups
         group.add(user)
       end
     end
-  end
-
-  def self.remove_workspace_auto_join_channel!(workspace, channel_id)
-    return if workspace.blank? || !workspace.workspace_root?
-
-    ids = normalize_custom_field_id_list(workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS])
-    return if !ids.delete(channel_id)
-
-    workspace.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = ids
-    workspace.save_custom_fields(true)
   end
 
   def self.workspace_sidebar_orders_for(user)

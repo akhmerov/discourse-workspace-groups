@@ -40,7 +40,11 @@ module ::DiscourseWorkspaceGroups
         )
       @auto_join_channel_ids_submitted = !auto_join_channel_ids.nil?
       @auto_join_channel_ids =
-        normalize_channel_ids(auto_join_channel_ids, workspace.workspace_auto_join_channel_ids)
+        normalize_channel_ids(
+          auto_join_channel_ids,
+          workspace.workspace_auto_join_channel_ids +
+            DiscourseWorkspaceGroups.archived_workspace_auto_join_channel_ids(workspace),
+        )
     end
 
     def call
@@ -178,7 +182,7 @@ module ::DiscourseWorkspaceGroups
           .reject do |channel|
             DiscourseWorkspaceGroups.can_manage_workspace_auto_join_channel?(channel, user)
           end
-          .map(&:id)
+          .map(&:id) + DiscourseWorkspaceGroups.archived_workspace_auto_join_channel_ids(workspace)
     end
 
     def configurable_auto_join_channels(channel_ids)

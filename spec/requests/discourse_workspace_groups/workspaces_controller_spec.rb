@@ -1439,19 +1439,42 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
-  describe "auto-join cleanup" do
-    it "removes archived channels from the workspace auto-join list" do
+  describe "auto-join and archiving" do
+    before do
       public_channel
       workspace.custom_fields[DiscourseWorkspaceGroups::WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = [public_channel.id]
       workspace.save_custom_fields(true)
+    end
 
+    def archive(archived)
       DiscourseWorkspaceGroups::SetChannelArchiveState.new(
         channel: public_channel,
         user: admin,
-        archived: true,
+        archived: archived,
       ).call
+    end
 
+    it "suspends auto-join while a channel is archived and restores it on unarchive" do
+      archive(true)
       expect(workspace.reload.workspace_auto_join_channel_ids).to eq([])
+
+      archive(false)
+      expect(workspace.reload.workspace_auto_join_channel_ids).to eq([public_channel.id])
+    end
+
+    it "keeps archived channels in the auto-join list when workspace settings are saved" do
+      archive(true)
+      sign_in(admin)
+
+      put "/workspace-groups/workspaces/#{workspace.id}.json",
+          params: { description: "", auto_join_channel_ids: [""] }
+      expect(response).to have_http_status(:ok)
+
+      put "/workspace-groups/workspaces/#{workspace.id}.json", params: { description: "" }
+      expect(response).to have_http_status(:ok)
+
+      archive(false)
+      expect(workspace.reload.workspace_auto_join_channel_ids).to eq([public_channel.id])
     end
   end
 

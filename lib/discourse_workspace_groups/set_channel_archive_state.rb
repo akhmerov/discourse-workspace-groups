@@ -18,13 +18,6 @@ module ::DiscourseWorkspaceGroups
         channel.save_custom_fields(true)
       end
 
-      if archived
-        DiscourseWorkspaceGroups.remove_workspace_auto_join_channel!(
-          channel.workspace_parent_category,
-          channel.id,
-        )
-      end
-
       DiscourseWorkspaceGroups::SyncCategoryChatChannel.new(category: channel, user: user).call
       DiscourseWorkspaceGroups::VoiceBinding.find_by(source_type: "category", source_id: channel.id)&.reconcile!
       channel
