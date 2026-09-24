@@ -184,7 +184,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
       this.args.editable && "workspace-team-sidebar__row--editing",
       this.args.dragging && "workspace-team-sidebar__row--dragging",
       this.args.dropBefore && "workspace-team-sidebar__row--drop-before",
-      this.args.dropAfter && "workspace-team-sidebar__row--drop-after"
+      this.args.dropAfter && "workspace-team-sidebar__row--drop-after",
+      this.args.isActive &&
+        !this.args.editable &&
+        "workspace-team-sidebar__row--active"
     );
   }
 
@@ -197,6 +200,11 @@ export default class WorkspaceTeamSidebarRow extends Component {
 
     if (!this.args.chatPath) {
       event.preventDefault();
+      return;
+    }
+
+    // Let the browser open modified clicks in a new tab or window.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button > 0) {
       return;
     }
 
@@ -255,11 +263,12 @@ export default class WorkspaceTeamSidebarRow extends Component {
             {{/if}}
           </div>
         {{else if this.mainLinkOpensChat}}
-          <button
+          <a
+            aria-current={{if this.mainLinkActive "page"}}
             aria-label={{@chatTitle}}
             class={{this.mainLinkClass}}
+            href={{@chatPath}}
             title={{@chatTitle}}
-            type="button"
             {{on "click" this.openChat}}
           >
             <span class="workspace-team-sidebar__main-link-prefix">
@@ -284,9 +293,10 @@ export default class WorkspaceTeamSidebarRow extends Component {
                 {{@categoryLink.badgeText}}
               </span>
             {{/if}}
-          </button>
+          </a>
         {{else}}
           <LinkTo
+            aria-current={{if this.mainLinkActive "page"}}
             class={{this.mainLinkClass}}
             @current-when={{@categoryLink.currentWhen}}
             @models={{this.categoryModels}}
@@ -375,22 +385,36 @@ export default class WorkspaceTeamSidebarRow extends Component {
                 </span>
               </span>
             {{else}}
-              <button
-                aria-label={{@chatTitle}}
-                class={{this.chatButtonClass}}
-                disabled={{this.chatDisabled}}
-                title={{@chatTitle}}
-                type="button"
-                {{on "click" this.openChat}}
-              >
-                <span class="workspace-team-sidebar__mode-icon">
-                  {{dIcon "d-chat"}}
+              {{#if this.chatDisabled}}
+                <button
+                  aria-label={{@chatTitle}}
+                  class={{this.chatButtonClass}}
+                  disabled={{true}}
+                  title={{@chatTitle}}
+                  type="button"
+                >
+                  <span class="workspace-team-sidebar__mode-icon">
+                    {{dIcon "d-chat"}}
+                  </span>
+                </button>
+              {{else}}
+                <a
+                  aria-current={{if @chatActive "page"}}
+                  aria-label={{@chatTitle}}
+                  class={{this.chatButtonClass}}
+                  href={{@chatPath}}
+                  title={{@chatTitle}}
+                  {{on "click" this.openChat}}
+                >
+                  <span class="workspace-team-sidebar__mode-icon">
+                    {{dIcon "d-chat"}}
 
-                  {{#if @chatUnread}}
-                    <span class={{this.chatUnreadIndicatorClass}}></span>
-                  {{/if}}
-                </span>
-              </button>
+                    {{#if @chatUnread}}
+                      <span class={{this.chatUnreadIndicatorClass}}></span>
+                    {{/if}}
+                  </span>
+                </a>
+              {{/if}}
             {{/if}}
           </div>
         {{/if}}

@@ -65,6 +65,75 @@ module(
         });
 
 
+    test("opens chat-only channels through a real link", async function (assert) {
+      sinon.stub(DiscourseURL, "routeTo");
+      this.categoryLink = {
+        category: { id: 29 },
+        name: "chat-first",
+        route: "discovery.category",
+        model: "quantum-tinkerer/chat-first/29",
+        title: "Chat First",
+        text: "Chat First",
+        prefixType: "icon",
+        prefixValue: "folder",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryAvailable={{false}}
+            @categoryLink={{this.categoryLink}}
+            @chatAvailable={{true}}
+            @chatPath="/chat/c/chat-first/15"
+            @chatTitle="Open Chat First chat"
+          />
+        </template>
+      );
+
+      assert
+        .dom("a.workspace-team-sidebar__main-link")
+        .hasAttribute("href", "/chat/c/chat-first/15");
+
+      await click("a.workspace-team-sidebar__main-link", { ctrlKey: true });
+      assert.true(DiscourseURL.routeTo.notCalled, "leaves modified clicks to the browser");
+
+      await click("a.workspace-team-sidebar__main-link");
+      assert.true(DiscourseURL.routeTo.calledOnceWith("/chat/c/chat-first/15"));
+    });
+
+    test("marks the whole row of the active channel", async function (assert) {
+      this.categoryLink = {
+        category: { id: 29 },
+        name: "chat-first",
+        route: "discovery.category",
+        model: "quantum-tinkerer/chat-first/29",
+        title: "Chat First",
+        text: "Chat First",
+        prefixType: "icon",
+        prefixValue: "folder",
+      };
+
+      await render(
+        <template>
+          <WorkspaceTeamSidebarRow
+            @categoryAvailable={{false}}
+            @categoryLink={{this.categoryLink}}
+            @chatActive={{true}}
+            @chatAvailable={{true}}
+            @chatPath="/chat/c/chat-first/15"
+            @isActive={{true}}
+          />
+        </template>
+      );
+
+      assert
+        .dom(".workspace-team-sidebar__row")
+        .hasClass("workspace-team-sidebar__row--active");
+      assert
+        .dom("a.workspace-team-sidebar__main-link")
+        .hasAttribute("aria-current", "page");
+    });
+
     test("routes chat icon clicks without a full reload", async function (assert) {
       sinon.stub(DiscourseURL, "routeTo");
 

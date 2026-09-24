@@ -218,8 +218,8 @@
   font-size: var(--font-down-2);
   font-weight: 600;
   gap: 0.25rem;
-  min-height: 1.55rem;
-  padding: 0.12rem 0.45rem;
+  min-height: 2rem;
+  padding: 0.12rem 0.6rem;
 }
 
 .workspace-team-sidebar__control:hover {
@@ -253,7 +253,7 @@
   flex: 0 0 auto;
   justify-content: center;
   padding: 0;
-  width: 1.65rem;
+  width: 2rem;
 }
 
 .workspace-team-sidebar__header-actions {
@@ -277,8 +277,8 @@
   display: flex;
   justify-content: center;
   list-style: none;
-  min-height: 1.55rem;
-  min-width: 1.55rem;
+  min-height: 2rem;
+  min-width: 2rem;
   padding: 0;
 }
 
@@ -416,6 +416,7 @@
   font-size: var(--font-down-2);
   font-weight: 700;
   gap: 0.2rem;
+  min-height: 2rem;
   min-width: 0;
   padding: 0.2rem 0.25rem;
   text-align: left;
@@ -663,7 +664,9 @@ body.workspace-team-sidebar-scroll-lock {
   white-space: nowrap;
 }
 
+// The link fills its row, so the whole row is the click and tap target.
 .workspace-team-sidebar__main-link {
+  align-self: stretch;
   background: transparent;
   border: 0;
   color: inherit;
@@ -693,12 +696,23 @@ body.workspace-team-sidebar-scroll-lock {
   top: -0.1rem;
 }
 
+// Active is shown by the row background; bold is reserved for unread.
+.workspace-team-sidebar__row--active {
+  background: var(--d-sidebar-active-background);
+  color: var(--d-sidebar-active-color);
+}
+
 .workspace-team-sidebar
-  .sidebar-section-link-wrapper
-  .workspace-team-sidebar__main-link--compact.sidebar-section-link {
-  flex: 0 1 auto;
-  max-width: 100%;
-  width: fit-content;
+  .workspace-team-sidebar__row--active
+  .workspace-team-sidebar__main-link.sidebar-section-link {
+  background: transparent;
+  font-weight: normal;
+}
+
+.workspace-team-sidebar
+  .workspace-team-sidebar__row--active
+  .workspace-team-sidebar__main-link--unread.sidebar-section-link {
+  font-weight: 700;
 }
 
 .workspace-team-sidebar__modes {
@@ -716,11 +730,11 @@ body.workspace-team-sidebar-scroll-lock {
   color: currentColor;
   cursor: pointer;
   display: inline-flex;
-  height: 1.5rem;
+  height: 2rem;
   justify-content: center;
   opacity: 0.72;
   padding: 0;
-  width: 1.5rem;
+  width: 2rem;
 }
 
 .workspace-team-sidebar__mode-button:disabled {
@@ -1458,5 +1472,24 @@ body.workspace-team-sidebar-scroll-lock {
     inset: calc(var(--workspace-voice-header-height, 3rem) + 0.5rem) 0 calc(var(--workspace-voice-controls-height, 4rem) + 0.5rem);
     z-index: 2;
     border: 1px solid var(--primary-low);
+  }
+}
+
+// Touch targets on phones.
+.mobile-view {
+  .workspace-team-sidebar__control,
+  .workspace-team-sidebar__header-action-button,
+  .workspace-team-sidebar__section-heading {
+    min-height: 2.5rem;
+  }
+
+  .workspace-team-sidebar__control--icon-only,
+  .workspace-team-sidebar__header-action-button {
+    min-width: 2.5rem;
+  }
+
+  .workspace-team-sidebar__mode-button {
+    height: 2.5rem;
+    width: 2.5rem;
   }
 }
