@@ -1,16 +1,17 @@
-import { getOwner } from "@ember/owner";
 import { action } from "@ember/object";
+import { getOwner } from "@ember/owner";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
 import { apiInitializer } from "discourse/lib/api";
+import { i18n } from "discourse-i18n";
+import WorkspaceChannelChatable from "../components/workspace-channel-chatable";
+import WorkspaceJoinableChannelChatable from "../components/workspace-joinable-channel-chatable";
 import {
-  JOINABLE_CHANNEL_CHATABLE_TYPE,
   chatRouteModels,
+  JOINABLE_CHANNEL_CHATABLE_TYPE,
   joinableChannelItems,
   sortWorkspaceChatables,
 } from "../lib/workspace-joinable-channel-chat-search";
-import WorkspaceJoinableChannelChatable from "../components/workspace-joinable-channel-chatable";
-import { i18n } from "discourse-i18n";
 
 const MAX_RESULTS = 10;
 
@@ -87,6 +88,10 @@ export default apiInitializer((api) => {
         componentForItem(type) {
           if (type === JOINABLE_CHANNEL_CHATABLE_TYPE) {
             return WorkspaceJoinableChannelChatable;
+          }
+
+          if (type === "channel") {
+            return WorkspaceChannelChatable;
           }
 
           return super.componentForItem(type);

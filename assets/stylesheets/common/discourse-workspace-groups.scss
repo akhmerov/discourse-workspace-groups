@@ -1484,3 +1484,30 @@ body.workspace-team-sidebar-scroll-lock {
     width: 2.5rem;
   }
 }
+
+.workspace-channel-chatable {
+  align-items: center;
+  display: flex;
+  gap: 0.5em;
+  min-width: 0;
+  width: 100%;
+
+  .chat-message-creator__chatable {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__team {
+    color: var(--primary-medium);
+    flex: 0 0 auto;
+    max-width: 45%;
+    font-size: var(--font-down-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &--public .chat-channel-icon__restricted-category-icon {
+    display: none;
+  }
+}
