@@ -1169,16 +1169,20 @@ after_initialize do
     end
     GroupUser.after_commit do
       DiscourseWorkspaceGroups::VoiceBinding.revoke_group_guest_grants!(user_id, group_id)
-      DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
+      DiscourseWorkspaceGroups::VoiceBinding.reconcile_user!(user_id)
       DiscourseWorkspaceGroups::VoiceBinding.publish_access_change!(user_id, group)
     end
     ::Chat::DirectMessageChannel.prepend(DiscourseWorkspaceGroups::VoiceIntegration::DirectMessageDeparture)
-    ::Chat::DirectMessageUser.after_destroy { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
-    ::Chat::DirectMessageChannel.after_commit { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
+    ::Chat::DirectMessageUser.after_destroy do
+      DiscourseWorkspaceGroups::VoiceBinding.reconcile_dm_channels!(
+        ::Chat::DirectMessageChannel.where(chatable_id: direct_message_id).select(:id),
+      )
+    end
+    ::Chat::DirectMessageChannel.after_commit { DiscourseWorkspaceGroups::VoiceBinding.reconcile_dm_channels!([id]) }
     User.after_commit do
       if previous_changes.keys.intersect?(%w[suspended_till silenced_till active])
         DiscourseWorkspaceGroups::VoiceGuestGrant.where(user_id: id).delete_all unless DiscourseWorkspaceGroups::VoiceBinding.account_eligible?(self)
-        DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
+        DiscourseWorkspaceGroups::VoiceBinding.reconcile_user!(id)
       end
     end
     on(:user_added_to_group) do |user, group|
@@ -1187,10 +1191,19 @@ after_initialize do
     on(:user_removed_from_group) do |user, group|
       DiscourseWorkspaceGroups::VoiceBinding.publish_access_change!(user.id, group)
       DiscourseWorkspaceGroups::VoiceBinding.revoke_group_guest_grants!(user.id, group.id)
-      DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
+      DiscourseWorkspaceGroups::VoiceBinding.reconcile_user!(user.id)
     end
-    on(:category_updated) { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
-    on(:category_destroyed) { DiscourseWorkspaceGroups::VoiceBinding.reconcile_active! }
+    # Channel availability also depends on the parent workspace category.
+    on(:category_updated) do |category|
+      DiscourseWorkspaceGroups::VoiceBinding.reconcile_categories!(
+        Category.where(id: category.id).or(Category.where(parent_category_id: category.id)).select(:id),
+      )
+    end
+    on(:category_destroyed) do |category|
+      DiscourseWorkspaceGroups::VoiceBinding.reconcile_categories!(
+        Category.where(parent_category_id: category.id).select(:id).to_a.map(&:id) + [category.id],
+      )
+    end
     on(:site_setting_changed) do |name, _old_value, _new_value|
       if name.to_s.in?(%w[voice_enabled chat_enabled chat_allowed_groups direct_message_enabled_groups])
         DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!

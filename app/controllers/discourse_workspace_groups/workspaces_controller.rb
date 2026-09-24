@@ -7,6 +7,7 @@ module ::DiscourseWorkspaceGroups
 
     before_action :ensure_plugin_enabled
     JOINABLE_CHANNEL_SEARCH_LIMIT = 5
+    CHANNEL_MEMBERSHIP_CHANGES_PER_MINUTE = 20
 
     before_action :find_workspace, except: %i[overview_page joinable_channel joinable_channels]
     before_action :find_overview_workspace, only: :overview_page
@@ -278,6 +279,7 @@ module ::DiscourseWorkspaceGroups
       guardian.ensure_can_see!(@workspace)
       channel = find_channel
       raise Discourse::InvalidAccess if !guardian.can_join_workspace_channel?(channel)
+      rate_limit_channel_membership!
 
       ::DiscourseWorkspaceGroups::JoinChannel.new(channel: channel, user: current_user).call
 
@@ -289,6 +291,7 @@ module ::DiscourseWorkspaceGroups
       guardian.ensure_can_see!(@workspace)
       channel = find_channel
       raise Discourse::InvalidAccess if !guardian.can_leave_workspace_channel?(channel)
+      rate_limit_channel_membership!
 
       ::DiscourseWorkspaceGroups::LeaveChannel.new(channel: channel, user: current_user).call
 
@@ -369,6 +372,16 @@ module ::DiscourseWorkspaceGroups
     end
 
     private
+
+    # Each membership change runs group and chat callbacks, so bound how often a user can toggle it.
+    def rate_limit_channel_membership!
+      RateLimiter.new(
+        current_user,
+        "workspace-channel-membership",
+        CHANNEL_MEMBERSHIP_CHANGES_PER_MINUTE,
+        1.minute,
+      ).performed!
+    end
 
     def ensure_plugin_enabled
       raise Discourse::NotFound if !SiteSetting.discourse_workspace_groups_enabled

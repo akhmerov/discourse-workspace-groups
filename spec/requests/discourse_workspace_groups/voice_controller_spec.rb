@@ -361,4 +361,47 @@ RSpec.describe DiscourseWorkspaceGroups::VoiceController do
       expect(response.status).to eq(403)
     end
   end
+
+  describe "reconciliation scope" do
+    fab!(:bystander) { Fabricate(:user, trust_level: 2) }
+    fab!(:other_group, :group)
+
+    let(:other_channel) do
+      DiscourseWorkspaceGroups::CreateChannel.new(
+        workspace: workspace, user: admin, name: "Idle room", description: nil, visibility: "public",
+      ).call
+    end
+    let(:dormant_binding) do
+      DiscourseWorkspaceGroups::VoiceBinding.create!(source_type: "category", source_id: other_channel.id, enabled: true)
+    end
+
+    before do
+      other_channel.workspace_group.add(bystander)
+      dormant_binding.prepare!(bystander)
+      join_room(member)
+    end
+
+    it "leaves calls alone when someone outside them changes membership" do
+      DiscourseWorkspaceGroups::VoiceBinding.any_instance.expects(:reconcile!).never
+
+      other_group.add(bystander)
+      other_group.remove(bystander)
+      other_channel.workspace_group.group_users.find_by!(user: bystander).destroy!
+    end
+
+    it "reconciles only the calls the changed user is in" do
+      other_group.add(member)
+      DiscourseWorkspaceGroups::VoiceBinding.any_instance.expects(:reconcile!).once
+
+      other_group.remove(member)
+    end
+
+    it "leaves calls alone when an unrelated DM channel changes" do
+      dm_channel = Fabricate(:direct_message_channel, users: [bystander, outsider])
+      DiscourseWorkspaceGroups::VoiceBinding.any_instance.expects(:reconcile!).never
+
+      dm_channel.update!(name: "Renamed")
+    end
+  end
 end
+

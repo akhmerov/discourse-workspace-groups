@@ -222,10 +222,11 @@ module DiscourseWorkspaceGroups
 
     def self.revoke_group_guest_grants!(user_id, group_id)
       return unless table_exists? && VoiceGuestGrant.table_exists?
-      where(source_type: "category").find_each do |binding|
-        next unless binding.source&.workspace_group_id == group_id
-        binding.guest_grants.where(user_id: user_id).delete_all
-      end
+      category_ids =
+        CategoryCustomField.where(name: DiscourseWorkspaceGroups::WORKSPACE_GROUP_ID, value: group_id.to_s).select(:category_id)
+      VoiceGuestGrant
+        .where(user_id: user_id, voice_binding_id: where(source_type: "category", source_id: category_ids).select(:id))
+        .delete_all
     end
 
     def self.publish_access_change!(user_id, group)
@@ -235,9 +236,32 @@ module DiscourseWorkspaceGroups
       MessageBus.publish("/workspace-voice/access/#{user_id}", { type: "refresh" }, user_ids: [user_id])
     end
 
-    def self.reconcile_active!
-      return unless defined?(::Voice::Room) && table_exists?
-      where.not(room_id: nil).find_each { |binding| binding.reconcile! }
+    # Only occupied rooms can hold anyone to remove. Rooms keep their room_id after a call
+    # ends, so reconciling every bound room would grow with history; Voice's recently
+    # active index bounds the candidates to calls from its safety window.
+    def self.reconcile_active!(scope = all, user_id: nil)
+      return unless defined?(::Voice::ParticipantTracker) && table_exists?
+      candidate_room_ids =
+        scope.where(room_id: ::Voice::ParticipantTracker.recently_active_room_ids).pluck(:room_id)
+      return if candidate_room_ids.empty?
+      occupied_room_ids =
+        ::Voice::ParticipantTracker.room_states(candidate_room_ids).filter_map do |room_id, state|
+          room_id if user_id ? state.participant_ids.include?(user_id) : state.participant_ids.any?
+        end
+      scope.where(room_id: occupied_room_ids).find_each(&:reconcile!)
+    end
+
+    # A membership or account change only affects the calls this user is in.
+    def self.reconcile_user!(user_id)
+      reconcile_active!(user_id: user_id)
+    end
+
+    def self.reconcile_categories!(category_ids)
+      reconcile_active!(where(source_type: "category", source_id: category_ids))
+    end
+
+    def self.reconcile_dm_channels!(channel_ids)
+      reconcile_active!(where(source_type: "dm", source_id: channel_ids))
     end
   end
 end

@@ -925,6 +925,24 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
 
   end
 
+  describe "channel membership rate limit" do
+    before { RateLimiter.enable }
+
+    it "limits how often a member can join and leave channels" do
+      stub_const(DiscourseWorkspaceGroups::WorkspacesController, "CHANNEL_MEMBERSHIP_CHANGES_PER_MINUTE", 2) do
+        sign_in(workspace_member)
+        path = "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/membership.json"
+
+        post path
+        expect(response).to have_http_status(:ok)
+        delete path
+        expect(response).to have_http_status(:ok)
+        post path
+        expect(response).to have_http_status(:too_many_requests)
+      end
+    end
+  end
+
   describe "#leave_channel" do
     it "removes a joined public channel membership and paired chat membership" do
       public_channel.workspace_group.add(workspace_member)
