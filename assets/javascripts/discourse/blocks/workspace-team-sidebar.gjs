@@ -6,6 +6,7 @@ import { action } from "@ember/object";
 import { getOwner } from "@ember/owner";
 import didInsert from "@ember/render-modifiers/modifiers/did-insert";
 import { service } from "@ember/service";
+import { modifier } from "ember-modifier";
 import { block } from "discourse/blocks";
 import SectionHeader from "discourse/components/sidebar/section-header";
 import { ajax } from "discourse/lib/ajax";
@@ -104,6 +105,20 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   focusedSidebarClass = "workspace-team-sidebar--focused";
   unreadOnlySidebarClass = "workspace-team-sidebar--unread-only";
 
+  coreChatChannelsSheet = null;
+
+  syncCoreChatChannelVisibility = modifier((element, [css]) => {
+    if (!this.coreChatChannelsSheet) {
+      this.coreChatChannelsSheet = new CSSStyleSheet();
+      document.adoptedStyleSheets = [
+        ...document.adoptedStyleSheets,
+        this.coreChatChannelsSheet,
+      ];
+    }
+
+    this.coreChatChannelsSheet.replaceSync(css || "");
+  });
+
   constructor() {
     super(...arguments);
 
@@ -150,6 +165,11 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   }
 
   willDestroy() {
+    if (this.coreChatChannelsSheet) {
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
+        (sheet) => sheet !== this.coreChatChannelsSheet
+      );
+    }
     super.willDestroy(...arguments);
 
     this.sidebarSectionsElement?.classList.remove(this.focusedSidebarClass);
@@ -595,6 +615,50 @@ export default class WorkspaceTeamSidebarBlock extends Component {
     return this.showUnreadOnly
       ? i18n("discourse_workspace_groups.show_all_channels")
       : i18n("discourse_workspace_groups.show_unread_channels");
+  }
+
+  // Core chat lists every followed channel again below the Teams section. Hide the channels
+  // of the user's own teams there; guest channels in other teams stay reachable.
+  get coreChatChannelsHiddenCss() {
+    const workspaceIds = new Set(
+      this.memberWorkspaces.map((workspace) => Number(workspace.id))
+    );
+    const teamChannelIds = [];
+    let otherChannelCount = 0;
+
+    for (const channel of this.chatChannelsManager?.publicMessageChannels ??
+      []) {
+      const chatable = channel.chatable;
+      const workspaceId = Number(
+        chatable?.workspace_parent_category_id ?? chatable?.parent_category_id
+      );
+
+      if (
+        chatable?.workspace_kind === "channel" &&
+        workspaceIds.has(workspaceId)
+      ) {
+        teamChannelIds.push(Number(channel.id));
+      } else {
+        otherChannelCount++;
+      }
+    }
+
+    if (teamChannelIds.length === 0) {
+      return null;
+    }
+
+    const section =
+      '.sidebar-section-wrapper[data-section-name="chat-channels"]';
+
+    if (otherChannelCount === 0) {
+      return `${section} { display: none; }`;
+    }
+
+    return `${teamChannelIds
+      .map(
+        (id) => `${section} .sidebar-section-link-wrapper:has(> .channel-${id})`
+      )
+      .join(", ")} { display: none; }`;
   }
 
   get canOpenChannelFinder() {
@@ -2251,6 +2315,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
   <template>
     <div
       {{didInsert this.initializeSidebar}}
+      {{this.syncCoreChatChannelVisibility this.coreChatChannelsHiddenCss}}
       data-section-name={{this.sectionName}}
       class={{dConcatClass
         "sidebar-section"
