@@ -44,13 +44,30 @@ function positiveCount(value) {
   return Number(value || 0) > 0;
 }
 
+// Core caches categoriesList on "categories.[]", which categories added live
+// over the message bus do not notify, so a new channel would stay hidden
+// until a reload.
+function siteCategories(site) {
+  const listed = site?.categoriesList ?? [];
+  const all = site?.categories ?? [];
+
+  if (all.length === listed.length) {
+    return listed;
+  }
+
+  const listedIds = new Set(listed.map((category) => category.id));
+  return [...listed, ...all.filter((category) => !listedIds.has(category.id))];
+}
+
 function siteCategoryById(site, categoryId) {
-  if (!categoryId || !site?.categoriesList?.length) {
+  const categories = siteCategories(site);
+
+  if (!categoryId || !categories.length) {
     return null;
   }
 
   return (
-    site.categoriesList.find(
+    categories.find(
       (category) => Number(category.id) === Number(categoryId)
     ) ?? null
   );
@@ -72,7 +89,7 @@ function canDisplaySiteCategory(category, siteSettings, site) {
     return Number(category.id) !== Number(uncategorizedCategoryId);
   }
 
-  if (site?.categoriesList?.length) {
+  if (siteCategories(site).length) {
     return true;
   }
 
@@ -119,11 +136,13 @@ export function writeWorkspaceUnreadFilter(enabled, storage = localStorage) {
 }
 
 function visibleChildren(category, siteSettings, site) {
-  if (!category || !site?.categoriesList?.length) {
+  const categories = siteCategories(site);
+
+  if (!category || !categories.length) {
     return [];
   }
 
-  return site.categoriesList.filter(
+  return categories.filter(
     (candidate) =>
       candidate.parent_category_id === category.id &&
       canDisplaySiteCategory(candidate, siteSettings, site)
@@ -457,11 +476,13 @@ export function workspaceOverviewPath(category) {
 }
 
 export function visibleWorkspaceCategories(services) {
-  if (!services.site?.categoriesList?.length) {
+  const categories = siteCategories(services.site);
+
+  if (!categories.length) {
     return [];
   }
 
-  return services.site.categoriesList.filter(
+  return categories.filter(
     (category) =>
       !category.parent_category_id &&
       category.workspace_kind === "workspace" &&

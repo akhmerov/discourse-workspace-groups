@@ -8,11 +8,11 @@ RSpec.describe "Workspace sidebar unread indicators" do
 
   let(:workspace) { DiscourseWorkspaceGroups::EnsureWorkspace.new(category: category, user: admin).call }
 
-  def create_team_channel(name)
+  def create_team_channel(name, user: admin)
     channel =
       DiscourseWorkspaceGroups::CreateChannel.new(
         workspace: workspace,
-        user: admin,
+        user: user,
         name: name,
         description: nil,
         visibility: "public",
@@ -122,6 +122,20 @@ RSpec.describe "Workspace sidebar unread indicators" do
     read_elsewhere(team_chat_channel, message)
 
     expect(row("Team room")).to have_no_css(".chat-channel-unread-indicator")
+  end
+
+  it "lists a channel a teammate creates while the page is open and shows its messages" do
+    sign_in(member)
+    visit(category.url)
+    wait_for_sidebar_tracking
+    # Let the page's message bus subscriptions reach the server first.
+    sleep 2
+
+    fresh = create_team_channel("Fresh room", user: other)
+    expect(page).to have_css(".workspace-team-sidebar__row", text: "Fresh room")
+
+    post(fresh, "first message")
+    expect(row("Fresh room")).to have_css(".chat-channel-unread-indicator")
   end
 
   context "when the member follows more channels than core loads" do
