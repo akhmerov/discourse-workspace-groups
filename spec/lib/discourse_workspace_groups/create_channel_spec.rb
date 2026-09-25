@@ -52,6 +52,24 @@ RSpec.describe DiscourseWorkspaceGroups::CreateChannel do
     ).to eq(CategoryGroup.permission_types[:readonly])
   end
 
+  it "leaves no backing group or team permission behind when the channel cannot be saved" do
+    permissions = workspace.reload.category_groups.pluck(:group_id, :permission_type)
+
+    expect {
+      expect {
+        described_class.new(
+          workspace: workspace,
+          user: admin,
+          name: "A channel name that is far too long for any category",
+          description: nil,
+          visibility: "private",
+        ).call
+      }.to raise_error(ActiveRecord::RecordInvalid)
+    }.not_to change(Group, :count)
+
+    expect(workspace.reload.category_groups.pluck(:group_id, :permission_type)).to match_array(permissions)
+  end
+
   it "defaults category notifications to watching first post for channel members" do
     workspace.workspace_group.add(other_user)
     channel =

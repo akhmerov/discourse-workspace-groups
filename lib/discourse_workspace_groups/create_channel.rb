@@ -21,6 +21,13 @@ module ::DiscourseWorkspaceGroups
     def call
       validate!
 
+      # A category that fails to save must not leave its backing group and team grant behind.
+      ActiveRecord::Base.transaction { create! }
+    end
+
+    private
+
+    def create!
       workspace_group = workspace.workspace_group
       channel_group = ensure_channel_group
       workspace.custom_fields[WORKSPACE_ENABLED] = true
@@ -61,8 +68,6 @@ module ::DiscourseWorkspaceGroups
 
       channel
     end
-
-    private
 
     def validate!
       raise Discourse::InvalidAccess if user.blank?
