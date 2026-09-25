@@ -1138,6 +1138,14 @@ after_initialize do
     end
   end
 
+  # Team and channel groups are membership plumbing, not audiences, so @-autocomplete in the
+  # composer and chat, which lists every visible group, leaves them out.
+  register_modifier(:groups_for_users_search) do |groups|
+    next groups if !SiteSetting.discourse_workspace_groups_enabled
+
+    groups.where.not(id: GroupCustomField.where(name: DiscourseWorkspaceGroups::WORKSPACE_KIND).select(:group_id))
+  end
+
   on(:category_updated) do |category|
     next if !category.is_a?(Category) || !category.workspace_channel?
 
