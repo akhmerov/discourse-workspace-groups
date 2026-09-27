@@ -580,6 +580,7 @@
   border-radius: 0.5rem;
   display: flex;
   gap: 0.25rem;
+  padding-left: 0;
   position: relative;
   transition:
     background-color 0.15s ease,
@@ -664,7 +665,8 @@ body.workspace-team-sidebar-scroll-lock {
   white-space: nowrap;
 }
 
-// The link fills its row, so the whole row is the click and tap target.
+// The link fills its row, so the whole row is the click and tap target. It also takes
+// the row's left inset, so its highlight clears the icon as in core sidebar rows.
 .workspace-team-sidebar__main-link {
   align-self: stretch;
   background: transparent;
@@ -673,6 +675,7 @@ body.workspace-team-sidebar-scroll-lock {
   flex: 1 1 auto;
   min-width: 0;
   padding: 0;
+  padding-left: var(--d-sidebar-row-horizontal-padding);
   text-align: left;
 }
 

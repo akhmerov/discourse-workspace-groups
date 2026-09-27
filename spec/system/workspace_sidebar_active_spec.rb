@@ -47,4 +47,26 @@ RSpec.describe "Workspace sidebar active channel" do
     expect(page).to have_css(".workspace-team-sidebar__main-link.active", text: "Second room")
     expect(active_links).to eq(["Second room"])
   end
+
+  it "insets the highlighted channel's icon like core sidebar links" do
+    sign_in(member)
+    visit(first_channel.url)
+    expect(page).to have_css(".workspace-team-sidebar__main-link.active", text: "First room")
+
+    boxes = page.evaluate_script(<<~JS)
+      [
+        document.querySelector(".workspace-team-sidebar__main-link.active"),
+        [...document.querySelectorAll(".sidebar-section-link.sidebar-row")].find(
+          (link) => !link.closest(".workspace-team-sidebar__row") && link.getBoundingClientRect().width
+        ),
+      ].map((link) => ({
+        left: link.getBoundingClientRect().left,
+        iconLeft: link.querySelector(".sidebar-section-link-prefix").getBoundingClientRect().left,
+      }))
+    JS
+    channel, core = boxes
+
+    expect(channel["left"]).to be_within(0.5).of(core["left"])
+    expect(channel["iconLeft"]).to be_within(0.5).of(core["iconLeft"])
+  end
 end
