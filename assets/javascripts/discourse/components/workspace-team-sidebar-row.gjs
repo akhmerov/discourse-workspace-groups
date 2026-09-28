@@ -266,9 +266,9 @@ export default class WorkspaceTeamSidebarRow extends Component {
               {{@categoryLink.text}}
             </span>
 
-            {{#if @categoryLink.badgeText}}
+            {{#if @categoryBadgeText}}
               <span class="sidebar-section-link-content-badge">
-                {{@categoryLink.badgeText}}
+                {{@categoryBadgeText}}
               </span>
             {{/if}}
           </div>
@@ -298,9 +298,9 @@ export default class WorkspaceTeamSidebarRow extends Component {
               {{@categoryLink.text}}
             </span>
 
-            {{#if @categoryLink.badgeText}}
+            {{#if @categoryBadgeText}}
               <span class="sidebar-section-link-content-badge">
-                {{@categoryLink.badgeText}}
+                {{@categoryBadgeText}}
               </span>
             {{/if}}
           </a>
@@ -331,9 +331,9 @@ export default class WorkspaceTeamSidebarRow extends Component {
               {{@categoryLink.text}}
             </span>
 
-            {{#if @categoryLink.badgeText}}
+            {{#if @categoryBadgeText}}
               <span class="sidebar-section-link-content-badge">
-                {{@categoryLink.badgeText}}
+                {{@categoryBadgeText}}
               </span>
             {{/if}}
           </LinkTo>

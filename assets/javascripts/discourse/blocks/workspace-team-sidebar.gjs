@@ -386,6 +386,10 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       const chatMuted = !!pairedChannel?.currentUserMembership?.muted;
       const chatUnread =
         chatAvailable && !chatMuted && chatChannelHasUnread(pairedChannel);
+      // Topic state only belongs on rows that open a topic list: a chat-only
+      // channel's About topic would leave a count that reading the chat never
+      // clears. Muting the channel quiets its topics too.
+      const showTopicState = categoryAvailable && !chatMuted;
       const chatPath =
         pairedChannel?.routeModels?.length > 0
           ? `/chat/c/${pairedChannel.routeModels.join("/")}`
@@ -394,8 +398,8 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return {
         category,
         categoryLink,
-        categoryUnread:
-          categoryAvailable && !chatMuted && !!categoryLink.activeCountable,
+        categoryBadgeText: showTopicState ? categoryLink.badgeText : null,
+        categoryUnread: showTopicState && !!categoryLink.activeCountable,
         categoryTitle: i18n("discourse_workspace_groups.open_channel_topics", {
           name: category.displayName,
         }),
@@ -2585,6 +2589,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                     <WorkspaceTeamSidebarRow
                       @category={{row.category}}
                       @categoryLink={{row.categoryLink}}
+                      @categoryBadgeText={{row.categoryBadgeText}}
                       @categoryUnread={{row.categoryUnread}}
                       @categoryTitle={{row.categoryTitle}}
                       @chatPath={{row.chatPath}}
@@ -2656,6 +2661,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                     <WorkspaceTeamSidebarRow
                       @category={{row.category}}
                       @categoryLink={{row.categoryLink}}
+                      @categoryBadgeText={{row.categoryBadgeText}}
                       @categoryUnread={{row.categoryUnread}}
                       @categoryTitle={{row.categoryTitle}}
                       @chatPath={{row.chatPath}}

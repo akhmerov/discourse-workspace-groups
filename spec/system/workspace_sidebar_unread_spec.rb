@@ -8,7 +8,7 @@ RSpec.describe "Workspace sidebar unread indicators" do
 
   let(:workspace) { DiscourseWorkspaceGroups::EnsureWorkspace.new(category: category, user: admin).call }
 
-  def create_team_channel(name, user: admin)
+  def create_team_channel(name, user: admin, channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY)
     channel =
       DiscourseWorkspaceGroups::CreateChannel.new(
         workspace: workspace,
@@ -16,7 +16,7 @@ RSpec.describe "Workspace sidebar unread indicators" do
         name: name,
         description: nil,
         visibility: "public",
-        channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_CHAT_ONLY,
+        channel_mode: channel_mode,
       ).call
     channel.workspace_group.add(member)
     channel.workspace_group.add(other)
@@ -122,6 +122,27 @@ RSpec.describe "Workspace sidebar unread indicators" do
     read_elsewhere(team_chat_channel, message)
 
     expect(row("Team room")).to have_no_css(".chat-channel-unread-indicator")
+  end
+
+  it "shows topic counts only on unmuted channels with a topic list" do
+    create_team_channel("Both room", channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_BOTH)
+    muted = create_team_channel("Muted room", channel_mode: DiscourseWorkspaceGroups::CHANNEL_MODE_BOTH)
+    muted.membership_for(member).update!(muted: true)
+    member.user_option.update!(sidebar_show_count_of_new_items: true)
+
+    sign_in(member)
+    visit(category.url)
+    wait_for_sidebar_tracking
+
+    # Every new channel has an unread About topic; only an unmuted one with a topic list counts it.
+    expect(row("Both room")).to have_css(".sidebar-section-link-content-badge", text: "1")
+    expect(row("Team room")).to have_no_css(".sidebar-section-link-content-badge")
+    expect(row_unread?("Team room")).to eq(false)
+    expect(row("Muted room")).to have_no_css(".sidebar-section-link-content-badge")
+
+    post(team_chat_channel, "chat still counts")
+    expect(row("Team room")).to have_css(".chat-channel-unread-indicator")
+    expect(row("Team room")).to have_no_css(".sidebar-section-link-content-badge")
   end
 
   it "lists a channel a teammate creates while the page is open and shows its messages" do
