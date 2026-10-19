@@ -352,7 +352,10 @@ module ::DiscourseWorkspaceGroups
       return render json: { users: [] } if term.blank?
 
       workspace_users = @workspace.workspace_group.users
-      candidates = UserSearch.new(term, searching_user: current_user).filtered_by_term_users.references(:user_search_data)
+      search = UserSearch.new(term, searching_user: current_user)
+      matching_ids = search.filtered_by_term_users.left_joins(:user_search_data).reorder(nil).select(:id)
+      # Native search also finds exact usernames independently of the search index.
+      candidates = search.scoped_users.where(id: matching_ids).or(search.scoped_users.where(username_lower: term.downcase))
       candidates = candidates.where(id: workspace_users.select(:id)) if !guardian.can_manage_workspace_channel?(channel)
       candidates = candidates.where.not(id: channel.workspace_group.users.select(:id))
       candidates = candidates.where.not(username_lower: params[:exclude].to_s.downcase.split(","))
@@ -364,11 +367,20 @@ module ::DiscourseWorkspaceGroups
               @workspace.workspace_group_id,
             ),
             DB.sql_fragment("CASE WHEN username_lower = ? THEN 0 ELSE 1 END", term.downcase),
+            DB.sql_fragment(
+              "CASE WHEN username_lower LIKE ? THEN 0 ELSE 1 END",
+              term.downcase.gsub("_", "\\_") + "%",
+            ),
             "last_seen_at DESC NULLS LAST",
             "username_lower",
           )
           .limit(CHANNEL_MEMBER_SEARCH_LIMIT)
           .to_a
+      # Keep an exact external username reachable when workspace matches fill the list.
+      if users.length == CHANNEL_MEMBER_SEARCH_LIMIT && users.none? { |user| user.username_lower == term.downcase }
+        exact_match = candidates.find_by(username_lower: term.downcase)
+        users[-1] = exact_match if exact_match
+      end
       workspace_user_ids = workspace_users.where(id: users.map(&:id)).pluck(:id).to_set
 
       render json: {

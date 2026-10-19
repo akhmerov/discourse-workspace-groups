@@ -1812,6 +1812,55 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       expect(usernames).not_to include("picker_inactive", "picker_staged")
     end
 
+    it "keeps username-prefix matches ahead of more recently seen name-only matches" do
+      prefix_match = Fabricate(:user, username: "picker_prefix", name: "Unrelated", last_seen_at: 3.days.ago)
+      name_match = Fabricate(:user, username: "name_only", name: "Picker Person", last_seen_at: Time.zone.now)
+      sign_in(admin)
+      get search_path, params: { term: "picker" }
+      usernames = response.parsed_body["users"].pluck("username")
+      expect(usernames.index(prefix_match.username)).to be < usernames.index(name_match.username)
+    end
+
+    it "keeps an exact external username selectable when workspace suggestions fill the limit" do
+      21.times do |index|
+        workspace.workspace_group.add(Fabricate(:user, username: "picker_team_#{index}"))
+      end
+      sign_in(admin)
+      get search_path, params: { term: "picker" }
+      users = response.parsed_body["users"]
+      expect(users.length).to eq(20)
+      expect(users.last).to include("username" => "picker", "external" => true)
+      expect(users.first(19)).to all(include("external" => false))
+    end
+
+    it "finds an exact username even before the user's search index exists" do
+      UserSearchData.where(user_id: guest_user.id).delete_all
+      sign_in(admin)
+      get search_path, params: { term: "PICKER" }
+      expect(response.parsed_body["users"]).to include(include("username" => "picker", "external" => true))
+    end
+
+    ["_", ".", "-"].each do |separator|
+      it "matches literal #{separator} in usernames" do
+        username = "picker#{separator}external"
+        guest_user.update!(username: username)
+        Fabricate(:user, username: "pickerXexternal")
+        sign_in(admin)
+        get search_path, params: { term: "picker#{separator}ext" }
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["users"].pluck("username")).to eq([username])
+      end
+    end
+
+    it "allows a non-staff private channel owner to find external users" do
+      private_channel.workspace_group.add(workspace_member)
+      private_channel.workspace_group.group_users.find_by!(user: workspace_member).update!(owner: true)
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}/channels/#{private_channel.id}/access/search.json", params: { term: "picker" }
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["users"]).to include(include("username" => "picker", "external" => true))
+    end
+
     it "returns no suggestions for a blank search" do
       sign_in(admin)
       get search_path, params: { term: " " }

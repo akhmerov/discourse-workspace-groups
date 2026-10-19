@@ -51,6 +51,7 @@ Workspace channels support:
 
 - public and private visibility
 - manager-controlled membership for private channels
+- channel member suggestions rank workspace matches first and label outsiders "external"; an exact external username stays selectable even when suggestions are full
 - channel settings for name, description, visibility, archive state, and mode
 - archive and unarchive behavior
 - team owners become owners of every channel they already belong to, including private and archived channels; this also applies when an existing member becomes a team owner
