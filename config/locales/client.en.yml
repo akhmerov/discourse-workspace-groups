@@ -69,6 +69,7 @@ en:
       channel_members_load_failed: "Channel members could not be loaded."
       channel_member_owner: "Owner"
       channel_member_guest: "Guest"
+      channel_member_external: "external"
       remove_channel_member: "Remove member"
       workspace_settings: "Workspace settings"
       workspace_settings_title: "Workspace settings"

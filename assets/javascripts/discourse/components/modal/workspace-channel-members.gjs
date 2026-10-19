@@ -4,12 +4,12 @@ import { fn, hash } from "@ember/helper";
 import { action } from "@ember/object";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
-import UserChooser from "discourse/select-kit/components/user-chooser";
 import { not } from "discourse/truth-helpers";
 import DButton from "discourse/ui-kit/d-button";
 import DModal from "discourse/ui-kit/d-modal";
 import dAvatar from "discourse/ui-kit/helpers/d-avatar";
 import { i18n } from "discourse-i18n";
+import WorkspaceMemberChooser from "../workspace-member-chooser";
 
 export default class WorkspaceChannelMembersModal extends Component {
   @tracked loadedChannel = null;
@@ -24,20 +24,12 @@ export default class WorkspaceChannelMembersModal extends Component {
     this.loadAccess();
   }
 
-  get workspace() {
-    return this.args.model.workspace;
-  }
-
   get category() {
     return this.args.model.category;
   }
 
   get channel() {
     return this.loadedChannel || this.args.model.channel;
-  }
-
-  get workspaceGroupName() {
-    return this.workspace?.group_name;
   }
 
   get modalTitle() {
@@ -50,8 +42,8 @@ export default class WorkspaceChannelMembersModal extends Component {
     return `/workspace-groups/workspaces/${this.category.id}/channels/${this.channel.id}/access`;
   }
 
-  get excludedUsernames() {
-    return this.members.map((member) => member.username);
+  get memberSearchUrl() {
+    return `${this.accessUrl}/search.json`;
   }
 
   get canAddMembers() {
@@ -59,7 +51,9 @@ export default class WorkspaceChannelMembersModal extends Component {
   }
 
   get canSubmit() {
-    return this.canAddMembers && !this.saving && this.selectedUsernames.length > 0;
+    return (
+      this.canAddMembers && !this.saving && this.selectedUsernames.length > 0
+    );
   }
 
   applyAccessPayload(result) {
@@ -174,13 +168,10 @@ export default class WorkspaceChannelMembersModal extends Component {
                 />
               </div>
               <label class="workspace-groups-create-channel-modal__field">
-                <UserChooser
+                <WorkspaceMemberChooser
                   @value={{this.selectedUsernames}}
                   @onChange={{this.updateSelectedUsernames}}
-                  @options={{hash
-                    excludedUsernames=this.excludedUsernames
-                    groupMembersOf=this.workspaceGroupName
-                  }}
+                  @options={{hash memberSearchUrl=this.memberSearchUrl}}
                 />
               </label>
               <p class="workspace-groups-create-channel-modal__help">
@@ -193,29 +184,47 @@ export default class WorkspaceChannelMembersModal extends Component {
             <div class="workspace-groups-channel-members-modal__list">
               {{#each this.members as |member|}}
                 <div class="workspace-groups-channel-members-modal__member">
-                  <div class="workspace-groups-channel-members-modal__member-main">
+                  <div
+                    class="workspace-groups-channel-members-modal__member-main"
+                  >
                     {{dAvatar member imageSize="small"}}
-                    <div class="workspace-groups-channel-members-modal__member-text">
-                      <span class="workspace-groups-channel-members-modal__username">
+                    <div
+                      class="workspace-groups-channel-members-modal__member-text"
+                    >
+                      <span
+                        class="workspace-groups-channel-members-modal__username"
+                      >
                         {{member.username}}
                       </span>
                       {{#if member.name}}
-                        <span class="workspace-groups-channel-members-modal__name">
+                        <span
+                          class="workspace-groups-channel-members-modal__name"
+                        >
                           {{member.name}}
                         </span>
                       {{/if}}
                     </div>
                   </div>
 
-                  <div class="workspace-groups-channel-members-modal__member-actions">
+                  <div
+                    class="workspace-groups-channel-members-modal__member-actions"
+                  >
                     {{#if member.owner}}
-                      <span class="workspace-groups-channel-members-modal__badge">
-                        {{i18n "discourse_workspace_groups.channel_member_owner"}}
+                      <span
+                        class="workspace-groups-channel-members-modal__badge"
+                      >
+                        {{i18n
+                          "discourse_workspace_groups.channel_member_owner"
+                        }}
                       </span>
                     {{/if}}
                     {{#if member.guest}}
-                      <span class="workspace-groups-channel-members-modal__badge">
-                        {{i18n "discourse_workspace_groups.channel_member_guest"}}
+                      <span
+                        class="workspace-groups-channel-members-modal__badge"
+                      >
+                        {{i18n
+                          "discourse_workspace_groups.channel_member_guest"
+                        }}
                       </span>
                     {{/if}}
                     {{#if member.can_remove}}

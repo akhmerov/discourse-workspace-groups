@@ -21,6 +21,7 @@ DiscourseWorkspaceGroups::Engine.routes.draw do
   post "/workspaces/:id/channels/:channel_id/membership" => "workspaces#join_channel"
   delete "/workspaces/:id/channels/:channel_id/membership" => "workspaces#leave_channel"
   get "/workspaces/:id/channels/:channel_id/access" => "workspaces#channel_access"
+  get "/workspaces/:id/channels/:channel_id/access/search" => "workspaces#search_channel_members"
   post "/workspaces/:id/channels/:channel_id/access" => "workspaces#add_channel_members"
   delete "/workspaces/:id/channels/:channel_id/access/:user_id" => "workspaces#remove_channel_member"
   post "/workspaces/:id/channels/:channel_id/archive" => "workspaces#archive_channel"

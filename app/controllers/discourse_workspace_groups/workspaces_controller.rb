@@ -7,6 +7,7 @@ module ::DiscourseWorkspaceGroups
 
     before_action :ensure_plugin_enabled
     JOINABLE_CHANNEL_SEARCH_LIMIT = 5
+    CHANNEL_MEMBER_SEARCH_LIMIT = 20
     CHANNEL_MEMBERSHIP_CHANGES_PER_MINUTE = 20
 
     before_action :find_workspace, except: %i[overview_page joinable_channel joinable_channels]
@@ -340,6 +341,43 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::InvalidAccess if !guardian.can_view_workspace_channel_members?(channel)
 
       render_channel_access(channel)
+    end
+
+    def search_channel_members
+      guardian.ensure_can_see!(@workspace)
+      channel = find_channel
+      raise Discourse::InvalidAccess if !guardian.can_add_workspace_channel_members?(channel)
+
+      term = params[:term].to_s.strip
+      return render json: { users: [] } if term.blank?
+
+      workspace_users = @workspace.workspace_group.users
+      candidates = UserSearch.new(term, searching_user: current_user).filtered_by_term_users.references(:user_search_data)
+      candidates = candidates.where(id: workspace_users.select(:id)) if !guardian.can_manage_workspace_channel?(channel)
+      candidates = candidates.where.not(id: channel.workspace_group.users.select(:id))
+      candidates = candidates.where.not(username_lower: params[:exclude].to_s.downcase.split(","))
+      users =
+        candidates
+          .reorder(
+            DB.sql_fragment(
+              "CASE WHEN users.id IN (SELECT user_id FROM group_users WHERE group_id = ?) THEN 0 ELSE 1 END",
+              @workspace.workspace_group_id,
+            ),
+            DB.sql_fragment("CASE WHEN username_lower = ? THEN 0 ELSE 1 END", term.downcase),
+            "last_seen_at DESC NULLS LAST",
+            "username_lower",
+          )
+          .limit(CHANNEL_MEMBER_SEARCH_LIMIT)
+          .to_a
+      workspace_user_ids = workspace_users.where(id: users.map(&:id)).pluck(:id).to_set
+
+      render json: {
+               users: users.map do |user|
+                 FoundUserSerializer.new(user, root: false).as_json.merge(
+                   external: !workspace_user_ids.include?(user.id),
+                 )
+               end,
+             }
     end
 
     def add_channel_members

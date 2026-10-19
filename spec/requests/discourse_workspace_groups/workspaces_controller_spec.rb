@@ -1740,6 +1740,103 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     end
   end
 
+  describe "#search_channel_members" do
+    let(:search_path) { "/workspace-groups/workspaces/#{workspace.id}/channels/#{public_channel.id}/access/search.json" }
+
+    before do
+      SearchIndexer.enable
+      workspace_member.update!(username: "picker_team", name: "Picker Team", last_seen_at: 2.days.ago)
+      other_workspace_member.update!(username: "picker_other", name: "Picker Other")
+      guest_user.update!(username: "picker", name: "Picker External", last_seen_at: Time.zone.now)
+      public_channel
+    end
+
+    it "ranks workspace matches before even an exact external match for a non-staff channel owner" do
+      public_channel.workspace_group.add(workspace_member)
+      public_channel.workspace_group.group_users.find_by!(user: workspace_member).update!(owner: true)
+      sign_in(workspace_member)
+
+      get search_path, params: { term: "picker" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["users"]).to match([
+        include("username" => "picker_other", "external" => false),
+        include("username" => "picker", "external" => true),
+      ])
+      expect(response.parsed_body["users"].first.keys).to contain_exactly("id", "username", "name", "avatar_template", "external")
+    end
+
+    it "only returns workspace candidates to ordinary public channel members" do
+      public_channel.workspace_group.add(workspace_member)
+      sign_in(workspace_member)
+
+      get search_path, params: { term: "picker" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["users"]).to match([
+        include("username" => "picker_other", "external" => false),
+      ])
+    end
+
+    it "excludes selected users case-insensitively and finds an external user by full username" do
+      sign_in(admin)
+      get search_path, params: { term: "picker", exclude: "PICKER_TEAM,picker_other" }
+
+      expect(response.parsed_body["users"]).to match([
+        include("username" => "picker", "external" => true),
+      ])
+    end
+
+    it "applies the result limit after prioritizing workspace members" do
+      21.times do |index|
+        Fabricate(:user, username: "picker_external_#{index}", last_seen_at: Time.zone.now)
+      end
+      sign_in(admin)
+      get search_path, params: { term: "picker" }
+
+      users = response.parsed_body["users"]
+      expect(users.length).to eq(20)
+      expect(users.first(2).pluck("username")).to contain_exactly("picker_team", "picker_other")
+      expect(users.drop(2)).to all(include("external" => true))
+    end
+
+    it "uses native name matching and excludes inactive and staged users" do
+      Fabricate(:user, username: "different_username", name: "Picker Name")
+      Fabricate(:user, username: "picker_inactive", active: false)
+      Fabricate(:user, username: "picker_staged", staged: true)
+      sign_in(admin)
+      get search_path, params: { term: "picker" }
+
+      usernames = response.parsed_body["users"].pluck("username")
+      expect(usernames).to include("different_username")
+      expect(usernames).not_to include("picker_inactive", "picker_staged")
+    end
+
+    it "returns no suggestions for a blank search" do
+      sign_in(admin)
+      get search_path, params: { term: " " }
+      expect(response.parsed_body["users"]).to eq([])
+    end
+
+    it "rejects workspace members who have not joined the channel" do
+      sign_in(workspace_member)
+      get search_path, params: { term: "picker" }
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "rejects ordinary private channel members" do
+      private_channel.workspace_group.add(workspace_member)
+      sign_in(workspace_member)
+      get "/workspace-groups/workspaces/#{workspace.id}/channels/#{private_channel.id}/access/search.json", params: { term: "picker" }
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "requires authentication" do
+      get search_path, params: { term: "picker" }
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
   describe "#add_channel_members" do
     it "adds direct guest access and syncs the paired chat membership" do
       private_channel
