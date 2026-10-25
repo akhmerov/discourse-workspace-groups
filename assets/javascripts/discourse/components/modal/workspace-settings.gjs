@@ -200,7 +200,7 @@ export default class WorkspaceSettingsModal extends Component {
           members_can_create_private_channels:
             this.membersCanCreatePrivateChannels,
           members_can_manage_channels: this.membersCanManageChannels,
-          ...(this.siteSettings.voice_enabled
+          ...(this.siteSettings.live_enabled
             ? { channel_calls: this.channelCalls }
             : {}),
           auto_join_channel_ids: this.autoJoinChannelIds,
@@ -300,7 +300,7 @@ export default class WorkspaceSettingsModal extends Component {
           </p>
         </div>
 
-        {{#if this.siteSettings.voice_enabled}}
+        {{#if this.siteSettings.live_enabled}}
           <div class="workspace-groups-create-channel-modal__field">
             <DToggleSwitch
               @state={{this.channelCalls}}

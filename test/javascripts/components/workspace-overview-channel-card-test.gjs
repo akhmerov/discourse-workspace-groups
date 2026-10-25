@@ -9,7 +9,7 @@ module(
     setupRenderingTest(hooks);
 
     test("shows an enabled Voice room beside topics and chat for channel members", async function (assert) {
-      this.siteSettings.voice_enabled = true;
+      this.siteSettings.live_enabled = true;
       this.channel = {
         id: 29,
         name: "Town Square",
@@ -30,7 +30,7 @@ module(
     });
 
     test("shows Voice capability without granting unjoined administrators room access", async function (assert) {
-      this.siteSettings.voice_enabled = true;
+      this.siteSettings.live_enabled = true;
       this.channel = {
         id: 29,
         name: "Town Square",
@@ -58,7 +58,7 @@ module(
     });
 
     test("hides Voice on disabled or archived channels", async function (assert) {
-      this.siteSettings.voice_enabled = true;
+      this.siteSettings.live_enabled = true;
       this.channel = {
         id: 29,
         name: "Town Square",

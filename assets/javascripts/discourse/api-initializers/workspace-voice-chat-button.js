@@ -6,7 +6,7 @@ import { i18n } from "discourse-i18n";
 export default apiInitializer((api) => {
   const container = api.container;
   const settings = container.lookup("service:site-settings");
-  if (!settings.discourse_workspace_groups_enabled || !settings.voice_enabled) {
+  if (!settings.discourse_workspace_groups_enabled || !settings.live_enabled) {
     return;
   }
   const chat = container.lookup("service:chat");

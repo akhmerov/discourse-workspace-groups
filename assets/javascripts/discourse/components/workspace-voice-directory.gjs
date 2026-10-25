@@ -11,19 +11,19 @@ import { i18n } from "discourse-i18n";
 
 export default class WorkspaceVoiceDirectory extends Component {
   @service workspaceVoice;
-  @optionalService voiceRooms;
-  @optionalService voiceWebrtc;
+  @optionalService liveRooms;
+  @optionalService liveWebrtc;
 
   @tracked retrying = false;
 
   get currentRoom() {
-    return this.voiceRooms.roomById(this.voiceWebrtc.activeRoomId);
+    return this.liveRooms.roomById(this.liveWebrtc.activeRoomId);
   }
 
   get workspaces() {
     const groups = new Map();
     this.workspaceVoice.channels.forEach((channel) => {
-      const room = this.voiceRooms.rooms.find(
+      const room = this.liveRooms.rooms.find(
         (candidate) => candidate.id === channel.room?.id
       );
       const participants = room?.active_participants || [];
@@ -70,7 +70,7 @@ export default class WorkspaceVoiceDirectory extends Component {
         <LinkTo
           class="btn btn-primary"
           @model={{this.currentRoom.slug}}
-          @route="voice-room"
+          @route="live-room"
         >
           {{i18n "discourse_workspace_groups.voice.return_to_call"}}
         </LinkTo>

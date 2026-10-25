@@ -21,10 +21,10 @@ module("Discourse Workspace Groups | Service | workspace-voice", function (hooks
     class VoiceWebrtcStub extends Service {
       activeRoomId = null;
     }
-    this.owner.register("service:voice-rooms", VoiceRoomsStub);
-    this.owner.register("service:voice-webrtc", VoiceWebrtcStub);
+    this.owner.register("service:live-rooms", VoiceRoomsStub);
+    this.owner.register("service:live-webrtc", VoiceWebrtcStub);
     const siteSettings = this.owner.lookup("service:site-settings");
-    siteSettings.voice_enabled = true;
+    siteSettings.live_enabled = true;
     siteSettings.discourse_workspace_groups_enabled = true;
   });
 

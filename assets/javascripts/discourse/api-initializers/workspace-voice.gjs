@@ -4,7 +4,7 @@ import WorkspaceVoiceHeader from "../components/workspace-voice-header";
 
 export default apiInitializer((api) => {
   const settings = api.container.lookup("service:site-settings");
-  if (!settings.discourse_workspace_groups_enabled || !settings.voice_enabled) {
+  if (!settings.discourse_workspace_groups_enabled || !settings.live_enabled) {
     return;
   }
   api.headerIcons.add("workspace-voice", WorkspaceVoiceHeader, {

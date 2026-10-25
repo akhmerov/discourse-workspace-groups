@@ -275,7 +275,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
 
   get inWorkspaceContext() {
     if (
-      this.router.currentRouteName === "voice-room" ||
+      this.router.currentRouteName === "live-room" ||
       this.router.currentRouteName?.startsWith("workspace-voice")
     ) {
       return !!currentWorkspaceCategory(this.services);

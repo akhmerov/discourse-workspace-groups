@@ -3,6 +3,7 @@
 # name: discourse-workspace-groups
 # about: Prototypes workspace and channel behavior on top of Discourse categories and groups.
 # version: 0.1
+# required_version: 2026.10.0-latest.1
 # authors: Anton Akhmerov
 # url: https://github.com/discourse/discourse
 # license: MIT
@@ -797,24 +798,22 @@ after_initialize do
 
   GroupManager.prepend(::DiscourseWorkspaceGroups::GroupManagerWorkspaceMemberRemoval)
 
-  # Core's owner endpoint uses update_all, bypassing GroupUser callbacks.
+  # Core's owner service uses update_all, bypassing GroupUser callbacks.
+  # Follow the service so promotions through both HTTP and MCP stay in sync.
   module ::DiscourseWorkspaceGroups::SyncOwnersAfterGroupPromotion
-    def add_owners
-      super
-      return if !SiteSetting.discourse_workspace_groups_enabled || !response.successful?
+    def add(...)
+      result = super
+      return result if !SiteSetting.discourse_workspace_groups_enabled
+      return result if !DiscourseWorkspaceGroups.workspace_root_group?(group)
 
-      group = Group.find_by(id: params[:id])
-      return if !DiscourseWorkspaceGroups.workspace_root_group?(group)
-
-      users_from_params.each do |user|
-        next if !DiscourseWorkspaceGroups.group_owner?(group, user)
-
+      group.users.where(username: result[:usernames]).find_each do |user|
         DiscourseWorkspaceGroups.promote_workspace_owner!(group, user)
       end
+      result
     end
   end
 
-  GroupsController.prepend(::DiscourseWorkspaceGroups::SyncOwnersAfterGroupPromotion)
+  GroupOwnerManager.prepend(::DiscourseWorkspaceGroups::SyncOwnersAfterGroupPromotion)
 
   Discourse::Application.routes.prepend do
     get "c/*category_slug_path/:category_id/overview" =>
@@ -1164,33 +1163,33 @@ after_initialize do
       !DiscourseWorkspaceGroups::VoiceBinding.exists?(source_type: "category", source_id: id, enabled: false)
   end
   add_to_serializer(:current_user, :workspace_voice_can_start_dm) do
-    defined?(::Voice) && scope.can_start_voice_call?
+    defined?(::Live) && scope.can_start_live_call?
   end
 
   Discourse::Application.routes.prepend do
     get "/workspace-voice(/*path)" => "discourse_workspace_groups/voice#page"
   end
 
-  if defined?(::Voice::GuardianExtension)
-    # Prepend to Voice's module itself: it is installed into Guardian later in
+  if defined?(::Live::GuardianExtension)
+    # Prepend to Live's module itself: it is installed into Guardian later in
     # plugin initialization order, and must not supersede these restrictions.
-    ::Voice::GuardianExtension.prepend(DiscourseWorkspaceGroups::VoiceIntegration::GuardianPermissions)
-    ::Voice::Room.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomAudience)
-    ::Voice::RoomBroadcaster.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomBroadcasts)
-    ::Voice::RoomInviter.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ManagedInvites)
-    ::Voice::RoomsController.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ManagedRoomRequests)
-    ::Voice::RoomsController.before_action :check_workspace_voice_binding
-    ::Voice::RoomMembershipsController.include(DiscourseWorkspaceGroups::VoiceIntegration::ManagedMembershipRequests)
-    ::Voice::RoomMembershipsController.before_action :check_workspace_voice_membership
+    ::Live::GuardianExtension.prepend(DiscourseWorkspaceGroups::VoiceIntegration::GuardianPermissions)
+    ::Live::Room.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomAudience)
+    ::Live::RoomBroadcaster.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomBroadcasts)
+    ::Live::RoomInviter.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ManagedInvites)
+    ::Live::RoomsController.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ManagedRoomRequests)
+    ::Live::RoomsController.before_action :check_workspace_voice_binding
+    ::Live::RoomMembershipsController.include(DiscourseWorkspaceGroups::VoiceIntegration::ManagedMembershipRequests)
+    ::Live::RoomMembershipsController.before_action :check_workspace_voice_membership
 
-    ::Voice::ParticipantTracker.singleton_class.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ParticipantRemoval)
-    ::Voice::ParticipantTracker.singleton_class.prepend(DiscourseWorkspaceGroups::VoiceIntegration::CallAnnouncements)
-    ::Voice::AdminRoomsController.prepend(DiscourseWorkspaceGroups::VoiceIntegration::AdminRoomRequests)
-    ::Voice::AdminRoomsController.before_action :check_workspace_voice_admin_room, only: %i[show update destroy end_call]
-    ::Voice::RoomSerializer.attributes :workspace_voice
-    ::Voice::RoomSerializer.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomDetails)
+    ::Live::ParticipantTracker.singleton_class.prepend(DiscourseWorkspaceGroups::VoiceIntegration::ParticipantRemoval)
+    ::Live::ParticipantTracker.singleton_class.prepend(DiscourseWorkspaceGroups::VoiceIntegration::CallAnnouncements)
+    ::Live::AdminRoomsController.prepend(DiscourseWorkspaceGroups::VoiceIntegration::AdminRoomRequests)
+    ::Live::AdminRoomsController.before_action :check_workspace_voice_admin_room, only: %i[show update destroy end_call]
+    ::Live::RoomSerializer.attributes :workspace_voice
+    ::Live::RoomSerializer.prepend(DiscourseWorkspaceGroups::VoiceIntegration::RoomDetails)
 
-    ::Voice::Room.after_destroy do
+    ::Live::Room.after_destroy do
       bindings = DiscourseWorkspaceGroups::VoiceBinding.where(room_id: id)
       # A call whose participants lapsed without leaving still gets its announcement closed.
       bindings.each(&:announce_call_ended!)
@@ -1234,7 +1233,7 @@ after_initialize do
       )
     end
     on(:site_setting_changed) do |name, _old_value, _new_value|
-      if name.to_s.in?(%w[voice_enabled chat_enabled chat_allowed_groups direct_message_enabled_groups])
+      if name.to_s.in?(%w[live_enabled chat_enabled chat_allowed_groups direct_message_enabled_groups])
         DiscourseWorkspaceGroups::VoiceBinding.reconcile_active!
       end
     end

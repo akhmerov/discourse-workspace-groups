@@ -8,11 +8,11 @@ import { i18n } from "discourse-i18n";
 export default class WorkspaceVoiceHeader extends Component {
   @service siteSettings;
   @service currentUser;
-  @optionalService voiceWebrtc;
+  @optionalService liveWebrtc;
 
   <template>
     {{#if this.currentUser}}
-      {{#if this.siteSettings.voice_enabled}}
+      {{#if this.siteSettings.live_enabled}}
         <li class="header-dropdown-toggle workspace-voice-header">
           <LinkTo
             aria-label={{i18n "discourse_workspace_groups.voice.title"}}
@@ -21,7 +21,7 @@ export default class WorkspaceVoiceHeader extends Component {
             @route="workspace-voice.index"
           >
             {{dIcon "microphone"}}
-            {{#if this.voiceWebrtc.activeRoomId}}<span
+            {{#if this.liveWebrtc.activeRoomId}}<span
                 class="workspace-voice-header__active"
               ></span>{{/if}}
           </LinkTo>

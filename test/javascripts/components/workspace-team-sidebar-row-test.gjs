@@ -12,10 +12,6 @@ module(
     setupRenderingTest(hooks);
 
     hooks.beforeEach(function () {
-      class ChatStateManagerStub extends Service {
-        prefersFullPage = sinon.spy();
-      }
-
       class WorkspaceVoiceStub extends Service {
         channels = [];
       }
@@ -23,11 +19,7 @@ module(
         rooms = [];
       }
       this.owner.register("service:workspace-voice", WorkspaceVoiceStub);
-      this.owner.register("service:voice-rooms", VoiceRoomsStub);
-      this.owner.register(
-        "service:chat-state-manager",
-        ChatStateManagerStub
-      );
+      this.owner.register("service:live-rooms", VoiceRoomsStub);
     });
 
     hooks.afterEach(function () {
@@ -42,7 +34,7 @@ module(
             rooms = [{ id: 7, active_participants: [{ id: 1 }] }];
           }
           this.owner.register("service:workspace-voice", WorkspaceVoiceStub);
-          this.owner.register("service:voice-rooms", VoiceRoomsStub);
+          this.owner.register("service:live-rooms", VoiceRoomsStub);
           this.categoryLink = {
             category: { id: 29 }, name: "lab-notes", route: "discovery.category",
             model: "quantum-tinkerer/lab-notes/29", currentWhen: "discovery.category",
@@ -136,6 +128,8 @@ module(
 
     test("routes chat icon clicks without a full reload", async function (assert) {
       sinon.stub(DiscourseURL, "routeTo");
+      const chatStateManager = this.owner.lookup("service:chat-state-manager");
+      sinon.spy(chatStateManager, "prefersFullPage");
 
       this.categoryLink = {
         name: "lab-notes",
@@ -166,10 +160,8 @@ module(
 
       await click(".workspace-team-sidebar__mode-button:last-child");
 
-      const chatStateManager = this.owner.lookup("service:chat-state-manager");
-
-      assert.true(chatStateManager.prefersFullPage.calledOnce);
-      assert.true(DiscourseURL.routeTo.calledOnceWith("/chat/c/lab-notes/15"));
+      assert.true(chatStateManager.prefersFullPage.calledOnce, "switches to full-page chat once");
+      assert.true(DiscourseURL.routeTo.calledOnceWith("/chat/c/lab-notes/15"), "opens the chat route once");
     });
 
     test("highlights the channel in chat mode and marks the chat button as the current page", async function (assert) {

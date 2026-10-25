@@ -21,8 +21,8 @@ export default class WorkspaceVoiceCallDetails extends Component {
   @service router;
   @service workspaceVoice;
   @service messageBus;
-  @optionalService voiceRooms;
-  @optionalService voiceWebrtc;
+  @optionalService liveRooms;
+  @optionalService liveWebrtc;
 
   @tracked toolbarElement;
   @tracked bodyElement;
@@ -49,11 +49,11 @@ export default class WorkspaceVoiceCallDetails extends Component {
   }
 
   get room() {
-    if (this.router.currentRouteName !== "voice-room") {
+    if (this.router.currentRouteName !== "live-room") {
       return null;
     }
-    const model = getOwner(this).lookup("controller:voice-room")?.model;
-    return this.voiceRooms.rooms.find((room) => room.id === model?.id) || model;
+    const model = getOwner(this).lookup("controller:live-room")?.model;
+    return this.liveRooms.rooms.find((room) => room.id === model?.id) || model;
   }
 
   get details() {
@@ -63,7 +63,7 @@ export default class WorkspaceVoiceCallDetails extends Component {
   get joined() {
     return (
       this.room &&
-      this.voiceWebrtc.connectionStateFor(this.room.id) === "connected"
+      this.liveWebrtc.connectionStateFor(this.room.id) === "connected"
     );
   }
 
@@ -109,12 +109,12 @@ export default class WorkspaceVoiceCallDetails extends Component {
       return;
     }
     const toolbar = this.details
-      ? document.querySelector(".voice-room-page__title-row")
+      ? document.querySelector(".live-room-page__title-row")
       : null;
     const body = this.details
-      ? document.querySelector(".voice-room-page__body")
+      ? document.querySelector(".live-room-page__body")
       : null;
-    const page = body?.closest(".voice-room-page");
+    const page = body?.closest(".live-room-page");
     if (this.pageElement !== page) {
       this.pageElement?.classList.remove("workspace-voice-room-page");
       this.resizeObserver?.disconnect();
@@ -123,7 +123,7 @@ export default class WorkspaceVoiceCallDetails extends Component {
         page.classList.add("workspace-voice-room-page");
         this.resizeObserver?.observe(page.parentElement);
         for (const element of page.querySelectorAll(
-          ".voice-room-page__controls, .voice-room-page__header"
+          ".live-room-page__controls, .live-room-page__header"
         )) {
           this.resizeObserver?.observe(element);
         }
@@ -154,7 +154,7 @@ export default class WorkspaceVoiceCallDetails extends Component {
     for (const part of ["controls", "header"]) {
       const height =
         this.pageElement
-          .querySelector(`.voice-room-page__${part}`)
+          .querySelector(`.live-room-page__${part}`)
           ?.getBoundingClientRect().height || 0;
       this.pageElement.style.setProperty(
         `--workspace-voice-${part}-height`,
@@ -256,7 +256,7 @@ export default class WorkspaceVoiceCallDetails extends Component {
     }
     this.inviting = true;
     try {
-      const result = await ajax(`/voice/rooms/${this.room.id}/invites`, {
+      const result = await ajax(`/live/rooms/${this.room.id}/invites`, {
         type: "POST",
         data: { usernames: this.usernames },
       });
@@ -279,7 +279,7 @@ export default class WorkspaceVoiceCallDetails extends Component {
       await ajax(`/workspace-groups/voice/rooms/${this.room.id}/session`, {
         type: "DELETE",
       });
-      await this.voiceWebrtc.leave(this.room);
+      await this.liveWebrtc.leave(this.room);
     } catch (error) {
       popupAjaxError(error);
     }
@@ -367,20 +367,20 @@ export default class WorkspaceVoiceCallDetails extends Component {
       {{#if this.joined}}
         {{#if this.showInvite}}
           <DModal
-            class="voice-invite-modal workspace-voice-invite-modal"
+            class="live-invite-modal workspace-voice-invite-modal"
             @closeModal={{this.closeInvite}}
             @title={{i18n "discourse_workspace_groups.voice.invite"}}
           >
             <:body>
               <p>{{i18n "discourse_workspace_groups.voice.invite_help"}}</p>
-              <div class="voice-invite-modal__search-row">
+              <div class="live-invite-modal__search-row">
                 <UserChooser
-                  class="voice-invite-modal__user-chooser"
+                  class="live-invite-modal__user-chooser"
                   @onChange={{this.chooseUsers}}
                   @value={{this.usernames}}
                 />
                 <DButton
-                  class="btn-primary voice-invite-modal__send"
+                  class="btn-primary live-invite-modal__send"
                   @action={{this.invite}}
                   @disabled={{this.inviting}}
                   @icon="paper-plane"

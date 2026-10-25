@@ -32,7 +32,7 @@ module(
     setupRenderingTest(hooks);
 
     hooks.beforeEach(function () {
-      this.siteSettings.voice_enabled = true;
+      this.siteSettings.live_enabled = true;
       this.siteSettings.category_colors = "0088CC";
       sinon.stub(this.owner.lookup("service:workspace-voice"), "refresh");
       this.closeModal = () => {};

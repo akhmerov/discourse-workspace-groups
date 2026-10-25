@@ -7,22 +7,22 @@ module DiscourseWorkspaceGroups
     end
 
     module GuardianPermissions
-      def can_join_voice_room?(room)
+      def can_join_live_room?(room)
         binding = VoiceIntegration.binding(room)
         binding ? binding.can_join?(user) : super
       end
 
-      def can_see_voice_room?(room)
+      def can_see_live_room?(room)
         binding = VoiceIntegration.binding(room)
         binding ? binding.can_join?(user) : super
       end
 
-      def can_manage_voice_room?(room)
+      def can_manage_live_room?(room)
         binding = VoiceIntegration.binding(room)
         binding ? binding.can_manage?(user) : super
       end
 
-      def can_invite_to_voice_room?(room)
+      def can_invite_to_live_room?(room)
         binding = VoiceIntegration.binding(room)
         binding ? (binding.available? && binding.member?(user)) : super
       end
@@ -46,11 +46,11 @@ module DiscourseWorkspaceGroups
       def publish_participants(...)
         if (binding = VoiceIntegration.binding(room))
           binding.reconcile!
-          ::Voice::ParticipantTracker.list(room.id).each do |user|
-            metadata = ::Voice::ParticipantTracker.get_metadata(room.id, user.id)
+          ::Live::ParticipantTracker.list(room.id).each do |user|
+            metadata = ::Live::ParticipantTracker.get_metadata(room.id, user.id)
             metadata[:workspace_voice_guest] = !binding.member?(user)
             metadata[:role] = binding.can_manage?(user) ? "moderator" : "participant"
-            ::Voice::ParticipantTracker.update_metadata(room.id, user.id, metadata)
+            ::Live::ParticipantTracker.update_metadata(room.id, user.id, metadata)
           end
         end
         super
@@ -77,9 +77,9 @@ module DiscourseWorkspaceGroups
         end
         # Native private invites create a membership before checking access.
         # Managed rooms never grant independent native membership.
-        invite = ::Voice::Invite.create_or_find_by!(
+        invite = ::Live::Invite.create_or_find_by!(
           room_id: @room.id, user_id: @user.id, invited_by_id: @inviter.id,
-        ) { |record| record.source = ::Voice::Invite::SOURCES[:notification] }
+        ) { |record| record.source = ::Live::Invite::SOURCES[:notification] }
         notify!(invite) if should_notify?(invite)
         @user
       end
@@ -103,7 +103,7 @@ module DiscourseWorkspaceGroups
       def kick
         binding = VoiceIntegration.binding(@room)
         if binding
-          guardian.ensure_can_manage_voice_room!(@room)
+          guardian.ensure_can_manage_live_room!(@room)
           binding.guest_grants.where(user_id: params.require(:user_id)).delete_all
         end
         super
@@ -178,8 +178,8 @@ module DiscourseWorkspaceGroups
 
     module AdminRoomRequests
       def index
-        rooms = ::Voice::Room.where.not(id: VoiceBinding.where.not(room_id: nil).select(:room_id))
-        render_serialized rooms.includes(:creator, :room_memberships).order(:name), ::Voice::AdminRoomSerializer, root: :rooms
+        rooms = ::Live::Room.where.not(id: VoiceBinding.where.not(room_id: nil).select(:room_id))
+        render_serialized rooms.includes(:creator, :room_memberships).order(:name), ::Live::AdminRoomSerializer, root: :rooms
       end
 
       def end_call
@@ -217,7 +217,7 @@ module DiscourseWorkspaceGroups
           source_id: binding.source_id,
           conversation_url: binding.member?(scope.user) ? binding.conversation_url : nil,
           audience: binding.source_type == "category" ? binding.source.name : I18n.t("discourse_workspace_groups.voice.dm_audience"),
-          guest_user_ids: binding.guest_grants.pluck(:user_id) & ::Voice::ParticipantTracker.user_ids(object.id),
+          guest_user_ids: binding.guest_grants.pluck(:user_id) & ::Live::ParticipantTracker.user_ids(object.id),
           is_guest: !binding.member?(scope.user),
           can_admit_guests: binding.allow_guests? && binding.source_type == "category" && binding.can_manage?(scope.user),
           allow_guests: binding.allow_guests?,

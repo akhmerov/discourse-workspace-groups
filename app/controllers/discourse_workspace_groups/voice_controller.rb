@@ -67,12 +67,12 @@ module DiscourseWorkspaceGroups
     def ring
       binding = VoiceBinding.find_by!(room_id: params.require(:room_id))
       raise Discourse::InvalidAccess unless binding.source_type == "dm" && binding.can_join?(current_user)
-      raise Discourse::InvalidAccess unless guardian.can_start_voice_call?
+      raise Discourse::InvalidAccess unless guardian.can_start_live_call?
       room = binding.native_room
-      raise Discourse::InvalidAccess unless room && ::Voice::ParticipantTracker.participant_session?(room.id, current_user.id)
+      raise Discourse::InvalidAccess unless room && ::Live::ParticipantTracker.participant_session?(room.id, current_user.id)
       RateLimiter.new(current_user, "workspace-voice-ring", 3, 1.minute).performed!
-      users = User.where(id: binding.audience_ids - ::Voice::ParticipantTracker.user_ids(room.id))
-      ::Voice::RoomInviter.invite!(room: room, inviter: current_user, users: users)
+      users = User.where(id: binding.audience_ids - ::Live::ParticipantTracker.user_ids(room.id))
+      ::Live::RoomInviter.invite!(room: room, inviter: current_user, users: users)
       render json: success_json
     end
 
@@ -103,14 +103,14 @@ module DiscourseWorkspaceGroups
     def participant_binding
       binding = VoiceBinding.find_by!(room_id: params.require(:room_id))
       binding.reconcile!
-      unless binding.can_join?(current_user) && ::Voice::ParticipantTracker.participant_session?(binding.room_id, current_user.id)
+      unless binding.can_join?(current_user) && ::Live::ParticipantTracker.participant_session?(binding.room_id, current_user.id)
         raise Discourse::InvalidAccess
       end
       binding
     end
 
     def serialize_room(room)
-      ::Voice::RoomSerializer.new(room, scope: guardian, root: false).as_json
+      ::Live::RoomSerializer.new(room, scope: guardian, root: false).as_json
     end
   end
 end

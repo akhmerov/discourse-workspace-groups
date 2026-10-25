@@ -22,7 +22,7 @@ RSpec.describe "Channel calls" do
     SiteSetting.discourse_workspace_groups_enabled = true
     chat_system_bootstrap
     SiteSetting.enable_public_channels = true
-    SiteSetting.voice_enabled = true
+    SiteSetting.live_enabled = true
 
     workspace.workspace_group.add(member)
     channel.workspace_group.add(member)
@@ -44,5 +44,15 @@ RSpec.describe "Channel calls" do
 
     expect(page).to have_css(".workspace-channel-context__members", visible: :all)
     expect(page).to have_no_css(call_link, visible: :all)
+  end
+
+  it "opens the native Live room with workspace call controls" do
+    sign_in(member)
+    visit("/workspace-voice/channels/#{channel.id}")
+
+    expect(page).to have_css(".live-room-page.workspace-voice-room-page")
+    expect(page).to have_css(".live-room-page__title-row .workspace-voice-call-toolbar")
+    expect(page).to have_css(".workspace-voice-conversation[href='/chat/c/#{chat_channel.slug}/#{chat_channel.id}']")
+    expect(DiscourseWorkspaceGroups::VoiceBinding.find_by!(source_id: channel.id).native_room).to be_a(Live::Room)
   end
 end

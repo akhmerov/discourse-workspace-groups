@@ -38,7 +38,7 @@ module(
         test("channel Voice rooms use their owning workspace, including direct links", function (assert) {
           const workspace = { id: 40, workspace_kind: "workspace" };
           const channel = { id: 41, parent_category_id: 40, workspace_kind: "channel" };
-          for (const route of ["voice-room", "workspace-voice.channel"]) {
+          for (const route of ["live-room", "workspace-voice.channel"]) {
             const services = {
               router: { currentRouteName: route, currentRoute: { attributes: {
                 workspace_voice: { source_type: "category", source_id: 41, is_guest: false },
@@ -62,7 +62,7 @@ module(
             { source_type: "category", source_id: 999, is_guest: false },
           ]) {
             const services = {
-              router: { currentRouteName: "voice-room", currentRoute: { attributes: { workspace_voice: binding } } },
+              router: { currentRouteName: "live-room", currentRoute: { attributes: { workspace_voice: binding } } },
               site: { categoriesList: [{ id: 41, workspace_kind: "channel" }] },
               chat: { activeChannel: { isCategoryChannel: true, chatableId: 41 } },
             };

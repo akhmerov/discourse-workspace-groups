@@ -170,10 +170,10 @@ export default class WorkspaceChannelSettingsModal extends Component {
               : {}),
             channel_mode: this.channelMode,
             events_enabled: this.showEventsEnabled && this.eventsEnabled,
-            ...(this.siteSettings.voice_enabled
+            ...(this.siteSettings.live_enabled
               ? { voice_enabled: this.voiceEnabled }
               : {}),
-            ...(this.siteSettings.voice_enabled && this.canManage
+            ...(this.siteSettings.live_enabled && this.canManage
               ? { voice_allow_guests: this.voiceAllowGuests }
               : {}),
             color: this.color,
@@ -276,7 +276,7 @@ export default class WorkspaceChannelSettingsModal extends Component {
           @showChannelWideMentions={{this.showChannelWideMentions}}
           @showEventsEnabled={{this.showEventsEnabled}}
           @showVisibility={{this.canEditVisibility}}
-          @showVoiceEnabled={{this.siteSettings.voice_enabled}}
+          @showVoiceEnabled={{this.siteSettings.live_enabled}}
           @styleType={{this.styleType}}
           @voiceAllowGuests={{this.voiceAllowGuests}}
           @voiceEnabled={{this.voiceEnabled}}

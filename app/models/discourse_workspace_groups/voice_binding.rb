@@ -13,8 +13,8 @@ module DiscourseWorkspaceGroups
     validates :source_id, presence: true, uniqueness: { scope: :source_type }
 
     def self.integration_enabled?
-      SiteSetting.discourse_workspace_groups_enabled && defined?(::Voice::Room) &&
-        SiteSetting.voice_enabled
+      SiteSetting.discourse_workspace_groups_enabled && defined?(::Live::Room) &&
+        SiteSetting.live_enabled
     end
 
     def self.account_eligible?(user)
@@ -67,7 +67,7 @@ module DiscourseWorkspaceGroups
     def can_join?(user)
       return false unless available? && self.class.account_eligible?(user)
       return false unless member?(user) || guest?(user)
-      source_type != "dm" || session_active? || user.guardian.can_start_voice_call?
+      source_type != "dm" || session_active? || user.guardian.can_start_live_call?
     end
 
     def can_manage?(user)
@@ -85,7 +85,7 @@ module DiscourseWorkspaceGroups
     end
 
     def session_active?
-      room_id.present? && (::Voice::ParticipantTracker.user_ids(room_id) & regular_user_ids).any?
+      room_id.present? && (::Live::ParticipantTracker.user_ids(room_id) & regular_user_ids).any?
     end
 
     def guest?(user)
@@ -95,7 +95,7 @@ module DiscourseWorkspaceGroups
     def invite_guest!(inviter, user)
       with_lock do
         raise Discourse::InvalidAccess unless allow_guests? && source_type == "category" && can_manage?(inviter)
-        raise Discourse::InvalidAccess unless room_id && ::Voice::ParticipantTracker.participant_session?(room_id, inviter.id)
+        raise Discourse::InvalidAccess unless room_id && ::Live::ParticipantTracker.participant_session?(room_id, inviter.id)
         return false unless self.class.account_eligible?(user)
         guest_grants.find_or_create_by!(user_id: user.id)
       end
@@ -105,7 +105,7 @@ module DiscourseWorkspaceGroups
     def clear_session_data!
       with_lock do
         guest_grants.delete_all
-        ::Voice::Invite.where(room_id: room_id).delete_all if room_id
+        ::Live::Invite.where(room_id: room_id).delete_all if room_id
         Discourse.redis.del(messages_key)
         announce_call_ended!
       end
@@ -162,7 +162,7 @@ module DiscourseWorkspaceGroups
       raise Discourse::InvalidParameters.new(:text) if text.blank? || text.length > 2000
       message = nil
       with_lock do
-        raise Discourse::InvalidAccess unless can_join?(user) && ::Voice::ParticipantTracker.participant_session?(room_id, user.id)
+        raise Discourse::InvalidAccess unless can_join?(user) && ::Live::ParticipantTracker.participant_session?(room_id, user.id)
         message = { id: SecureRandom.hex(12), user_id: user.id, username: user.username, text: text, created_at: Time.current.to_f }
         Discourse.redis.multi do |redis|
           redis.lpush(messages_key, message.to_json)
@@ -170,13 +170,13 @@ module DiscourseWorkspaceGroups
           redis.expire(messages_key, 1.day.to_i)
         end
       end
-      ids = ::Voice::ParticipantTracker.user_ids(room_id) & audience_ids
+      ids = ::Live::ParticipantTracker.user_ids(room_id) & audience_ids
       MessageBus.publish("/workspace-voice/messages/#{id}", { type: "refresh" }, user_ids: ids) if ids.any?
       message
     end
 
     def native_room
-      ::Voice::Room.find_by(id: room_id) if room_id
+      ::Live::Room.find_by(id: room_id) if room_id
     end
 
     def name
@@ -201,13 +201,13 @@ module DiscourseWorkspaceGroups
         raise Discourse::InvalidAccess unless can_join?(user)
         current = native_room
         if source_type == "dm" &&
-             (current.nil? || ::Voice::ParticipantTracker.user_ids(current.id).empty?) &&
-             !user.guardian.can_start_voice_call?
+             (current.nil? || ::Live::ParticipantTracker.user_ids(current.id).empty?) &&
+             !user.guardian.can_start_live_call?
           raise Discourse::InvalidAccess
         end
-        clear_session_data! if current.nil? || ::Voice::ParticipantTracker.user_ids(current.id).empty?
+        clear_session_data! if current.nil? || ::Live::ParticipantTracker.user_ids(current.id).empty?
         unless current
-          current = ::Voice::Room.create!(
+          current = ::Live::Room.create!(
             creator: Discourse.system_user,
             name: name.to_s.truncate(80),
             slug: "workspace-#{source_type}-#{source_id}",
@@ -236,23 +236,23 @@ module DiscourseWorkspaceGroups
       room = native_room
       return unless room
       unless allow_guests?
-        ::Voice::Invite.where(room_id: room.id, user_id: guest_grants.select(:user_id)).delete_all
+        ::Live::Invite.where(room_id: room.id, user_id: guest_grants.select(:user_id)).delete_all
         guest_grants.delete_all
       end
       clear_session_data! if end_session || !available? || !session_active?
-      ::Voice::ParticipantTracker.user_ids(room.id).each do |user_id|
+      ::Live::ParticipantTracker.user_ids(room.id).each do |user_id|
         user = User.find_by(id: user_id)
         next if !end_session && can_join?(user)
-        ::Voice::Session.where(room_id: room.id, user_id: user_id, left_at: nil).update_all(left_at: Time.current)
-        ::Voice::ParticipantTracker.mark_left(room.id, user_id)
-        ::Voice::ParticipantTracker.remove(room.id, user_id)
-        ::Voice::UserStatusManager.clear_voice_status(user) if user
-        ::Voice::Livekit::RoomServiceClient.remove_participant(room, user_id)
+        ::Live::Session.where(room_id: room.id, user_id: user_id, left_at: nil).update_all(left_at: Time.current)
+        ::Live::ParticipantTracker.mark_left(room.id, user_id)
+        ::Live::ParticipantTracker.remove(room.id, user_id)
+        ::Live::UserStatusManager.clear_live_status(user) if user
+        ::Live::Livekit::RoomServiceClient.remove_participant(room, user_id)
         MessageBus.publish("/workspace-voice/revoked/#{user_id}", { room_id: room.id }, user_ids: [user_id])
       end
-      if ::Voice::ParticipantTracker.user_ids(room.id).empty?
-        ::Voice::Livekit::RoomServiceClient.delete_room(room)
-        ::Voice::ParticipantTracker.clear_transport_pin(room.id)
+      if ::Live::ParticipantTracker.user_ids(room.id).empty?
+        ::Live::Livekit::RoomServiceClient.delete_room(room)
+        ::Live::ParticipantTracker.clear_transport_pin(room.id)
       end
     end
 
@@ -276,16 +276,16 @@ module DiscourseWorkspaceGroups
     # ends, so reconciling every bound room would grow with history; Voice's recently
     # active index bounds the candidates to calls from its safety window.
     def self.reconcile_active!(scope = all, user_id: nil)
-      return unless defined?(::Voice::ParticipantTracker) && table_exists?
+      return unless defined?(::Live::ParticipantTracker) && table_exists?
       occupied(scope, user_id: user_id).find_each(&:reconcile!)
     end
 
     def self.occupied(scope = all, user_id: nil)
       candidate_room_ids =
-        scope.where(room_id: ::Voice::ParticipantTracker.recently_active_room_ids).pluck(:room_id)
+        scope.where(room_id: ::Live::ParticipantTracker.recently_active_room_ids).pluck(:room_id)
       return scope.none if candidate_room_ids.empty?
       occupied_room_ids =
-        ::Voice::ParticipantTracker.room_states(candidate_room_ids).filter_map do |room_id, state|
+        ::Live::ParticipantTracker.room_states(candidate_room_ids).filter_map do |room_id, state|
           room_id if user_id ? state.participant_ids.include?(user_id) : state.participant_ids.any?
         end
       scope.where(room_id: occupied_room_ids)

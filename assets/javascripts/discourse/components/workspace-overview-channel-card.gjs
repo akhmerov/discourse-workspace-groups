@@ -114,7 +114,7 @@ export default class WorkspaceOverviewChannelCard extends Component {
 
   get showsVoiceIcon() {
     return (
-      this.siteSettings.voice_enabled &&
+      this.siteSettings.live_enabled &&
       this.channel?.voice_enabled &&
       !this.channel?.archived
     );

@@ -1313,7 +1313,8 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
       custom_channel = private_channel
       custom_channel.update!(color: "ABCDEF")
       ordinary_subcategory =
-        Fabricate(:category, parent_category: workspace, user: admin, color: "112233")
+        Fabricate(:category, parent_category: workspace, user: admin, color: "112233",
+                  permissions: { workspace.workspace_group.name => :full })
 
       sign_in(admin)
 

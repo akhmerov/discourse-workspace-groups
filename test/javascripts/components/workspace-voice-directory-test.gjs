@@ -18,8 +18,8 @@ module(
       class VoiceWebrtcStub extends Service {
         activeRoomId = null;
       }
-      this.owner.register("service:voice-rooms", VoiceRoomsStub);
-      this.owner.register("service:voice-webrtc", VoiceWebrtcStub);
+      this.owner.register("service:live-rooms", VoiceRoomsStub);
+      this.owner.register("service:live-webrtc", VoiceWebrtcStub);
     });
 
     test("distinguishes a failed load from an empty directory", async function (assert) {

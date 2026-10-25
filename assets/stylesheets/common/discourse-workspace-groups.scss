@@ -1378,13 +1378,13 @@ body.workspace-team-sidebar-scroll-lock {
   background: var(--success);
 }
 
-.voice-room-page.workspace-voice-room-page {
+.live-room-page.workspace-voice-room-page {
   height: calc(100dvh - var(--workspace-voice-page-top, 4em) - 1rem);
 }
 
 // Keep channel actions inside the native room's bounded layout. An extra
 // panel above the room pushes the media controls below the viewport.
-.voice-room-page__title-row:has(.workspace-voice-call-toolbar) {
+.live-room-page__title-row:has(.workspace-voice-call-toolbar) {
   flex-wrap: wrap;
 }
 
@@ -1458,7 +1458,7 @@ body.workspace-team-sidebar-scroll-lock {
 }
 
 @media (width <= 600px) {
-  .voice-room-page__body:has(.workspace-voice-call-messages) {
+  .live-room-page__body:has(.workspace-voice-call-messages) {
     position: relative;
   }
 

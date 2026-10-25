@@ -10,7 +10,7 @@ export default class WorkspaceVoiceChannelRoute extends DiscourseRoute {
   }
 
   afterModel(room) {
-    this.router.replaceWith("voice-room", room.slug, {
+    this.router.replaceWith("live-room", room.slug, {
       queryParams: { join: true },
     });
   }

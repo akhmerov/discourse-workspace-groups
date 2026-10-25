@@ -76,6 +76,17 @@ RSpec.describe GroupsController do
   end
 
   describe "membership ownership changes" do
+    it "promotes channel owners through the shared owner service" do
+      workspace.workspace_group.add(user)
+      private_channel.workspace_group.add(user)
+
+      result = GroupOwnerManager.add(Guardian.new(admin), workspace.workspace_group, user_id: user.id)
+
+      expect(result[:usernames]).to eq([user.username])
+      expect(private_channel.workspace_group.group_users.find_by!(user: user)).to be_owner
+      expect(user.reload.trust_level).to eq(DiscourseWorkspaceGroups::TEAM_OWNER_TRUST_LEVEL)
+    end
+
     it "preserves trust levels when adding ordinary members" do
       user.update!(trust_level: TrustLevel[2])
 

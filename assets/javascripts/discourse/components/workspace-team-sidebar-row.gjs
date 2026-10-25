@@ -16,7 +16,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
   @service("chat-state-manager") chatStateManager;
   @service siteSettings;
   @service workspaceVoice;
-  @optionalService voiceRooms;
+  @optionalService liveRooms;
 
   get voiceAvailable() {
     const id = this.args.category?.id || this.args.categoryLink.category?.id;
@@ -30,7 +30,7 @@ export default class WorkspaceTeamSidebarRow extends Component {
       (item) => item.category_id === this.voiceCategoryId
     );
     return (
-      this.voiceRooms?.rooms.find((room) => room.id === channel?.room?.id)
+      this.liveRooms?.rooms.find((room) => room.id === channel?.room?.id)
         ?.active_participants?.length || 0
     );
   }

@@ -8,8 +8,8 @@ export default class WorkspaceVoiceService extends Service {
   @service currentUser;
   @service messageBus;
   @service siteSettings;
-  @optionalService voiceRooms;
-  @optionalService voiceWebrtc;
+  @optionalService liveRooms;
+  @optionalService liveWebrtc;
 
   @tracked channels = [];
   @tracked loadFailed = false;
@@ -60,7 +60,7 @@ export default class WorkspaceVoiceService extends Service {
   async refresh() {
     if (
       !this.currentUser ||
-      !this.siteSettings.voice_enabled ||
+      !this.siteSettings.live_enabled ||
       !this.siteSettings.discourse_workspace_groups_enabled
     ) {
       this.channels = [];
@@ -82,28 +82,28 @@ export default class WorkspaceVoiceService extends Service {
     if (sequence === this.refreshSequence) {
       this.loadFailed = false;
     }
-    await this.voiceRooms.ready;
+    await this.liveRooms.ready;
     if (revision !== this.roomRevision) {
       return;
     }
     // Forget expired or revoked channel rooms so a shared slug is resolved
     // again. A slow directory response must not discard a newer preparation.
-    for (const room of this.voiceRooms.rooms) {
+    for (const room of this.liveRooms.rooms) {
       const binding = room.workspace_voice;
       if (
         binding?.source_type === "category" &&
         !binding.is_guest &&
         !result.channels.some((channel) => channel.room?.id === room.id)
       ) {
-        if (this.voiceWebrtc.activeRoomId === room.id) {
-          this.voiceWebrtc.leave(room, { skipServer: true });
+        if (this.liveWebrtc.activeRoomId === room.id) {
+          this.liveWebrtc.leave(room, { skipServer: true });
         }
-        this.voiceRooms.handleDirectoryEvent({ type: "destroyed", room });
+        this.liveRooms.handleDirectoryEvent({ type: "destroyed", room });
       }
     }
     result.channels.forEach((channel) => {
       if (channel.room) {
-        this.voiceRooms.upsertRoom(channel.room);
+        this.liveRooms.upsertRoom(channel.room);
       }
     });
     this.channels = result.channels;
@@ -116,8 +116,8 @@ export default class WorkspaceVoiceService extends Service {
       data: { source_type: sourceType, source_id: sourceId },
     });
     this.roomRevision++;
-    await this.voiceRooms.ready;
-    this.voiceRooms.upsertRoom(result.room);
+    await this.liveRooms.ready;
+    this.liveRooms.upsertRoom(result.room);
     if (sourceType === "category") {
       this.channels = this.channels.map((channel) =>
         channel.category_id === Number(sourceId)
@@ -138,10 +138,10 @@ export default class WorkspaceVoiceService extends Service {
   @bind
   async revoked(message) {
     this.roomRevision++;
-    const room = this.voiceRooms.roomById(message.room_id);
+    const room = this.liveRooms.roomById(message.room_id);
     if (room) {
-      this.voiceWebrtc.leave(room, { skipServer: true });
-      this.voiceRooms.handleDirectoryEvent({ type: "destroyed", room });
+      this.liveWebrtc.leave(room, { skipServer: true });
+      this.liveRooms.handleDirectoryEvent({ type: "destroyed", room });
     }
     await this.refresh();
   }
