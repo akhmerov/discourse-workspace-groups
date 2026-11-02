@@ -51,7 +51,7 @@ RSpec.describe "Channel calls" do
     visit("/workspace-voice/channels/#{channel.id}")
 
     expect(page).to have_css(".live-room-page.workspace-voice-room-page")
-    expect(page).to have_css(".live-room-page__title-row .workspace-voice-call-toolbar")
+    expect(page).to have_css(".live-room-header .workspace-voice-call-toolbar")
     expect(page).to have_css(".workspace-voice-conversation[href='/chat/c/#{chat_channel.slug}/#{chat_channel.id}']")
     expect(DiscourseWorkspaceGroups::VoiceBinding.find_by!(source_id: channel.id).native_room).to be_a(Live::Room)
   end

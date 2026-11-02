@@ -1384,7 +1384,7 @@ body.workspace-team-sidebar-scroll-lock {
 
 // Keep channel actions inside the native room's bounded layout. An extra
 // panel above the room pushes the media controls below the viewport.
-.live-room-page__title-row:has(.workspace-voice-call-toolbar) {
+.live-room-header:has(.workspace-voice-call-toolbar) {
   flex-wrap: wrap;
 }
 
@@ -1458,7 +1458,7 @@ body.workspace-team-sidebar-scroll-lock {
 }
 
 @media (width <= 600px) {
-  .live-room-page__body:has(.workspace-voice-call-messages) {
+  .live-room-page__main:has(.workspace-voice-call-messages) {
     position: relative;
   }
 

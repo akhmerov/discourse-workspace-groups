@@ -109,10 +109,10 @@ export default class WorkspaceVoiceCallDetails extends Component {
       return;
     }
     const toolbar = this.details
-      ? document.querySelector(".live-room-page__title-row")
+      ? document.querySelector(".live-room-page .live-room-header")
       : null;
     const body = this.details
-      ? document.querySelector(".live-room-page__body")
+      ? document.querySelector(".live-room-page__main")
       : null;
     const page = body?.closest(".live-room-page");
     if (this.pageElement !== page) {
@@ -123,7 +123,7 @@ export default class WorkspaceVoiceCallDetails extends Component {
         page.classList.add("workspace-voice-room-page");
         this.resizeObserver?.observe(page.parentElement);
         for (const element of page.querySelectorAll(
-          ".live-room-page__controls, .live-room-page__header"
+          ".live-room-page__controls, .live-room-header"
         )) {
           this.resizeObserver?.observe(element);
         }
@@ -151,10 +151,13 @@ export default class WorkspaceVoiceCallDetails extends Component {
       "--workspace-voice-page-top",
       `${top}px`
     );
-    for (const part of ["controls", "header"]) {
+    for (const [part, selector] of [
+      ["controls", ".live-room-page__controls"],
+      ["header", ".live-room-header"],
+    ]) {
       const height =
         this.pageElement
-          .querySelector(`.live-room-page__${part}`)
+          .querySelector(selector)
           ?.getBoundingClientRect().height || 0;
       this.pageElement.style.setProperty(
         `--workspace-voice-${part}-height`,
