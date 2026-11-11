@@ -193,10 +193,7 @@ export default class WorkspaceTeamSidebarBlock extends Component {
       return true;
     }
 
-    return !(
-      this.sidebarState.collapsedSections.has(this.collapsedSidebarSectionKey) ||
-      this.isCollapsed
-    );
+    return !this.sidebarState.isSectionCollapsed(this.sectionName);
   }
 
   get headerCaretIcon() {

@@ -36,6 +36,28 @@ RSpec.describe "Workspace sidebar active channel" do
     JS
   end
 
+  it "lets the member collapse and expand channels across reloads" do
+    sidebar = PageObjects::Components::WorkspaceSidebar.new
+    sign_in(member)
+    visit(first_channel.url)
+    expect(sidebar).to have_expanded_section
+    expect(sidebar).to have_channel("First room")
+
+    sidebar.toggle
+    expect(sidebar).to have_collapsed_section
+    expect(sidebar).to have_no_channel("First room")
+    page.refresh
+    expect(sidebar).to have_collapsed_section
+    expect(sidebar).to have_no_channel("First room")
+
+    sidebar.toggle
+    expect(sidebar).to have_expanded_section
+    expect(sidebar).to have_channel("First room")
+    page.refresh
+    expect(sidebar).to have_expanded_section
+    expect(sidebar).to have_channel("First room")
+  end
+
   it "highlights only the channel being viewed" do
     sign_in(member)
     visit(first_channel.url)
