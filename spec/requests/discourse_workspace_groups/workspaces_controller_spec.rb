@@ -74,6 +74,28 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
     Chat::Channel.find_by(chatable_type: "Category", chatable_id: category.id)
   end
 
+  describe "#enable" do
+    fab!(:fresh_category) do
+      Fabricate(:category, name: "Fresh team #{SecureRandom.hex(4)}", user: admin)
+    end
+
+    it "starts the team with an auto-joined General channel" do
+      sign_in(admin)
+      post "/workspace-groups/workspaces/#{fresh_category.id}/enable.json"
+
+      expect(response).to have_http_status(:ok)
+      fresh_category.reload
+      starter = fresh_category.subcategories.sole
+      expect(starter.name).to eq("General")
+      expect(fresh_category.workspace_auto_join_channel_ids).to eq([starter.id])
+      expect(category_chat_channel(starter)).to be_present
+
+      newcomer = Fabricate(:user)
+      fresh_category.workspace_group.add(newcomer)
+      expect(starter.workspace_group.group_users.exists?(user_id: newcomer.id)).to eq(true)
+    end
+  end
+
   describe "#show" do
     it "omits the stock category description template" do
       workspace.create_category_definition

@@ -178,6 +178,7 @@ module ::DiscourseWorkspaceGroups
       category = ::DiscourseWorkspaceGroups::EnsureWorkspace.new(
         category: @workspace,
         user: current_user,
+        create_starter_channel: true,
       ).call
 
       render json: { category_id: category.id, category_url: category.url }

@@ -30,6 +30,26 @@ RSpec.describe DiscourseWorkspaceGroups::EnsureWorkspace do
     DiscourseWorkspaceGroups.sync_workspace_root_permissions!(workspace)
   end
 
+  it "creates no channels unless a starter channel is requested" do
+    workspace = described_class.new(category: category, user: admin).call
+
+    expect(workspace.subcategories).to be_empty
+    expect(workspace.workspace_auto_join_channel_ids).to be_empty
+  end
+
+  it "creates a public auto-join starter channel when requested" do
+    SiteSetting.chat_enabled = true
+
+    workspace = described_class.new(category: category, user: admin, create_starter_channel: true).call
+
+    starter = workspace.reload.subcategories.sole
+    expect(starter.name).to eq("General")
+    expect(starter.workspace_channel?).to eq(true)
+    expect(starter.workspace_visibility).to eq(DiscourseWorkspaceGroups::VISIBILITY_PUBLIC)
+    expect(starter.workspace_group.group_users.find_by(user_id: admin.id)&.owner).to eq(true)
+    expect(workspace.workspace_auto_join_channel_ids).to eq([starter.id])
+  end
+
   it "does not grant everyone access by default" do
     workspace = described_class.new(category: category, user: admin).call
 

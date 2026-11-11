@@ -6,20 +6,23 @@ module ::DiscourseWorkspaceGroups
                 :user,
                 :public_read,
                 :members_can_create_channels,
-                :members_can_create_private_channels
+                :members_can_create_private_channels,
+                :create_starter_channel
 
     def initialize(
       category:,
       user:,
       public_read: false,
       members_can_create_channels: SiteSetting.discourse_workspace_groups_members_can_create_channels,
-      members_can_create_private_channels: members_can_create_channels
+      members_can_create_private_channels: members_can_create_channels,
+      create_starter_channel: false
     )
       @category = category
       @user = user
       @public_read = public_read
       @members_can_create_channels = members_can_create_channels
       @members_can_create_private_channels = members_can_create_private_channels
+      @create_starter_channel = create_starter_channel
     end
 
     def call
@@ -27,6 +30,17 @@ module ::DiscourseWorkspaceGroups
       raise Discourse::InvalidAccess unless category.parent_category_id.blank?
       raise Discourse::InvalidParameters.new(:subcategories) if category.subcategories.exists?
 
+      ActiveRecord::Base.transaction do
+        enable_workspace!
+        add_starter_channel! if create_starter_channel
+      end
+
+      category
+    end
+
+    private
+
+    def enable_workspace!
       workspace_group = ensure_workspace_group
 
       category.custom_fields[WORKSPACE_ENABLED] = true
@@ -38,11 +52,25 @@ module ::DiscourseWorkspaceGroups
         members_can_create_channels && members_can_create_private_channels
       category.set_permissions(root_permissions(workspace_group))
       category.save!
-
-      category
     end
 
-    private
+    # Start a team with one public channel that every member joins, so the team
+    # opens on a usable conversation instead of an empty channel list.
+    def add_starter_channel!
+      return if user.blank?
+
+      channel =
+        DiscourseWorkspaceGroups::CreateChannel.new(
+          workspace: category,
+          user: user,
+          name: I18n.t("discourse_workspace_groups.starter_channel.name"),
+          description: I18n.t("discourse_workspace_groups.starter_channel.description"),
+          visibility: VISIBILITY_PUBLIC,
+        ).call
+
+      category.custom_fields[WORKSPACE_AUTO_JOIN_CHANNEL_IDS] = [channel.id]
+      category.save_custom_fields(true)
+    end
 
     def ensure_workspace_group
       group = category.workspace_group

@@ -5,6 +5,9 @@ en:
       dm_audience: "Participants in this direct message"
       call_started: "📞 Started a call. [Join the call](%{url})"
       call_ended: "📞 Call ended."
+    starter_channel:
+      name: "General"
+      description: "Team-wide discussion and announcements."
     errors:
       channel_name_collision: "Choose a more distinct channel name. This one collides with an existing internal group name."
       usernames_required: "Enter at least one username."
