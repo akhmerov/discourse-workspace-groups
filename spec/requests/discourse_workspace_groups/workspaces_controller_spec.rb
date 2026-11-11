@@ -75,6 +75,17 @@ RSpec.describe DiscourseWorkspaceGroups::WorkspacesController do
   end
 
   describe "#show" do
+    it "omits the stock category description template" do
+      workspace.create_category_definition
+      sign_in(admin)
+      get "/workspace-groups/workspaces/#{workspace.id}.json"
+
+      expect(response).to have_http_status(:ok)
+      expect(workspace.reload.topic.first_post.raw).to start_with(Category.post_template[..50])
+      expect(response.parsed_body.dig("workspace", "about_raw")).to be_nil
+      expect(response.parsed_body.dig("workspace", "about_cooked")).to be_nil
+    end
+
     it "shows only joined channels to non-workspace guests" do
       private_channel.workspace_group.add(guest_user)
       public_channel

@@ -67,6 +67,12 @@ module ::DiscourseWorkspaceGroups
       !category.workspace_root?
   end
 
+  def self.category_template_post?(post)
+    return false if post.blank?
+
+    post.raw.to_s.strip.start_with?(Category.post_template[..50])
+  end
+
   def self.workspace_group_name(category)
     descriptive_group_name("team", category.slug.presence || category.name, category.id)
   end

@@ -752,6 +752,7 @@ module ::DiscourseWorkspaceGroups
     def serialize_workspace(workspace_member:, workspace: @workspace, all_active_channels: nil, **)
       group = workspace.workspace_group
       about_post = workspace.topic&.first_post
+      about_is_template = DiscourseWorkspaceGroups.category_template_post?(about_post)
       can_manage = guardian.can_manage_workspace?(workspace)
       auto_join_channel_options =
         if can_manage
@@ -788,8 +789,8 @@ module ::DiscourseWorkspaceGroups
         member_count: can_view_members && group.present? ? group.group_users.count : nil,
         members_url: can_view_members ? group_members_url(group) : nil,
         can_view_members: can_view_members,
-        about_cooked: about_post&.cooked || workspace.description,
-        about_raw: about_post&.raw,
+        about_cooked: about_is_template ? nil : about_post&.cooked || workspace.description,
+        about_raw: about_is_template ? nil : about_post&.raw,
         about_url: workspace.topic_url,
         public_read: workspace.workspace_root_public_read?,
         members_can_create_channels: workspace.workspace_members_can_create_channels?,
