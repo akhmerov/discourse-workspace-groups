@@ -21,6 +21,7 @@ import DiscourseURL from "discourse/lib/url";
 import dConcatClass from "discourse/ui-kit/helpers/d-concat-class";
 import dIcon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
+import WorkspaceTeamSidebarEmpty from "../components/workspace-team-sidebar-empty";
 import WorkspaceTeamSidebarRow from "../components/workspace-team-sidebar-row";
 import WorkspaceLoadRetries from "../lib/workspace-load-retries";
 import {
@@ -2676,9 +2677,15 @@ export default class WorkspaceTeamSidebarBlock extends Component {
                   {{/each}}
                 {{/unless}}
               {{else}}
-                <li class="workspace-team-sidebar__empty">
-                  {{this.noUnreadChannelsLabel}}
-                </li>
+                {{#if this.rows.length}}
+                  <li class="workspace-team-sidebar__empty">
+                    {{this.noUnreadChannelsLabel}}
+                  </li>
+                {{else}}
+                  <WorkspaceTeamSidebarEmpty
+                    @category={{this.workspaceCategory}}
+                  />
+                {{/if}}
               {{/each}}
             {{/if}}
           {{else}}

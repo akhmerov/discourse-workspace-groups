@@ -147,6 +147,23 @@ module(
       assert.deepEqual(scopedCategories, [workspace, channel]);
     });
 
+    test("scopes a workspace that has no visible channels yet", function (assert) {
+      const workspace = {
+        id: 40,
+        parent_category_id: null,
+        workspace_kind: "workspace",
+      };
+      const services = {
+        router: { currentRoute: { attributes: { category: workspace } } },
+        site: { categoriesList: [workspace] },
+        siteSettings: { allow_uncategorized_topics: false },
+        currentUser: {},
+      };
+
+      assert.deepEqual(sidebarScopedCategories(services), [workspace]);
+      assert.deepEqual(sidebarChannelCategories(services), []);
+    });
+
     test("uses the selected channel subset when the user narrowed sidebar categories", function (assert) {
       const workspace = {
         id: 40,

@@ -191,6 +191,11 @@ function scopedCategoriesFor(category, services) {
     }
   }
 
+  // A new team has no visible channels yet, but it is still the active scope.
+  if (category.workspace_kind === "workspace" && !category.parent_category_id) {
+    return [category];
+  }
+
   return [];
 }
 

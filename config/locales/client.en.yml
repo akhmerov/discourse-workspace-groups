@@ -113,6 +113,7 @@ en:
       drag_channels_here: "Drag channels here"
       drag_channel_to_reorder: "Drag to reorder"
       no_channels: "No channels"
+      no_channels_yet: "No channels yet."
       no_unread_channels: "No unread channels"
       sidebar_chat_load_failed: "Chat status for this workspace's channels could not be loaded."
       delete_channel_group_message: "Delete %{group_name}? Its channels will move to Other."
