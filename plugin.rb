@@ -1159,6 +1159,12 @@ after_initialize do
 
   require_relative "app/models/discourse_workspace_groups/voice_guest_grant"
   require_relative "app/models/discourse_workspace_groups/voice_binding"
+  # The feature plugin owns connections and UI; workspace glue extends its single manager hook.
+  register_modifier(:repo_activity_channel_manager) do |allowed, chat_channel, user|
+    allowed || (chat_channel.chatable_type == "Category" &&
+      DiscourseWorkspaceGroups.can_manage_workspace_channel?(chat_channel.chatable, user))
+  end
+
   require_relative "lib/discourse_workspace_groups/voice_integration"
   require_relative "app/controllers/discourse_workspace_groups/voice_controller"
 

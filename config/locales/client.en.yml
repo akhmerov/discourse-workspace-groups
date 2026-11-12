@@ -1,6 +1,7 @@
 en:
   js:
     discourse_workspace_groups:
+      repositories: "Repositories"
       retry: "Retry"
       voice:
         title: "Voice"

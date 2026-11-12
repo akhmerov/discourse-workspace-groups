@@ -4,6 +4,7 @@ import { action } from "@ember/object";
 import { service } from "@ember/service";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
+import optionalService from "discourse/lib/optional-service";
 import { not } from "discourse/truth-helpers";
 import DButton from "discourse/ui-kit/d-button";
 import DModal from "discourse/ui-kit/d-modal";
@@ -14,6 +15,7 @@ import WorkspaceChannelForm from "./workspace-channel-form";
 export default class WorkspaceChannelSettingsModal extends Component {
   @service siteSettings;
   @service workspaceVoice;
+  @optionalService repoActivity;
 
   @tracked name;
   @tracked description;
@@ -82,7 +84,9 @@ export default class WorkspaceChannelSettingsModal extends Component {
   }
 
   get canEditVisibility() {
-    return this.canManage && Boolean(this.workspace?.can_create_private_channel);
+    return (
+      this.canManage && Boolean(this.workspace?.can_create_private_channel)
+    );
   }
 
   get showChannelWideMentions() {
@@ -229,6 +233,20 @@ export default class WorkspaceChannelSettingsModal extends Component {
     }
   }
 
+  get canManageRepositories() {
+    return (
+      this.canManage &&
+      this.channel?.chat_channel_id &&
+      this.repoActivity?.enabled
+    );
+  }
+
+  @action
+  openRepositories() {
+    this.args.closeModal();
+    this.repoActivity.manage(this.channel.chat_channel_id);
+  }
+
   @action
   openMembers() {
     this.args.closeModal();
@@ -283,6 +301,14 @@ export default class WorkspaceChannelSettingsModal extends Component {
         />
       </:body>
       <:footer>
+        {{#if this.canManageRepositories}}
+          <DButton
+            @action={{this.openRepositories}}
+            @label="discourse_workspace_groups.repositories"
+            @icon="code-branch"
+            class="btn-default workspace-groups-repositories"
+          />
+        {{/if}}
         {{#if this.channel.can_view_members}}
           <DButton
             class="btn-default"
