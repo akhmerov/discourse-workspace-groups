@@ -55,6 +55,6 @@ RSpec.describe "Workspace repository settings" do
     find(".workspace-groups-repositories").click
     expect(page).to have_css(".repo-activity__manager", text: "Add repository")
     expect(page).to have_css(".repo-activity__connection h3", text: "sim-tools")
-    expect(page).to have_css(".repo-activity__toggles input", count: 8)
+    expect(page).to have_css(".repo-activity__toggles input", count: 9)
   end
 end
