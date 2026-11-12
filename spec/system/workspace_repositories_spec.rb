@@ -29,8 +29,7 @@ RSpec.describe "Workspace repository settings" do
     chat_system_bootstrap(owner)
     SiteSetting.repo_activity_enabled = true
     SiteSetting.discourse_workspace_groups_enabled = true
-    # This feature concerns channel settings; use the native alternative navigation.
-    SiteSetting.navigation_menu = "header dropdown"
+    SiteSetting.navigation_menu = "sidebar"
     workspace.workspace_group.add(owner)
     channel.workspace_group.add(owner)
     channel
