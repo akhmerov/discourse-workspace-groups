@@ -284,13 +284,6 @@ export default class WorkspaceOverviewChannelCard extends Component {
             {{/if}}
           </div>
 
-          <PluginOutlet
-            @name="workspace-overview-channel-repositories"
-            @outletArgs={{lazyHash
-              channel=this.channel
-              channels=@overviewChannels
-            }}
-          />
           {{#if this.descriptionCooked}}
             <DDecoratedHtml
               @className="cooked workspace-groups-overview__channel-description"
@@ -301,6 +294,15 @@ export default class WorkspaceOverviewChannelCard extends Component {
               {{this.channel.description}}
             </p>
           {{/if}}
+          <PluginOutlet
+            @name="workspace-overview-channel-repositories"
+            @outletArgs={{lazyHash
+              channel=this.channel
+              channels=@overviewChannels
+              canOpen=this.canOpenChannel
+              joined=this.channel.joined
+            }}
+          />
         </div>
 
         <div class="workspace-groups-overview__card-meta">
