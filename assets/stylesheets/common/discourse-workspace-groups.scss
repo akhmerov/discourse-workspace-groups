@@ -1006,6 +1006,11 @@ body.workspace-team-sidebar-scroll-lock {
   align-items: flex-start;
   gap: var(--space-3);
   justify-content: space-between;
+
+  > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }
 
 .workspace-groups-overview__channel-link {
