@@ -27,7 +27,7 @@ module ::DiscourseWorkspaceGroups
 
     def call
       raise Discourse::InvalidParameters.new(:category_id) if category.blank?
-      raise Discourse::InvalidAccess unless category.parent_category_id.blank?
+      raise Discourse::InvalidAccess if category.parent_category_id.present?
       raise Discourse::InvalidParameters.new(:subcategories) if category.subcategories.exists?
 
       ActiveRecord::Base.transaction do
