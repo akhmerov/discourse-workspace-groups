@@ -110,6 +110,7 @@ export default <template>
                 @onLeave={{@controller.leaveChannel}}
                 @onOpenMembers={{@controller.openChannelMembersModal}}
                 @onOpenSettings={{@controller.openChannelSettingsModal}}
+                @overviewChannels={{@controller.activeChannels}}
               />
             {{/each}}
           </div>

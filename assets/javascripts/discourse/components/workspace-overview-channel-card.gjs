@@ -4,6 +4,8 @@ import { on } from "@ember/modifier";
 import { LinkTo } from "@ember/routing";
 import { service } from "@ember/service";
 import { trustHTML } from "@ember/template";
+import PluginOutlet from "discourse/components/plugin-outlet";
+import lazyHash from "discourse/helpers/lazy-hash";
 import DButton from "discourse/ui-kit/d-button";
 import DDecoratedHtml from "discourse/ui-kit/d-decorated-html";
 import dFormatDate from "discourse/ui-kit/helpers/d-format-date";
@@ -282,6 +284,13 @@ export default class WorkspaceOverviewChannelCard extends Component {
             {{/if}}
           </div>
 
+          <PluginOutlet
+            @name="workspace-overview-channel-repositories"
+            @outletArgs={{lazyHash
+              channel=this.channel
+              channels=@overviewChannels
+            }}
+          />
           {{#if this.descriptionCooked}}
             <DDecoratedHtml
               @className="cooked workspace-groups-overview__channel-description"
